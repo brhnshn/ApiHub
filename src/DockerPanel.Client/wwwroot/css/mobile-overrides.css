@@ -1,0 +1,14 @@
+html,
+body {
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    touch-action: manipulation;
+}
+
+.mud-popover-provider,
+.mud-dialog-container {
+    max-width: 100vw;
+}

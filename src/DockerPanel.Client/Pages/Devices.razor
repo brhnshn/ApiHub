@@ -1,0 +1,359 @@
+@page "/devices"
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject DockerPanel.Client.Services.AppState AppState
+@inject PlatformInfo PlatformInfo
+
+<PageTitle>Cihaz Yönetimi - ApiHub</PageTitle>
+
+@if (PlatformInfo.IsMobileApp)
+{
+    <style>
+        h1, h2, h3, th, td, span, .mud-typography {
+            color: #f1f5f9 !important;
+        }
+        .mud-button-outlined {
+            color: #4edea3 !important;
+            border-color: rgba(78, 222, 163, 0.3) !important;
+        }
+        .mud-button-text {
+            color: #adc6ff !important;
+        }
+        .glass-panel {
+            background: rgba(23, 26, 33, 0.6) !important;
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        }
+    </style>
+}
+
+<div class="space-y-6">
+    <!-- Başlık Alanı -->
+    <div class="d-flex align-center justify-space-between mb-6">
+        <div>
+            <h1 class="text-slate-100 mb-1" style="font-size: 1.6rem; font-weight: 800; color: #0b1c30 !important;">Mobil Cihaz Yönetimi</h1>
+            <p style="color: #64748b; font-size: 13px;">ApiHub mobil uygulamasına bağlı cihazları ve aktif durumlarını izleyin.</p>
+        </div>
+        <MudButton Variant="Variant.Outlined" 
+                   StartIcon="@Icons.Material.Filled.Refresh" 
+                   OnClick="LoadDevices" 
+                   Disabled="_isRefreshing"
+                   Style="text-transform: none; font-weight: 700; border-radius: 8px; border-color: rgba(187, 202, 191, 0.4); color: #0b1c30;">
+            @if (_isRefreshing)
+            {
+                <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Yenileniyor...</span>
+            }
+            else
+            {
+                <span>Yenile</span>
+            }
+        </MudButton>
+    </div>
+
+    @if (!AppState.IsFcmConfigured)
+    {
+        <div class="pa-4 mb-4 rounded-xl border flex items-center gap-3 font-semibold text-xs" style="background: rgba(239, 68, 68, 0.08); color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
+            <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+            <span>Firebase (FCM) Simülasyon Modunda çalışıyor. Sunucuda <code>firebase-service-account.json</code> yetkilendirme dosyası bulunamadığı için mobil cihazlara gerçek push bildirimleri iletilemeyecektir!</span>
+        </div>
+    }
+
+    <!-- Bento İstatistik Kartları -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="w-full">
+            <div class="glass-panel pa-5 d-flex align-center justify-space-between" style="border-radius: 16px;">
+                <div>
+                    <p style="color: #64748b; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Toplam Cihaz</p>
+                    <h2 class="mt-2" style="font-size: 2.2rem; font-weight: 900; color: #0b1c30 !important;">@_totalCount</h2>
+                </div>
+                <div class="pa-3" style="background: rgba(99, 102, 241, 0.08); border-radius: 12px;">
+                    <MudIcon Icon="@Icons.Material.Filled.PhoneAndroid" Style="color: #6366f1; font-size: 32px;" />
+                </div>
+            </div>
+        </div>
+        
+        <div class="w-full">
+            <div class="glass-panel pa-5 d-flex align-center justify-space-between" style="border-radius: 16px;">
+                <div>
+                    <p style="color: #64748b; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Aktif Cihazlar</p>
+                    <div class="d-flex align-center mt-2 gap-3">
+                        <h2 style="font-size: 2.2rem; font-weight: 900; color: #0b1c30 !important;">@_activeCount</h2>
+                        <span class="pulse-green"></span>
+                    </div>
+                </div>
+                <div class="pa-3" style="background: rgba(16, 185, 129, 0.08); border-radius: 12px;">
+                    <MudIcon Icon="@Icons.Material.Filled.Sensors" Style="color: #10b981; font-size: 32px;" />
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full">
+            <div class="glass-panel pa-5 d-flex align-center justify-space-between" style="border-radius: 16px;">
+                <div>
+                    <p style="color: #64748b; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Desteklenen Platform</p>
+                    <div class="d-flex align-center gap-4 mt-3">
+                        <span style="font-size: 14px; font-weight: 700; color: #10b981;">
+                            Android (.APK)
+                        </span>
+                    </div>
+                </div>
+                <div class="pa-3" style="background: rgba(16, 185, 129, 0.08); border-radius: 12px;">
+                    <MudIcon Icon="@Icons.Material.Filled.Android" Style="color: #10b981; font-size: 32px;" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cihaz Tablosu -->
+    <div class="glass-panel pa-5" style="border-radius: 16px;">
+        @if (_isLoading)
+        {
+            <div class="d-flex flex-column align-center justify-center py-10">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-3" />
+                <p style="color: #64748b;">Cihaz listesi yükleniyor...</p>
+            </div>
+        }
+        else if (_devices == null || !_devices.Any())
+        {
+            <div class="text-center py-10">
+                <MudIcon Icon="@Icons.Material.Filled.Smartphone" Style="font-size: 48px; color: #cbd5e1;" Class="mb-3" />
+                <p style="color: #64748b; font-weight: 600; font-size: 14px;">Henüz kayıtlı cihaz yok</p>
+                <p style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Uygulamayı bir telefona kurup giriş yaptığınızda cihazınız burada listelenecektir.</p>
+            </div>
+        }
+        else
+        {
+            <div style="overflow-x: auto;">
+                <table class="w-full" style="border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid rgba(187, 202, 191, 0.4); text-align: left;">
+                            <th class="py-3" style="color: #0b1c30; font-weight: 700;">Cihaz Adı</th>
+                            <th class="py-3" style="color: #0b1c30; font-weight: 700;">Platform</th>
+                            <th class="py-3" style="color: #0b1c30; font-weight: 700;">Kayıt Tarihi</th>
+                            <th class="py-3" style="color: #0b1c30; font-weight: 700;">Son Görülme</th>
+                            <th class="py-3" style="color: #0b1c30; font-weight: 700;">Durum</th>
+                            <th class="py-3 text-right" style="color: #0b1c30; font-weight: 700; text-align: right;">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var dev in _devices)
+                        {
+                            <tr style="border-bottom: 1px solid rgba(187, 202, 191, 0.2); transition: background-color 0.2s;" class="hover:bg-slate-950/20">
+                                <td class="py-4" style="font-weight: 600; color: #0b1c30;">
+                                    <div class="d-flex align-center gap-2">
+                                        <MudIcon Icon="@Icons.Material.Filled.PhoneAndroid" 
+                                                 Style="color: #64748b; font-size: 20px;" />
+                                        <span>@dev.DeviceName</span>
+                                    </div>
+                                </td>
+                                <td class="py-4">
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold" 
+                                          style="background: rgba(16, 185, 129, 0.08); color: #10b981;">
+                                        Android (.APK)
+                                    </span>
+                                </td>
+                                <td class="py-4" style="color: #64748b;">@dev.CreatedAt.ToString("g")</td>
+                                <td class="py-4" style="color: #64748b;">@GetRelativeTimeString(dev.LastUsedAt)</td>
+                                <td class="py-4">
+                                    @if (dev.IsActive)
+                                    {
+                                        <div class="d-flex align-center gap-2">
+                                            <span class="pulse-green"></span>
+                                            <span style="color: #10b981; font-weight: 700; font-size: 12px;">Aktif</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex align-center gap-2">
+                                            <span style="width: 10px; height: 10px; background-color: #cbd5e1; border-radius: 50%; display: inline-block;"></span>
+                                            <span style="color: #94a3b8; font-weight: 600; font-size: 12px;">Pasif</span>
+                                        </div>
+                                    }
+                                </td>
+                                <td class="py-4 text-right" style="text-align: right;">
+                                    <div class="d-flex justify-end gap-2">
+                                        <MudTooltip Text="Test Bildirimi Gönder">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Send" 
+                                                           Color="Color.Success" 
+                                                           Size="Size.Small" 
+                                                           OnClick="@(() => SendTestNotification(dev))"
+                                                           Style="background: rgba(16, 185, 129, 0.05);" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="Cihazı Kaldır">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                           Color="Color.Error" 
+                                                           Size="Size.Small" 
+                                                           OnClick="@(() => PromptUnregister(dev))"
+                                                           Style="background: rgba(239, 68, 68, 0.05);" />
+                                        </MudTooltip>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Cihaz Silme Onay Modalı -->
+<MudDialog @bind-Visible="_deleteConfirmVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <DialogContent>
+        <div class="pa-4 text-center">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Style="font-size: 48px;" Class="mb-3" />
+            <h3 style="color: #0b1c30; font-weight: 800; font-size: 15px; margin-bottom: 8px;">Cihaz Bağlantısını Kes</h3>
+            <p style="color: #64748b; font-size: 13px;">
+                "<strong>@_deviceToDelete?.DeviceName</strong>" cihazının panelle olan bağlantısını kesmek istediğinizden emin misiniz?
+            </p>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <div class="d-flex justify-end gap-2 w-full pa-4">
+            <MudButton OnClick="@(() => _deleteConfirmVisible = false)" 
+                       Variant="Variant.Outlined"
+                       Style="text-transform: none; border-radius: 8px; font-weight: 700; border-color: rgba(187, 202, 191, 0.4); color: #0b1c30;">
+                Vazgeç
+            </MudButton>
+            <MudButton OnClick="ConfirmUnregister" 
+                       Variant="Variant.Filled" 
+                       Color="Color.Error"
+                       Style="text-transform: none; border-radius: 8px; font-weight: 700;">
+                Evet, Bağlantıyı Kes
+            </MudButton>
+        </div>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<DeviceResponseDto>? _devices;
+    private bool _isLoading = true;
+    private bool _isRefreshing = false;
+
+    private int _totalCount = 0;
+    private int _activeCount = 0;
+
+    // Delete confirmation states
+    private bool _deleteConfirmVisible = false;
+    private DeviceResponseDto? _deviceToDelete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDevices();
+    }
+
+    private async Task LoadDevices()
+    {
+        _isRefreshing = true;
+        try
+        {
+            using var cts = new System.Threading.CancellationTokenSource(3500);
+            _devices = await Http.GetFromJsonAsync<List<DeviceResponseDto>>("api/devices", cts.Token);
+            CalculateStats();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Cihaz listesi yüklenemedi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            _isRefreshing = false;
+        }
+    }
+
+    private void CalculateStats()
+    {
+        if (_devices == null) return;
+        _totalCount = _devices.Count;
+        _activeCount = _devices.Count(d => d.IsActive);
+    }
+
+    private void PromptUnregister(DeviceResponseDto device)
+    {
+        _deviceToDelete = device;
+        _deleteConfirmVisible = true;
+    }
+
+    private async Task ConfirmUnregister()
+    {
+        if (_deviceToDelete == null) return;
+        _deleteConfirmVisible = false;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/devices/unregister/{Uri.EscapeDataString(_deviceToDelete.Token)}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Cihaz bağlantısı başarıyla kesildi.", Severity.Success);
+                await LoadDevices();
+            }
+            else
+            {
+                Snackbar.Add("Cihaz silinemedi.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Cihaz silinirken hata oluştu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _deviceToDelete = null;
+        }
+    }
+
+    private async Task SendTestNotification(DeviceResponseDto device)
+    {
+        try
+        {
+            var response = await Http.PostAsync($"api/devices/test-notification?token={Uri.EscapeDataString(device.Token)}", null);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"✅ '{device.DeviceName}' cihazına test bildirimi gönderildi!", Severity.Success);
+            }
+            else
+            {
+                string errorMsg = "Test bildirimi gönderilemedi.";
+                try
+                {
+                    var errObj = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                    if (errObj.TryGetProperty("message", out var msg) || errObj.TryGetProperty("Message", out msg))
+                    {
+                        errorMsg = msg.GetString() ?? errorMsg;
+                    }
+                }
+                catch { /* JSON parse hatası — ham mesajı kullan */ }
+
+                Snackbar.Add($"❌ {errorMsg}", Severity.Error, config =>
+                {
+                    config.ShowCloseIcon = true;
+                    config.VisibleStateDuration = 6000;
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bildirim gönderilirken hata oluştu: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GetRelativeTimeString(DateTimeOffset time)
+    {
+        var diff = DateTimeOffset.UtcNow - time;
+        if (diff.TotalSeconds < 60) return "Az önce";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} dk önce";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} saat önce";
+        return $"{(int)diff.TotalDays} gün önce";
+    }
+
+    public class DeviceResponseDto
+    {
+        public string Token { get; set; } = string.Empty;
+        public string Platform { get; set; } = "Android";
+        public string DeviceName { get; set; } = "Bilinmeyen Cihaz";
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset LastUsedAt { get; set; }
+        public bool IsActive { get; set; }
+    }
+}

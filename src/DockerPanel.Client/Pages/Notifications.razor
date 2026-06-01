@@ -1,0 +1,488 @@
+@page "/notifications"
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject DockerPanel.Client.Services.AppState AppState
+
+<PageTitle>Bildirimler - ApiHub</PageTitle>
+
+<style>
+    /* Mobile dark notification theme */
+    .notif-page-bg {
+        min-height: 100vh;
+        background: #0b0e15;
+    }
+
+    .notif-card {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 10px;
+        transition: background 0.2s;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .notif-card.unread {
+        border-left: 3px solid #4edea3;
+        background: rgba(78, 222, 163, 0.05);
+    }
+
+    .notif-card:active {
+        background: rgba(255,255,255,0.08);
+    }
+
+    .notif-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #e1e2ec;
+        margin: 0 0 4px 0;
+        line-height: 1.3;
+    }
+
+    .notif-body {
+        font-size: 12px;
+        color: #9ba3b8;
+        line-height: 1.5;
+        margin: 0 0 8px 0;
+    }
+
+    .notif-time {
+        font-size: 10px;
+        color: #525870;
+        font-weight: 600;
+    }
+
+    .notif-unread-dot {
+        width: 8px;
+        height: 8px;
+        background: #4edea3;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+        flex-shrink: 0;
+        margin-top: 3px;
+        box-shadow: 0 0 8px rgba(78, 222, 163, 0.5);
+        animation: pulse-dot 2s infinite;
+    }
+
+    @@keyframes pulse-dot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.2); }
+    }
+
+    .notif-empty {
+        text-align: center;
+        padding: 60px 24px;
+    }
+
+    .notif-empty-icon {
+        font-size: 64px;
+        display: block;
+        margin: 0 auto 16px;
+        opacity: 0.3;
+        filter: grayscale(1);
+    }
+
+    .notif-badge {
+        background: rgba(78, 222, 163, 0.15);
+        color: #4edea3;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .action-btn {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 10px;
+        color: #9ba3b8;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 8px 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .action-btn:active { opacity: 0.7; }
+    .action-btn.danger { color: #f87171; border-color: rgba(248,113,113,0.2); }
+
+    .section-label {
+        font-size: 10px;
+        font-weight: 800;
+        color: #525870;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 20px 0 8px;
+    }
+
+    @@media (max-width: 767px) {
+        ::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+        * {
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+        }
+    }
+</style>
+
+@if (PlatformInfo.IsMobileApp)
+{
+    <!-- MOBILE VIEW: Dark Premium Notification Inbox -->
+    <div style="color:#e1e2ec; min-height:100vh;">
+        <!-- Header -->
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+            <div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <h1 style="font-size:22px; font-weight:900; color:#e1e2ec; margin:0;">Bildirimler</h1>
+                    @if (_unreadCount > 0)
+                    {
+                        <span class="notif-badge">@_unreadCount yeni</span>
+                    }
+                </div>
+                <p style="font-size:11px; color:#525870; margin:4px 0 0; font-weight:600;">
+                    Sistem uyarıları ve servis bildirimleri
+                </p>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        @if (_notifications != null && _notifications.Any())
+        {
+            <div style="display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap;">
+                @if (_unreadCount > 0)
+                {
+                    <button class="action-btn" @onclick="MarkAllRead">
+                        <span class="material-symbols-outlined" style="font-size:15px;">done_all</span>
+                        Tümünü Okundu İşaretle
+                    </button>
+                }
+                <button class="action-btn danger" @onclick="ClearAll">
+                    <span class="material-symbols-outlined" style="font-size:15px;">delete_sweep</span>
+                    Temizle
+                </button>
+            </div>
+        }
+
+        @if (_isLoading)
+        {
+            <!-- Skeleton Loading -->
+            @for (int i = 0; i < 4; i++)
+            {
+                <div class="notif-card" style="animation: pulse 1.5s ease-in-out infinite;">
+                    <div style="height:14px; background:rgba(255,255,255,0.06); border-radius:6px; margin-bottom:8px; width:60%;"></div>
+                    <div style="height:12px; background:rgba(255,255,255,0.04); border-radius:4px; margin-bottom:6px; width:90%;"></div>
+                    <div style="height:10px; background:rgba(255,255,255,0.03); border-radius:4px; width:30%;"></div>
+                </div>
+            }
+        }
+        else if (_notifications == null || !_notifications.Any())
+        {
+            <div class="notif-empty">
+                <span class="notif-empty-icon">🔔</span>
+                <p style="font-size:15px; font-weight:800; color:#525870; margin:0 0 6px;">Henüz bildirim yok</p>
+                <p style="font-size:12px; color:#3a3f52; margin:0;">Bir servis durduğunda veya kritik bir olay gerçekleştiğinde burada görünür.</p>
+            </div>
+        }
+        else
+        {
+            <!-- Group by Today / Earlier -->
+            @if (TodayNotifications.Any())
+            {
+                <div class="section-label">Bugün</div>
+                @foreach (var notif in TodayNotifications)
+                {
+                    <div class="notif-card @(notif.IsRead ? "" : "unread")" @onclick="() => HandleNotifClick(notif)">
+                        <div style="display:flex; align-items:flex-start; gap:6px;">
+                            @if (!notif.IsRead)
+                            {
+                                <span class="notif-unread-dot"></span>
+                            }
+                            <div style="flex:1; min-width:0;">
+                                <p class="notif-title">@notif.Title</p>
+                                <p class="notif-body">@notif.Body</p>
+                                <span class="notif-time">@GetRelativeTime(notif.SentAt)</span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(notif.DeepLink))
+                            {
+                                <span class="material-symbols-outlined" style="font-size:16px; color:#525870; flex-shrink:0; margin-top:2px;">chevron_right</span>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+
+            @if (EarlierNotifications.Any())
+            {
+                <div class="section-label">Önceki</div>
+                @foreach (var notif in EarlierNotifications)
+                {
+                    <div class="notif-card @(notif.IsRead ? "" : "unread")" @onclick="() => HandleNotifClick(notif)">
+                        <div style="display:flex; align-items:flex-start; gap:6px;">
+                            @if (!notif.IsRead)
+                            {
+                                <span class="notif-unread-dot"></span>
+                            }
+                            <div style="flex:1; min-width:0;">
+                                <p class="notif-title">@notif.Title</p>
+                                <p class="notif-body">@notif.Body</p>
+                                <span class="notif-time">@GetRelativeTime(notif.SentAt)</span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(notif.DeepLink))
+                            {
+                                <span class="material-symbols-outlined" style="font-size:16px; color:#525870; flex-shrink:0; margin-top:2px;">chevron_right</span>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        }
+    </div>
+}
+else
+{
+    <!-- WEB VIEW: Light themed -->
+    <div class="space-y-6">
+        <div class="d-flex align-center justify-space-between mb-6">
+            <div>
+                <div class="d-flex align-center gap-3">
+                    <h1 style="font-size:1.6rem; font-weight:800; color:#0b1c30; margin:0;">Bildirim Merkezi</h1>
+                    @if (_unreadCount > 0)
+                    {
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Style="font-weight:800;">@_unreadCount Yeni</MudChip>
+                    }
+                </div>
+                <p style="color:#64748b; font-size:13px; margin:4px 0 0;">FCM push bildirimleri ve sistem uyarıları</p>
+            </div>
+            <div class="d-flex gap-2">
+                @if (_unreadCount > 0)
+                {
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.DoneAll"
+                               OnClick="MarkAllRead" Style="text-transform:none; font-weight:700; border-radius:8px; border-color:rgba(187,202,191,0.4); color:#0b1c30;">
+                        Tümünü Okundu İşaretle
+                    </MudButton>
+                }
+                @if (_notifications?.Any() == true)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteSweep"
+                               OnClick="ClearAll" Style="text-transform:none; font-weight:700; border-radius:8px;">
+                        Temizle
+                    </MudButton>
+                }
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="LoadNotifications" Disabled="_isLoading"
+                           Style="text-transform:none; font-weight:700; border-radius:8px; border-color:rgba(187,202,191,0.4); color:#0b1c30;">
+                    Yenile
+                </MudButton>
+            </div>
+        </div>
+
+        <div class="glass-panel pa-5" style="border-radius:16px;">
+            @if (_isLoading)
+            {
+                <div class="d-flex flex-column align-center justify-center py-10">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-3" />
+                    <p style="color:#64748b;">Bildirimler yükleniyor...</p>
+                </div>
+            }
+            else if (_notifications == null || !_notifications.Any())
+            {
+                <div class="text-center py-10">
+                    <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Style="font-size:48px; color:#cbd5e1;" Class="mb-3" />
+                    <p style="color:#64748b; font-weight:600; font-size:14px;">Henüz bildirim yok</p>
+                    <p style="color:#94a3b8; font-size:12px; margin-top:4px;">FCM push bildirimleri burada listelenecek.</p>
+                </div>
+            }
+            else
+            {
+                <div style="overflow-x:auto;">
+                    <table class="w-full" style="border-collapse:collapse;">
+                        <thead>
+                            <tr style="border-bottom:2px solid rgba(187,202,191,0.4); text-align:left;">
+                                <th class="py-3" style="color:#0b1c30; font-weight:700;">Durum</th>
+                                <th class="py-3" style="color:#0b1c30; font-weight:700;">Başlık</th>
+                                <th class="py-3" style="color:#0b1c30; font-weight:700;">Mesaj</th>
+                                <th class="py-3" style="color:#0b1c30; font-weight:700;">Zaman</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var notif in _notifications)
+                            {
+                                <tr style="border-bottom:1px solid rgba(187,202,191,0.2); @(notif.IsRead ? string.Empty : "background:rgba(16,185,129,0.03);") cursor:pointer;" @onclick="() => HandleNotifClick(notif)" class="hover:bg-slate-950/20">
+                                    <td class="py-4">
+                                        @if (!notif.IsRead)
+                                        {
+                                            <span class="pulse-green"></span>
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="color:#cbd5e1; font-size:16px;" />
+                                        }
+                                    </td>
+                                    <td class="py-4" style="font-weight:700; color:#0b1c30; max-width:200px;">@notif.Title</td>
+                                    <td class="py-4" style="color:#64748b; font-size:13px; max-width:300px;">@notif.Body</td>
+                                    <td class="py-4" style="color:#94a3b8; font-size:12px; white-space:nowrap;">@GetRelativeTime(notif.SentAt)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Inject] private PlatformInfo PlatformInfo { get; set; } = default!;
+
+    private List<NotificationDto>? _notifications;
+    private bool _isLoading = true;
+    private int _unreadCount = 0;
+
+    private List<NotificationDto> TodayNotifications =>
+        _notifications?.Where(n => n.SentAt.ToLocalTime().Date == DateTime.Today).ToList() ?? new();
+
+    private List<NotificationDto> EarlierNotifications =>
+        _notifications?.Where(n => n.SentAt.ToLocalTime().Date < DateTime.Today).ToList() ?? new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotifications();
+    }
+
+    private async Task LoadNotifications()
+    {
+        _isLoading = true;
+        try
+        {
+            using var cts = new System.Threading.CancellationTokenSource(5000);
+            _notifications = await Http.GetFromJsonAsync<List<NotificationDto>>("api/notifications", cts.Token);
+            _unreadCount = _notifications?.Count(n => !n.IsRead) ?? 0;
+            AppState.UpdateNotificationUnreadCount(_unreadCount);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bildirimler yüklenemedi: {ex.Message}", Severity.Error);
+            _notifications = new();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task MarkAllRead()
+    {
+        try
+        {
+            var response = await Http.PostAsync("api/notifications/mark-all-read", null);
+            if (response.IsSuccessStatusCode)
+            {
+                if (_notifications != null)
+                    foreach (var n in _notifications) n.IsRead = true;
+                _unreadCount = 0;
+                AppState.UpdateNotificationUnreadCount(0);
+                Snackbar.Add("Tüm bildirimler okundu işaretlendi.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ClearAll()
+    {
+        try
+        {
+            var response = await Http.DeleteAsync("api/notifications");
+            if (response.IsSuccessStatusCode)
+            {
+                _notifications = new();
+                _unreadCount = 0;
+                AppState.UpdateNotificationUnreadCount(0);
+                Snackbar.Add("Tüm bildirimler silindi.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task HandleNotifClick(NotificationDto notif)
+    {
+        if (!notif.IsRead)
+        {
+            try
+            {
+                await Http.PostAsync($"api/notifications/{notif.Id}/read", null);
+                notif.IsRead = true;
+                _unreadCount = Math.Max(0, _unreadCount - 1);
+                AppState.UpdateNotificationUnreadCount(_unreadCount);
+                StateHasChanged();
+            }
+            catch { /* Görmezden gel */ }
+        }
+
+        // Deep link varsa yönlendir
+        if (!string.IsNullOrEmpty(notif.DeepLink) && notif.DeepLink.StartsWith("apihub://navigate"))
+        {
+            try
+            {
+                var uri = new Uri(notif.DeepLink);
+                var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                var path = queryParams["path"];
+                if (!string.IsNullOrEmpty(path))
+                {
+                    var projectId = queryParams["projectId"];
+                    if (!string.IsNullOrEmpty(projectId))
+                    {
+                        path += $"?projectId={projectId}";
+                    }
+                    NavigationManager.NavigateTo(path);
+                }
+            }
+            catch
+            {
+                // Fallback to replacement with fix
+                var path = notif.DeepLink.Replace("apihub://navigate?path=", "");
+                if (path.Contains("&") && !path.Contains("?"))
+                {
+                    int ampIndex = path.IndexOf('&');
+                    path = path.Substring(0, ampIndex) + "?" + path.Substring(ampIndex + 1);
+                }
+                NavigationManager.NavigateTo(path);
+            }
+        }
+    }
+
+    private static string GetRelativeTime(DateTimeOffset time)
+    {
+        var diff = DateTimeOffset.UtcNow - time;
+        if (diff.TotalSeconds < 60) return "Az önce";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} dk önce";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} saat önce";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} gün önce";
+        return time.LocalDateTime.ToString("d MMM, HH:mm");
+    }
+
+    public class NotificationDto
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Body { get; set; } = string.Empty;
+        public string? DeepLink { get; set; }
+        public DateTimeOffset SentAt { get; set; }
+        public bool IsRead { get; set; }
+    }
+}

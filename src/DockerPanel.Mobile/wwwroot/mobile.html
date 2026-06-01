@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>ApiHub</title>
+    <base href="/" />
+
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link href="css/app.css" rel="stylesheet" />
+    <link href="css/mobile-overrides.css" rel="stylesheet" />
+
+    <!-- Tailwind CSS, Premium Fonts & Material Symbols for Stitch UI -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        .glass {
+            background: rgba(16, 19, 26, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .pulse-dot {
+            box-shadow: 0 0 0 0 rgba(78, 222, 163, 0.7);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(78, 222, 163, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(78, 222, 163, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(78, 222, 163, 0); }
+        }
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-fixed": "#002113",
+                      "primary-fixed-dim": "#adc6ff",
+                      "primary-container": "#4d8eff",
+                      "on-secondary": "#003824",
+                      "on-surface-variant": "#c2c6d6",
+                      "surface-bright": "#363941",
+                      "secondary-container": "#00a572",
+                      "surface-container-highest": "#32353c",
+                      "surface": "#10131a",
+                      "primary-fixed": "#d8e2ff",
+                      "secondary-fixed-dim": "#4edea3",
+                      "on-tertiary-fixed": "#311400",
+                      "on-primary-fixed": "#001a42",
+                      "inverse-primary": "#005ac2",
+                      "surface-tint": "#adc6ff",
+                      "primary": "#adc6ff",
+                      "tertiary-container": "#df7412",
+                      "surface-container-lowest": "#0b0e15",
+                      "background": "#10131a",
+                      "on-secondary-container": "#00311f",
+                      "on-tertiary": "#502400",
+                      "on-secondary-fixed-variant": "#005236",
+                      "tertiary": "#ffb786",
+                      "secondary": "#4edea3",
+                      "on-primary": "#002e6a",
+                      "on-surface": "#e1e2ec",
+                      "on-primary-fixed-variant": "#004395",
+                      "on-error": "#690005",
+                      "inverse-surface": "#e1e2ec",
+                      "on-background": "#e1e2ec",
+                      "outline-variant": "#424754",
+                      "surface-dim": "#10131a",
+                      "surface-variant": "#32353c",
+                      "surface-container-high": "#272a31",
+                      "surface-container-low": "#191b23",
+                      "on-error-container": "#ffdad6",
+                      "secondary-fixed": "#6ffbbe",
+                      "tertiary-fixed": "#ffdcc6",
+                      "on-primary-container": "#00285d",
+                      "error-container": "#93000a",
+                      "error": "#ffb4ab",
+                      "tertiary-fixed-dim": "#ffb786",
+                      "on-tertiary-container": "#461f00",
+                      "outline": "#8c909f",
+                      "inverse-on-surface": "#2e3038",
+                      "surface-container": "#1d2027",
+                      "on-tertiary-fixed-variant": "#723600"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "container-padding": "16px",
+                      "grid-gutter": "12px",
+                      "card-padding": "16px",
+                      "stack-gap": "12px",
+                      "inline-gap": "8px"
+              },
+              "fontFamily": {
+                      "headline-md": ["Inter"],
+                      "label-xs": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "code-sm": ["JetBrains Mono"],
+                      "body-md": ["Inter"],
+                      "headline-lg": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "label-xs": ["11px", {"lineHeight": "16px", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "code-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            }
+          }
+        };
+    </script>
+
+    <script>
+        (function () {
+            var bootErrorShown = false;
+            var bootCompleted = false;
+
+            if (typeof window.checkForPwaUpdates !== "function") {
+                window.checkForPwaUpdates = function () {
+                    return "no-sw";
+                };
+            }
+
+            window.insertTextAtCursor = function (elementId, beforeTag, afterTag) {
+                var el = document.getElementById(elementId);
+                if (!el) return "";
+                var start = el.selectionStart;
+                var end = el.selectionEnd;
+                var text = el.value;
+                var selected = text.substring(start, end);
+                var replacement = beforeTag + selected + afterTag;
+                el.value = text.substring(0, start) + replacement + text.substring(end);
+                el.focus();
+                el.selectionStart = start + beforeTag.length;
+                el.selectionEnd = start + beforeTag.length + selected.length;
+                return el.value;
+            };
+
+            window.setupBottomSheetSwipe = function () {
+                var sheet = document.querySelector('.mobile-bottom-sheet');
+                var backdrop = document.querySelector('.mobile-sheet-backdrop');
+                if (!sheet || !backdrop || sheet.dataset.swipeInitialized === 'true') return;
+
+                sheet.dataset.swipeInitialized = 'true';
+                var startY = 0;
+                var currentY = 0;
+                var isDragging = false;
+
+                sheet.addEventListener('touchstart', function (e) {
+                    var touch = e.touches[0];
+                    startY = touch.clientY;
+                    currentY = startY;
+                    isDragging = true;
+                    sheet.style.transition = 'none';
+                }, { passive: true });
+
+                sheet.addEventListener('touchmove', function (e) {
+                    if (!isDragging) return;
+                    var touch = e.touches[0];
+                    currentY = touch.clientY;
+                    var diffY = currentY - startY;
+
+                    if (diffY > 0) {
+                        sheet.style.transform = 'translateY(' + diffY + 'px)';
+                        var opacity = Math.max(0, 0.4 - (diffY / 500));
+                        backdrop.style.backgroundColor = 'rgba(5, 5, 8, ' + opacity + ')';
+                    }
+                }, { passive: true });
+
+                sheet.addEventListener('touchend', function () {
+                    if (!isDragging) return;
+                    isDragging = false;
+                    var diffY = currentY - startY;
+
+                    backdrop.style.backgroundColor = '';
+
+                    if (diffY > 100) {
+                        // Smoothly animate the sheet completely down out of the viewport
+                        sheet.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                        sheet.style.transform = 'translateY(100%)';
+                        
+                        // Click backdrop after the slide down animation completes
+                        setTimeout(function () {
+                            backdrop.click();
+                            // Reset the transform so it opens fully next time
+                            sheet.style.transform = '';
+                        }, 250);
+                    } else {
+                        sheet.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                        sheet.style.transform = '';
+                    }
+                    startY = 0;
+                    currentY = 0;
+                });
+            };
+
+            window.hideLoader = function () {
+                bootCompleted = true;
+                var fallback = document.getElementById("boot-fallback");
+                if (fallback) {
+                    fallback.remove();
+                }
+            };
+
+            function hasBlazorRendered(app, fallback) {
+                if (!app) {
+                    return false;
+                }
+
+                for (var i = 0; i < app.children.length; i++) {
+                    if (!fallback || app.children[i] !== fallback) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            window.showBootError = function (message) {
+                if (bootErrorShown) {
+                    return;
+                }
+
+                bootErrorShown = true;
+                var fallback = document.getElementById("boot-fallback");
+                if (!fallback) {
+                    return;
+                }
+
+                fallback.innerHTML =
+                    '<div class="boot-card">' +
+                    '<div class="boot-title">ApiHub acilamadi</div>' +
+                    '<div class="boot-text">Uygulama arayuzu baslatilirken hata olustu.</div>' +
+                    '<pre class="boot-error">' + String(message || "Bilinmeyen hata") + '</pre>' +
+                    '</div>';
+            };
+
+            function isIgnorableBridgeMessage(message) {
+                var text = String(message || "").toLowerCase();
+                return text.indexOf("blazor has already started") >= 0;
+            }
+
+            window.addEventListener("error", function (event) {
+                if (isIgnorableBridgeMessage(event.message)) {
+                    event.preventDefault();
+                    return;
+                }
+
+                window.showBootError(event.message || "JavaScript hatasi");
+            });
+
+            window.addEventListener("unhandledrejection", function (event) {
+                var reason = event.reason && (event.reason.message || event.reason.toString());
+                if (isIgnorableBridgeMessage(reason)) {
+                    event.preventDefault();
+                    return;
+                }
+
+                window.showBootError(reason || "Beklenmeyen uygulama hatasi");
+            });
+
+            window.setTimeout(function () {
+                var fallback = document.getElementById("boot-fallback");
+                if (fallback && fallback.style.display !== "none") {
+                    var text = fallback.querySelector(".boot-wait-text");
+                    if (text) {
+                        text.textContent = "Uygulama yukleniyor, lutfen bekleyin...";
+                    }
+                }
+            }, 15000);
+
+            window.setTimeout(function () {
+                if (bootCompleted || bootErrorShown) {
+                    return;
+                }
+
+                var app = document.getElementById("app");
+                var fallback = document.getElementById("boot-fallback");
+                if (app && hasBlazorRendered(app, fallback)) {
+                    window.hideLoader();
+                    return;
+                }
+
+                window.showBootError("Blazor arayuzu 30 saniye icinde baslatilamadi. APK icindeki istemci paketi veya baslangic servisleri kontrol edilmeli.");
+            }, 30000);
+
+            window.addEventListener("DOMContentLoaded", function () {
+                var app = document.getElementById("app");
+                if (!app || !window.MutationObserver) {
+                    return;
+                }
+
+                var observer = new MutationObserver(function () {
+                    if (bootCompleted || bootErrorShown) {
+                        observer.disconnect();
+                        return;
+                    }
+
+                    var fallback = document.getElementById("boot-fallback");
+                    if (hasBlazorRendered(app, fallback)) {
+                        window.hideLoader();
+                        observer.disconnect();
+                    }
+                });
+
+                observer.observe(app, { childList: true });
+            });
+        })();
+    </script>
+</head>
+
+<body>
+    <div id="app">
+        <div id="boot-fallback" class="boot-shell">
+            <div class="boot-logo">
+                <span>API</span><strong>HUB</strong>
+            </div>
+            <div class="boot-spinner"></div>
+            <div class="boot-wait-text">Uygulama baslatiliyor...</div>
+        </div>
+    </div>
+
+    <style>
+        html,
+        body {
+            background: #05030f;
+            margin: 0;
+            min-height: 100%;
+        }
+
+        #app {
+            background: #05030f;
+            min-height: 100vh;
+        }
+
+        .boot-shell {
+            align-items: center;
+            background: #05030f;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .boot-logo {
+            align-items: center;
+            display: flex;
+            font-size: 2rem;
+            font-weight: 900;
+            gap: 4px;
+            margin-bottom: 20px;
+        }
+
+        .boot-logo span {
+            color: #3b82f6;
+            text-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+        }
+
+        .boot-logo strong {
+            color: #60a5fa;
+            text-shadow: 0 0 12px rgba(96, 165, 250, 0.5);
+        }
+
+        .boot-spinner {
+            animation: spin 1s linear infinite;
+            border: 3px solid rgba(59, 130, 246, 0.1);
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.25);
+            height: 40px;
+            width: 40px;
+        }
+
+        .boot-wait-text {
+            color: #cbd5e1;
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-top: 14px;
+        }
+
+        .boot-card {
+            background: #111827;
+            border: 1px solid rgba(16, 185, 129, 0.28);
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+            max-width: 520px;
+            padding: 20px;
+            text-align: left;
+            width: min(100%, 520px);
+        }
+
+        .boot-title {
+            color: #f8fafc;
+            font-size: 1.1rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .boot-text {
+            color: #cbd5e1;
+            font-size: 0.88rem;
+            margin-bottom: 12px;
+        }
+
+        .boot-error {
+            background: #020617;
+            border-radius: 8px;
+            color: #fca5a5;
+            font-size: 0.78rem;
+            margin: 0;
+            overflow: auto;
+            padding: 12px;
+            white-space: pre-wrap;
+        }
+
+        #blazor-error-ui {
+            background: #111827;
+            border-top: 1px solid rgba(190, 18, 60, 0.5);
+            bottom: 0;
+            box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.35);
+            color: #fca5a5;
+            display: none;
+            font: 13px Arial, sans-serif;
+            left: 0;
+            padding: 12px 44px 12px 14px;
+            position: fixed;
+            right: 0;
+            z-index: 100000;
+        }
+
+        #blazor-error-ui .reload {
+            color: #ffffff;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
+        #blazor-error-ui .dismiss {
+            color: #ffffff;
+            cursor: pointer;
+            position: absolute;
+            right: 14px;
+            top: 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+
+    <div id="blazor-error-ui">
+        Uygulama arayuzunde beklenmeyen bir hata olustu.
+        <a href="" class="reload">Yeniden yukle</a>
+        <a class="dismiss">x</a>
+    </div>
+
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+</body>
+</html>

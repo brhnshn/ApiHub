@@ -1,0 +1,517 @@
+@page "/settings"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject PlatformInfo PlatformInfo
+@inject JwtAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<PageTitle>Uygulama Ayarları - ApiHub</PageTitle>
+
+<style>
+    .bento-card-custom {
+        transition: all 0.3s ease;
+    }
+    .bento-card-custom:hover {
+        box-shadow: 0 8px 30px rgba(0, 108, 73, 0.05);
+    }
+    
+    .ios-toggle-custom {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        background-image: none !important; /* Tailwind checkbox checkmark eklentisini ezmek için */
+        background-color: #cbd5e1 !important; /* Açık mod kapalı rengi (gri) */
+        width: 48px !important;
+        height: 28px !important;
+        border-radius: 28px !important;
+        position: relative;
+        cursor: pointer;
+        outline: none;
+        border: none !important;
+        transition: background-color 0.25s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        display: inline-block;
+    }
+    
+    .ios-toggle-custom-mobile {
+        background-color: #39393d !important; /* Koyu mod (Mobil) kapalı rengi (iOS koyu gri) */
+    }
+    
+    .ios-toggle-custom::before {
+        content: '' !important;
+        position: absolute;
+        width: 24px !important;
+        height: 24px !important;
+        background: #ffffff !important;
+        border-radius: 50% !important;
+        top: 2px !important;
+        left: 2px !important;
+        transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.15), 0 3px 1px rgba(0,0,0,0.06) !important;
+        z-index: 2;
+    }
+    
+    .ios-toggle-custom:checked {
+        background-color: #34C759 !important; /* iOS Yeşil Aktif Rengi */
+    }
+    
+    .ios-toggle-custom:checked::before {
+        transform: translateX(20px) !important; /* 48px - 24px - 2px - 2px = 20px kayma */
+    }
+</style>
+
+<div class="space-y-6 @(PlatformInfo.IsMobileApp ? "text-[#e1e2ec]" : "text-[#0b1c30]")">
+    <!-- Üst Başlık -->
+    <div class="flex justify-between items-start gap-4">
+        <div>
+            <h2 class="text-2xl font-extrabold tracking-tight @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">Uygulama Ayarları</h2>
+            <p class="text-xs font-medium mt-1 @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-400")">ApiHub profilinizi ve arayüz tercihlerinizi kişiselleştirin.</p>
+        </div>
+        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border @(PlatformInfo.IsMobileApp ? "bg-[#4edea3]/10 border-[#4edea3]/20 text-[#4edea3]" : "bg-[#006c49]/10 border-[#006c49]/20 text-[#006c49]")">
+            <span class="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+            Sunucu Aktif
+        </div>
+    </div>
+
+    <!-- Bento Grid Düzeni -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+        
+        <!-- Section 1: Profil (Bento 5-cols) -->
+        <section class="md:col-span-5 bento-card-custom rounded-xl p-6 flex flex-col justify-between border shadow-xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")">
+            <div>
+                <span class="font-label-caps text-label-caps block mb-4 uppercase @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-400") font-bold tracking-wider text-[10px]">KULLANICI PROFİLİ</span>
+                <div class="flex items-center gap-6 mb-8">
+                    <div class="relative group">
+                        <img class="w-24 h-24 rounded-full border-2 object-cover shadow-md @(PlatformInfo.IsMobileApp ? "border-[#4edea3] bg-[#0d1016]" : "border-[#006c49] bg-white")"
+                             src="https://api.dicebear.com/7.x/bottts/svg?seed=@(_username)" alt="Kullanıcı Resmi">
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-lg @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">@_username</h2>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider @(PlatformInfo.IsMobileApp ? "bg-[#4edea3]/10 text-[#4edea3]" : "bg-[#006c49]/10 text-[#006c49]")">
+                                @(_role == "Administrator" ? "Yöneticisi" : "Müşteri")
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-3 rounded-xl p-4 border @(PlatformInfo.IsMobileApp ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-100")">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-slate-400 font-medium">İşletim Sistemi</span>
+                        <span class="font-bold font-mono @(PlatformInfo.IsMobileApp ? "text-[#4edea3]" : "text-[#006c49]")">Ubuntu 24.04</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-slate-400 font-medium">Panel Sürümü</span>
+                        <span class="font-bold font-mono @(PlatformInfo.IsMobileApp ? "text-[#4edea3]" : "text-[#006c49]")">v2.0 Stable</span>
+                    </div>
+                </div>
+            </div>
+            <button @onclick="HandleLogout" class="mt-8 flex items-center justify-center gap-2 w-full py-3 rounded-lg transition-all duration-300 font-bold active:scale-95 @(PlatformInfo.IsMobileApp ? "bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20" : "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100")" style="border-radius: 12px;">
+                <span class="material-symbols-outlined text-[20px]">logout</span>
+                Çıkış Yap
+            </button>
+        </section>
+
+        <!-- Section 2: Password & Security (Bento 7-cols) -->
+        <section class="md:col-span-7 bento-card-custom rounded-xl p-6 border shadow-xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")">
+            <span class="font-label-caps text-label-caps block mb-4 uppercase @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-400") font-bold tracking-wider text-[10px]">Şifre Değiştir ve Güvenlik</span>
+            
+            @if (!_isPasswordFormOpen)
+            {
+                <div class="flex flex-col items-center justify-center py-12 space-y-4">
+                    <div class="p-4 rounded-full @(PlatformInfo.IsMobileApp ? "bg-white/5 text-[#4edea3]" : "bg-[#006c49]/10 text-[#006c49]")">
+                        <span class="material-symbols-outlined text-4xl">lock</span>
+                    </div>
+                    <p class="text-xs text-center @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-400")">Hesap şifrenizi güncellemek için aşağıdaki butona tıklayın.</p>
+                    <button @onclick="() => _isPasswordFormOpen = true" class="w-full max-w-xs py-3 rounded-lg font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 @(PlatformInfo.IsMobileApp ? "bg-[#006c49] hover:bg-[#006c49]/90 shadow-[#006c49]/20" : "bg-[#006c49] hover:bg-[#006c49]/90 shadow-[#006c49]/20")" style="border-radius: 12px;">
+                        <span class="material-symbols-outlined text-[20px]">lock_open</span>
+                        Şifreyi Değiştir
+                    </button>
+                </div>
+            }
+            else
+            {
+                <EditForm Model="this" OnValidSubmit="HandlePasswordChange" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Mevcut Şifre</label>
+                        <input class="w-full rounded-lg px-4 py-3 outline-none transition-all font-mono text-xs @(PlatformInfo.IsMobileApp ? "bg-white/5 border border-white/10 text-white focus:border-[#4edea3]" : "bg-slate-50 border border-slate-200 text-[#0b1c30] focus:border-[#006c49]")" placeholder="••••••••" type="password" @bind-value="_currentPassword" style="border-radius: 8px;" />
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Yeni Şifre</label>
+                            <input class="w-full rounded-lg px-4 py-3 outline-none transition-all font-mono text-xs @(PlatformInfo.IsMobileApp ? "bg-white/5 border border-white/10 text-white focus:border-[#4edea3]" : "bg-slate-50 border border-slate-200 text-[#0b1c30] focus:border-[#006c49]")" placeholder="••••••••" type="password" @bind-value="_newPassword" style="border-radius: 8px;" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Yeni Şifre (Tekrar)</label>
+                            <input class="w-full rounded-lg px-4 py-3 outline-none transition-all font-mono text-xs @(PlatformInfo.IsMobileApp ? "bg-white/5 border border-white/10 text-white focus:border-[#4edea3]" : "bg-slate-50 border border-slate-200 text-[#0b1c30] focus:border-[#006c49]")" placeholder="••••••••" type="password" @bind-value="_confirmPassword" style="border-radius: 8px;" />
+                        </div>
+                    </div>
+                    <div class="pt-4 flex gap-2">
+                        <button type="button" @onclick="() => _isPasswordFormOpen = false" class="flex-1 py-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold active:scale-[0.98] transition-all" style="border-radius: 12px;">İptal</button>
+                        <button type="submit" disabled="@_isUpdatingPassword" class="flex-1 py-3 rounded-lg text-white font-bold hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg @(PlatformInfo.IsMobileApp ? "bg-[#006c49] shadow-[#006c49]/20" : "bg-[#006c49] shadow-[#006c49]/20")" style="border-radius: 12px;">
+                            @if (_isUpdatingPassword)
+                            {
+                                <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <span>Güncelleniyor...</span>
+                            }
+                            else
+                            {
+                                <span class="material-symbols-outlined text-[20px]">security</span>
+                                <span>Şifreyi Güncelle</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            }
+        </section>
+
+        <!-- Section 3: Notifications (Bento 12-cols) -->
+        <section class="md:col-span-12 bento-card-custom rounded-xl p-6 border shadow-xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")">
+            <div class="flex items-center justify-between mb-6">
+                <span class="font-label-caps text-label-caps block uppercase @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-400") font-bold tracking-wider text-[10px]">Bildirim ve Anlık Akış Ayarları</span>
+                <span class="text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider @(PlatformInfo.IsMobileApp ? "bg-[#4edea3]/10 text-[#4edea3]" : "bg-[#006c49]/10 text-[#006c49]")">REAL-TIME ACTIVE</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+                <!-- Option 1 -->
+                <div class="flex items-center justify-between py-4 border-b border-slate-100/10 group">
+                    <div>
+                        <p class="font-semibold text-xs @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">Konteyner Çökme Alarmları</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Konteyner durduğunda anlık bildirim gönder</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" @bind="_containerCrashAlert" class='@($"ios-toggle-custom {(PlatformInfo.IsMobileApp ? "ios-toggle-custom-mobile" : "")}")' />
+                    </label>
+                </div>
+                <!-- Option 2 -->
+                <div class="flex items-center justify-between py-4 border-b border-slate-100/10 group">
+                    <div>
+                        <p class="font-semibold text-xs @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">Yedekleme Sonuçları</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Planlı yedekleme durumlarını raporla</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" @bind="_backupResultAlert" class='@($"ios-toggle-custom {(PlatformInfo.IsMobileApp ? "ios-toggle-custom-mobile" : "")}")' />
+                    </label>
+                </div>
+                <!-- Option 3 -->
+                <div class="flex items-center justify-between py-4 border-b border-slate-100/10 group md:border-b-0">
+                    <div>
+                        <p class="font-semibold text-xs @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">Wildcard SSL Yenileme Alarmları</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Sertifika süresi bitimine 7 gün kala uyar</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" @bind="_sslRenewalAlert" class='@($"ios-toggle-custom {(PlatformInfo.IsMobileApp ? "ios-toggle-custom-mobile" : "")}")' />
+                    </label>
+                </div>
+                <!-- Option 4 -->
+                <div class="flex items-center justify-between py-4 group">
+                    <div>
+                        <p class="font-semibold text-xs @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">Hız Sınırı (Rate Limit) Uyarıları</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Anlık trafik limit aşımlarını bildir</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" @bind="_rateLimitAlert" class='@($"ios-toggle-custom {(PlatformInfo.IsMobileApp ? "ios-toggle-custom-mobile" : "")}")' />
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        @if (PlatformInfo.IsMobileApp)
+        {
+            <!-- Section: Storage & Cache (Bento 12-cols) -->
+            <section class="md:col-span-12 bento-card-custom rounded-xl p-6 border shadow-xl bg-[#171a21]/80 border-white/5 text-white">
+                <span class="font-label-caps text-label-caps block mb-4 uppercase text-gray-400 font-bold tracking-wider text-[10px]">CİHAZ DEPOLAMA VE ÖNBELLEK YÖNETİMİ</span>
+                <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div class="flex items-center gap-5">
+                        <div class="p-3 rounded-2xl border bg-amber-500/10 border-amber-500/20 text-amber-400">
+                            <span class="material-symbols-outlined text-[32px]">database</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-xs text-white">Uygulama Önbelleği ve Geçici Dosyalar</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">İndirilen eski APK güncelleme paketleri ve WebView önbelleği.</p>
+                            <div class="flex items-center gap-2 mt-2">
+                                <span class="text-xs font-mono font-bold text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded">
+                                    @_cacheSizeText
+                                </span>
+                                <span class="text-[10px] text-gray-500">alan kaplıyor</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button @onclick="ClearAppCache" disabled="@_isClearingCache" class="whitespace-nowrap px-6 py-3 rounded-xl border font-bold flex items-center gap-2 active:scale-95 transition-all bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/20 text-rose-400" style="border-radius: 12px;">
+                        @if (_isClearingCache)
+                        {
+                            <div class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                            <span>Temizleniyor...</span>
+                        }
+                        else
+                        {
+                            <span class="material-symbols-outlined">delete_sweep</span>
+                            <span>Önbelleği ve Eski Paketleri Temizle</span>
+                        }
+                    </button>
+                </div>
+            </section>
+        }
+
+        <!-- Section 4: Footer Info (Bento 12-cols) -->
+        <footer class="md:col-span-12 bento-card-custom rounded-xl p-6 border shadow-xl bg-gradient-to-br @(PlatformInfo.IsMobileApp ? "from-[#171a21]/80 to-[#171a21]/50 border-white/5 text-white" : "from-slate-50 to-indigo-50/10 border-slate-100 text-[#0b1c30]")">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="flex items-center gap-5">
+                    <div class="p-3 rounded-2xl border @(PlatformInfo.IsMobileApp ? "bg-[#4edea3]/10 border-[#4edea3]/20 text-[#4edea3]" : "bg-[#006c49]/10 border-[#006c49]/20 text-[#006c49]")">
+                        <span class="material-symbols-outlined text-[32px]">system_update</span>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">
+                            @(PlatformInfo.IsMobileApp ? "Sistem & Uygulama Güncellemeleri" : "PWA & Web Sürüm Ayarları")
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1 max-w-md">
+                            @(PlatformInfo.IsMobileApp ? "ApiHub mobil uygulamasının en son sürümlerini, güvenlik yamalarını ve performans iyileştirmelerini kontrol edin." : "DockerPanel merkezi sunucularına bağlı durumdasınız. Güvenlik güncellemeleri ve PWA özellikleri senkronize ediliyor.")
+                        </p>
+                    </div>
+                </div>
+                <button @onclick="CheckForAppUpdates" disabled="@_isCheckingUpdates" class="whitespace-nowrap px-6 py-3 rounded-xl border font-bold flex items-center gap-2 active:scale-95 transition-all @(PlatformInfo.IsMobileApp ? "bg-[#4edea3]/10 hover:bg-[#4edea3]/20 border-[#4edea3]/20 text-[#4edea3]" : "bg-[#006c49]/10 hover:bg-[#006c49]/20 border-[#006c49]/20 text-[#006c49]")" style="border-radius: 12px;">
+                    @if (_isCheckingUpdates)
+                    {
+                        <div class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                        <span>Denetleniyor...</span>
+                    }
+                    else
+                    {
+                        <span class="material-symbols-outlined">sync</span>
+                        <span>@(PlatformInfo.IsMobileApp ? "Güncellemeleri Denetle" : "PWA Güncellemelerini Denetle")</span>
+                    }
+                </button>
+            </div>
+        </footer>
+    </div>
+</div>
+
+@code {
+    private string _currentPassword = "";
+    private string _newPassword = "";
+    private string _confirmPassword = "";
+    private bool _isUpdatingPassword = false;
+    private string _username = "cpanel";
+    private string _role = "Customer";
+
+    // Password Form toggle
+    private bool _isPasswordFormOpen = false;
+
+    // Notification Toggles state
+    private bool _containerCrashAlert = true;
+    private bool _backupResultAlert = true;
+    private bool _sslRenewalAlert = true;
+    private bool _rateLimitAlert = true;
+
+    private string _cacheSizeText = "Hesaplanıyor...";
+    private bool _isClearingCache = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            _username = authState.User.Identity.Name ?? "cpanel";
+            _role = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Customer";
+        }
+        await LoadCacheSize();
+    }
+
+    private async Task LoadCacheSize()
+    {
+        if (PlatformInfo.GetCacheSizeFunc != null)
+        {
+            try
+            {
+                var bytes = await PlatformInfo.GetCacheSizeFunc();
+                _cacheSizeText = FormatBytes(bytes);
+            }
+            catch
+            {
+                _cacheSizeText = "0 KB";
+            }
+        }
+        else
+        {
+            _cacheSizeText = "0 KB";
+        }
+    }
+
+    private async Task ClearAppCache()
+    {
+        if (_isClearingCache) return;
+        _isClearingCache = true;
+        StateHasChanged();
+
+        try
+        {
+            if (PlatformInfo.ClearCacheFunc != null)
+            {
+                await PlatformInfo.ClearCacheFunc();
+                Snackbar.Add("Uygulama önbelleği ve eski indirme paketleri başarıyla temizlendi!", Severity.Success);
+                await LoadCacheSize();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Önbellek temizlenirken hata oluştu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isClearingCache = false;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] suffix = { "B", "KB", "MB", "GB" };
+        int i;
+        double dblSByte = bytes;
+        for (i = 0; i < suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+        {
+            dblSByte = bytes / 1024.0;
+        }
+        return $"{dblSByte:0.##} {suffix[i]}";
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthProvider.LogoutAsync();
+        NavigationManager.NavigateTo("/login", replace: true);
+    }
+
+    private async Task HandlePasswordChange()
+    {
+        if (string.IsNullOrWhiteSpace(_currentPassword) || string.IsNullOrWhiteSpace(_newPassword) || string.IsNullOrWhiteSpace(_confirmPassword))
+        {
+            Snackbar.Add("Lütfen tüm şifre alanlarını doldurun!", Severity.Warning);
+            return;
+        }
+
+        if (_newPassword.Length < 6)
+        {
+            Snackbar.Add("Yeni şifreniz en az 6 karakter olmalıdır!", Severity.Warning);
+            return;
+        }
+
+        if (_newPassword != _confirmPassword)
+        {
+            Snackbar.Add("Yeni şifreler birbiriyle uyuşmuyor!", Severity.Warning);
+            return;
+        }
+
+        _isUpdatingPassword = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/change-password", new ChangePasswordRequest
+            {
+                CurrentPassword = _currentPassword,
+                NewPassword = _newPassword
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Şifreniz başarıyla güncellendi!", Severity.Success);
+                _currentPassword = "";
+                _newPassword = "";
+                _confirmPassword = "";
+                _isPasswordFormOpen = false;
+            }
+            else
+            {
+                var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                Snackbar.Add(error?.Message ?? "Şifre değiştirme başarısız oldu. Lütfen mevcut şifrenizi kontrol edin.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Şifre değiştirme hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUpdatingPassword = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool _isCheckingUpdates = false;
+    private async Task CheckForAppUpdates()
+    {
+        if (_isCheckingUpdates) return;
+        _isCheckingUpdates = true;
+        StateHasChanged();
+
+        try
+        {
+            await Task.Delay(1000); // Premium delay feel
+            if (PlatformInfo.IsMobileApp)
+            {
+                if (PlatformInfo.CheckForUpdatesFunc != null)
+                {
+                    var result = await PlatformInfo.CheckForUpdatesFunc.Invoke();
+                    if (result.HasUpdate)
+                    {
+                        bool confirm = await JSRuntime.InvokeAsync<bool>("confirm", 
+                            $"Yeni bir güncelleme mevcut! Sürüm: {result.ServerVersion}\n\nDeğişiklikler:\n{result.Changelog}\n\nŞimdi indirmek ve kurmak istiyor musunuz?");
+                        if (confirm && PlatformInfo.TriggerApkInstallFunc != null)
+                        {
+                            Snackbar.Add("Güncelleme paketi indiriliyor ve kurulum başlıyor...", Severity.Info);
+                            await PlatformInfo.TriggerApkInstallFunc.Invoke(result.ServerVersion);
+                        }
+                    }
+                    else
+                    {
+                        Snackbar.Add($"Uygulamanız güncel. Mevcut sürüm: {PlatformInfo.LocalVersion}", Severity.Success);
+                    }
+                }
+                else
+                {
+                    Snackbar.Add("Mobil güncelleme servisi hazır değil.", Severity.Warning);
+                }
+            }
+            else
+            {
+                var result = await JSRuntime.InvokeAsync<string>("checkForPwaUpdates");
+                if (result == "updated")
+                {
+                    Snackbar.Add("Yeni sürüm uygulandı! Sayfa yenileniyor...", Severity.Success);
+                    await Task.Delay(800);
+                    await JSRuntime.InvokeVoidAsync("location.reload");
+                }
+                else if (result == "installing")
+                {
+                    Snackbar.Add("Yeni sürüm indiriliyor... Lütfen bekleyin.", Severity.Info);
+                }
+                else if (result == "up-to-date")
+                {
+                    Snackbar.Add("Uygulama zaten en son sürümde (v2.0).", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Güncelleme bu cihazda desteklenmiyor veya sunucuya erişilemiyor.", Severity.Warning);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Güncelleme kontrolü hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isCheckingUpdates = false;
+            StateHasChanged();
+        }
+    }
+
+    private class ErrorResponse
+    {
+        public string Message { get; set; } = string.Empty;
+    }
+
+    private class ChangePasswordRequest
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }
+}

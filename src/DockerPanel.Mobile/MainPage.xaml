@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:client="clr-namespace:DockerPanel.Client;assembly=DockerPanel.Client"
+             x:Class="DockerPanel.Mobile.MainPage"
+             BackgroundColor="#05030f">
+
+    <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/mobile.html">
+        <BlazorWebView.RootComponents>
+            <RootComponent Selector="#app" ComponentType="{x:Type client:App}" />
+        </BlazorWebView.RootComponents>
+    </BlazorWebView>
+
+</ContentPage>

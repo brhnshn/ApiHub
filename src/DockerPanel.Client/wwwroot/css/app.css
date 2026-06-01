@@ -1,0 +1,283 @@
+/* 
+    DockerPanel Cybernetic Glassmorphic Premium Stylesheet
+    Designed with a siber-hybrid indigo, emerald & ruby color palette.
+*/
+
+:root {
+    /* Ana Renk Paleti: Webmail Uyumlu Yeşil / Beyaz / Mavi-Gri Premium Açık Tema */
+    --bg-main: #f8f9ff;
+    /* Açık Mavi-Gri Genel Arka Plan */
+    --bg-card: #ffffff;
+    /* Saf Beyaz Kart Arka Planı */
+    --bg-sub: #eff4ff;
+    /* Yan Menü ve Konteyner Arka Planı */
+    --bg-input: #ffffff;
+    /* Giriş Alanı Rengi */
+    --border-color: rgba(187, 202, 191, 0.4);
+    /* Yumuşak Yeşil-Gri Çerçeve (#bbcabf) */
+    --border-light: rgba(187, 202, 191, 0.2);
+    /* Çok Belirgin Olmayan Detay Çerçeve */
+
+    --text-main: #0b1c30;
+    /* Koyu Lacivert Ana Metin */
+    --text-secondary: #3c4a42;
+    /* İkincil Metin Rengi (Muted Yeşil-Slate) */
+    --text-muted: #6c7a71;
+    /* Soluk Yardımcı Metin */
+
+    /* Sembolik İşlev Renkleri */
+    --accent-indigo: #006c49;
+    /* Birincil Zümrüt Yeşili */
+    --accent-emerald: #006c49;
+    /* Çalışan/Sağlıklı Durum Vurgusu */
+    --accent-ruby: #be123c;
+    /* Tehlike/Durmuş/Silme Vurgusu */
+
+    /* Gölgelendirme ve Parlama */
+    --accent-glow: rgba(0, 108, 73, 0.08);
+    --accent-glow-border: rgba(0, 108, 73, 0.25);
+}
+
+html, body {
+    font-family: 'Inter', 'Outfit', sans-serif !important;
+    background-color: var(--bg-main) !important;
+    color: var(--text-main) !important;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    font-size: 13px !important; /* Tüm arayüzü ferahlatmak için yazı boyutu küçültüldü */
+}
+
+/* Global Ölçekli Küçük Tipografi Tanımları (Boğuculuğu Giderme) */
+h1 { font-size: 1.4rem !important; font-weight: 800 !important; }
+h2 { font-size: 1.2rem !important; font-weight: 800 !important; }
+h3 { font-size: 1.05rem !important; font-weight: 700 !important; }
+h4 { font-size: 0.95rem !important; font-weight: 700 !important; }
+h5 { font-size: 0.85rem !important; font-weight: 700 !important; }
+p { font-size: 0.825rem !important; line-height: 1.5 !important; }
+
+.font-mono {
+    font-family: 'Fira Code', 'JetBrains Mono', monospace !important;
+}
+
+/* Custom scrollbar for terminal and containers */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-indigo);
+}
+
+/* ================= DOCKERPANEL SİBER-HİBRİT OVERRIDES ================= */
+.bg-slate-950 {
+    background-color: var(--bg-main) !important;
+}
+.bg-slate-900 {
+    background-color: var(--bg-card) !important;
+}
+.bg-slate-900\/40, .bg-slate-900\/60, .bg-slate-900\/80 {
+    background-color: var(--bg-card) !important;
+}
+.bg-slate-955, .bg-slate-950\/40, .bg-slate-950\/50, .bg-slate-950\/60 {
+    background-color: var(--bg-sub) !important;
+}
+.relative.bg-slate-950\/80, .bg-slate-950\/60 {
+    background-color: var(--bg-sub) !important;
+}
+/* Tablo ve liste satırları geçiş efekti */
+.hover\:bg-slate-950\/20:hover, .bg-slate-950\/20 {
+    background-color: rgba(0, 108, 73, 0.04) !important;
+}
+/* Modal dış gölgeleme / arka plan katmanı */
+.fixed.bg-slate-950\/80, .fixed.bg-slate-950\/90 {
+    background-color: rgba(11, 28, 48, 0.45) !important;
+    backdrop-filter: blur(4px) !important;
+}
+.border-slate-800, .border-slate-800\/80, .border-slate-850, .border-slate-850\/80 {
+    border-color: var(--border-color) !important;
+}
+
+/* Metin Renkleri & Çakışma Önleme */
+.text-slate-100, .text-slate-200 {
+    color: var(--text-main) !important;
+}
+.text-slate-300 {
+    color: var(--text-secondary) !important;
+}
+.text-slate-400 {
+    color: var(--text-muted) !important;
+}
+/* Beyaz metin ezmesi (Beyaz kart üzerindeki beyaz metin körlüğünü engeller) */
+.text-white:not(button):not(a):not(.btn):not(.badge):not(.bg-[#006c49]):not(.bg-emerald-500):not(.bg-rose-500):not(.bg-rose-600):not(.bg-indigo-600):not(.bg-gradient-to-tr) {
+    color: var(--text-main) !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-main) !important;
+}
+
+/* Input, Select, Textarea */
+input, select, textarea {
+    background-color: var(--bg-sub) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+}
+input:focus, select:focus, textarea:focus {
+    border-color: var(--accent-indigo) !important;
+    box-shadow: 0 0 0 2px var(--accent-glow) !important;
+}
+
+/* Aksan Butonları ve Indigo Detaylar */
+.bg-indigo-600 {
+    background-color: var(--accent-indigo) !important;
+}
+.hover\:bg-indigo-500:hover {
+    background-color: #4f46e5 !important;
+}
+.text-indigo-400 {
+    color: #818cf8 !important;
+}
+.bg-indigo-600\/10 {
+    background-color: var(--accent-glow) !important;
+}
+.border-indigo-500\/10, .border-indigo-500\/20 {
+    border-color: var(--accent-glow-border) !important;
+}
+.shadow-indigo-600\/20 {
+    box-shadow: 0 10px 15px -3px var(--accent-glow) !important;
+}
+.text-indigo-500 {
+    color: #818cf8 !important;
+}
+
+/* Bölgesel Sabitler */
+header {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+}
+aside {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+}
+table tr:hover {
+    background-color: var(--bg-sub) !important;
+}
+
+/* Modallar */
+#container-modal>div, #domain-modal>div, #db-modal>div, #email-modal>div, #compose-modal>div {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4) !important;
+}
+
+.glass-panel {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 4px 20px -2px rgba(0, 108, 73, 0.02) !important;
+}
+
+/* Toasts */
+#toast-container>div {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+}
+
+/* Geliştirici Terminal Sabitleri */
+#large-log-box, #dashboard-log-box, .cyber-terminal {
+    background-color: #04020a !important;
+    color: var(--accent-emerald) !important;
+    border: 1px solid var(--border-color) !important;
+    font-family: 'Fira Code', 'JetBrains Mono', monospace !important;
+    font-size: 13px !important;
+    padding: 16px !important;
+    overflow-y: auto !important;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+    border-radius: 8px;
+    line-height: 1.6;
+}
+
+.cyber-terminal {
+    height: 320px;
+}
+
+/* Status Dot Micro-Animations */
+.pulse-green {
+    width: 10px;
+    height: 10px;
+    background-color: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: pulse-green-anim 1.8s infinite;
+    display: inline-block;
+}
+
+@keyframes pulse-green-anim {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+.pulse-red {
+    width: 10px;
+    height: 10px;
+    background-color: #ef4444;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+/* 3-Column Webmail Scrollbars */
+.webmail-scroll {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+.webmail-scroll::-webkit-scrollbar {
+    width: 4px;
+}
+.webmail-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+/* Hover Zoom Micro-Effects */
+.zoom-hover {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease-in-out !important;
+}
+.zoom-hover:hover {
+    transform: translateY(-3.5px);
+    box-shadow: 0 10px 25px -5px rgba(0, 108, 73, 0.06), 0 8px 16px -6px rgba(0, 108, 73, 0.04) !important;
+}
+
+/* Blazor Default Overrides */
+#blazor-error-ui {
+    background: #1e1b4b !important;
+    color: #e2e8f0 !important;
+    border-top: 2px solid #ef4444 !important;
+    font-family: 'Outfit', sans-serif !important;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.5) !important;
+}
+
+#blazor-error-ui a {
+    color: #38bdf8 !important;
+    text-decoration: underline !important;
+    margin: 0 8px;
+}

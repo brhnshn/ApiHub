@@ -1,0 +1,223 @@
+/* Mobile Overrides for ApiHub WebView */
+
+:root {
+    /* Premium Stitch Dark Theme Variables */
+    --bg-main: #10131a !important;
+    --bg-card: rgba(16, 19, 26, 0.6) !important;
+    --bg-sub: #1d2027 !important;
+    --bg-input: #1d2027 !important;
+    --border-color: rgba(255, 255, 255, 0.1) !important;
+    
+    --text-main: #e1e2ec !important;
+    --text-secondary: #c2c6d6 !important;
+    --text-muted: #8c909f !important;
+    
+    --accent-indigo: #adc6ff !important;
+    --accent-emerald: #4edea3 !important;
+    --accent-ruby: #ffb4ab !important;
+    
+    --accent-glow: rgba(173, 198, 255, 0.08) !important;
+    --accent-glow-border: rgba(173, 198, 255, 0.25) !important;
+}
+
+/* Explicit layout component overrides to bypass app.css important white values */
+header {
+    background-color: #10131a !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #e1e2ec !important;
+}
+
+aside {
+    background-color: #10131a !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.bg-white {
+    background-color: rgba(16, 19, 26, 0.6) !important;
+}
+
+.text-white {
+    color: #e1e2ec !important;
+}
+
+body {
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    background-color: #10131a !important;
+    color: #e1e2ec !important;
+}
+
+html,
+body,
+#app {
+    background: #10131a !important;
+    min-height: 100%;
+}
+
+/* Ensure smooth touch scrolling on iOS and Android */
+.overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Scrollbar hiding or customization for mobile screens */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 108, 73, 0.2);
+    border-radius: 4px;
+}
+
+/* Make modals full screen or bottom sheets on very small devices */
+@media (max-width: 480px) {
+    .mud-dialog {
+        max-width: 95% !important;
+        margin: 10px auto !important;
+    }
+}
+
+/* Minimal Tailwind-style fallback utilities for the offline MAUI WebView shell. */
+.flex { display: flex !important; }
+.grid { display: grid !important; }
+.hidden { display: none !important; }
+.block { display: block !important; }
+.inline-flex { display: inline-flex !important; }
+.items-center { align-items: center !important; }
+.items-start { align-items: flex-start !important; }
+.justify-center { justify-content: center !important; }
+.justify-between { justify-content: space-between !important; }
+.flex-col { flex-direction: column !important; }
+.flex-row { flex-direction: row !important; }
+.flex-wrap { flex-wrap: wrap !important; }
+.w-full { width: 100% !important; }
+.h-full { height: 100% !important; }
+.h-screen { height: 100vh !important; }
+.min-h-screen { min-height: 100vh !important; }
+.flex-1 { flex: 1 1 0% !important; }
+.flex-grow { flex-grow: 1 !important; }
+.shrink-0 { flex-shrink: 0 !important; }
+.relative { position: relative !important; }
+.absolute { position: absolute !important; }
+.fixed { position: fixed !important; }
+.inset-0 { inset: 0 !important; }
+.z-10 { z-index: 10 !important; }
+.z-30 { z-index: 30 !important; }
+.z-40 { z-index: 40 !important; }
+.z-50 { z-index: 50 !important; }
+.overflow-hidden { overflow: hidden !important; }
+.overflow-y-auto { overflow-y: auto !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
+.text-left { text-align: left !important; }
+.font-bold { font-weight: 700 !important; }
+.font-extrabold { font-weight: 800 !important; }
+.font-black { font-weight: 900 !important; }
+.font-mono { font-family: "Fira Code", Consolas, monospace !important; }
+.uppercase { text-transform: uppercase !important; }
+.tracking-tight { letter-spacing: 0 !important; }
+.tracking-wider { letter-spacing: 0.04em !important; }
+.rounded { border-radius: 8px !important; }
+.rounded-lg { border-radius: 8px !important; }
+.rounded-xl { border-radius: 12px !important; }
+.rounded-full { border-radius: 9999px !important; }
+.shadow-sm { box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important; }
+.shadow-md { box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12) !important; }
+.shadow-xl { box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16) !important; }
+.border { border: 1px solid var(--border-color, #e2e8f0) !important; }
+.border-b { border-bottom: 1px solid var(--border-color, #e2e8f0) !important; }
+.border-t { border-top: 1px solid var(--border-color, #e2e8f0) !important; }
+.gap-1 { gap: 0.25rem !important; }
+.gap-1\.5 { gap: 0.375rem !important; }
+.gap-2 { gap: 0.5rem !important; }
+.gap-3 { gap: 0.75rem !important; }
+.gap-4 { gap: 1rem !important; }
+.space-y-2 > * + * { margin-top: 0.5rem !important; }
+.space-y-3 > * + * { margin-top: 0.75rem !important; }
+.space-y-4 > * + * { margin-top: 1rem !important; }
+.space-y-6 > * + * { margin-top: 1.5rem !important; }
+.m-0 { margin: 0 !important; }
+.mx-auto { margin-left: auto !important; margin-right: auto !important; }
+.mt-1 { margin-top: 0.25rem !important; }
+.mt-2 { margin-top: 0.5rem !important; }
+.mt-4 { margin-top: 1rem !important; }
+.mt-5 { margin-top: 1.25rem !important; }
+.mt-6 { margin-top: 1.5rem !important; }
+.mb-1 { margin-bottom: 0.25rem !important; }
+.mb-2 { margin-bottom: 0.5rem !important; }
+.mb-3 { margin-bottom: 0.75rem !important; }
+.mb-4 { margin-bottom: 1rem !important; }
+.mb-5 { margin-bottom: 1.25rem !important; }
+.mb-6 { margin-bottom: 1.5rem !important; }
+.mb-8 { margin-bottom: 2rem !important; }
+.mr-2 { margin-right: 0.5rem !important; }
+.p-2 { padding: 0.5rem !important; }
+.p-3 { padding: 0.75rem !important; }
+.p-4 { padding: 1rem !important; }
+.p-5 { padding: 1.25rem !important; }
+.p-6 { padding: 1.5rem !important; }
+.px-2 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+.px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+.px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+.px-8 { padding-left: 2rem !important; padding-right: 2rem !important; }
+.py-1 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+.py-3 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+.py-10 { padding-top: 2.5rem !important; padding-bottom: 2.5rem !important; }
+.pt-16 { padding-top: 4rem !important; }
+.text-xs { font-size: 0.75rem !important; }
+.text-sm { font-size: 0.875rem !important; }
+.text-lg { font-size: 1.125rem !important; }
+.text-2xl { font-size: 1.5rem !important; }
+.text-3xl { font-size: 1.875rem !important; }
+.grid-cols-1 { grid-template-columns: minmax(0, 1fr) !important; }
+.bg-white { background-color: #ffffff !important; }
+.bg-slate-50 { background-color: #f8fafc !important; }
+.text-white { color: #ffffff !important; }
+.text-slate-100 { color: #f1f5f9 !important; }
+.text-slate-300 { color: #cbd5e1 !important; }
+.text-slate-400 { color: #94a3b8 !important; }
+.text-slate-500 { color: #64748b !important; }
+.text-emerald-400 { color: #34d399 !important; }
+.text-emerald-600 { color: #059669 !important; }
+.text-indigo-500 { color: #6366f1 !important; }
+.text-indigo-600 { color: #4f46e5 !important; }
+.text-rose-500 { color: #f43f5e !important; }
+.bg-emerald-50 { background-color: #ecfdf5 !important; }
+.bg-indigo-500 { background-color: #6366f1 !important; }
+.bg-indigo-600 { background-color: #4f46e5 !important; }
+
+@media (min-width: 640px) {
+    .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+@media (min-width: 768px) {
+    .md\:hidden { display: none !important; }
+    .md\:flex { display: flex !important; }
+    .md\:block { display: block !important; }
+    .md\:flex-row { flex-direction: row !important; }
+    .md\:items-center { align-items: center !important; }
+    .md\:w-auto { width: auto !important; }
+    .md\:pt-5 { padding-top: 1.25rem !important; }
+    .md\:pl-5 { padding-left: 1.25rem !important; }
+}
+
+@media (min-width: 1024px) {
+    .lg\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+}
+
+@keyframes slide-up {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}

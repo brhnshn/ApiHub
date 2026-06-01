@@ -1,0 +1,434 @@
+@page "/databases"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject PlatformInfo PlatformInfo
+
+<PageTitle>Veritabanı Yönetimi - ApiHub</PageTitle>
+
+@if (PlatformInfo.IsMobileApp)
+{
+    <style>
+        .glass-panel {
+            background: rgba(23, 26, 33, 0.6) !important;
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            color: #f1f5f9 !important;
+        }
+        .mud-table {
+            background-color: transparent !important;
+            color: #f1f5f9 !important;
+        }
+        .mud-table-cell {
+            color: #e2e8f0 !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+        }
+        .mud-th {
+            color: #94a3b8 !important;
+        }
+        .mud-typography {
+            color: #f1f5f9 !important;
+        }
+        .mud-dialog {
+            background-color: #171a21 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        }
+        .mud-dialog-title .mud-typography {
+            color: #4edea3 !important;
+        }
+        .mud-input-control .mud-input {
+            color: #f1f5f9 !important;
+        }
+        .mud-chip {
+            background-color: rgba(78, 222, 163, 0.1) !important;
+            color: #4edea3 !important;
+        }
+    </style>
+}
+
+<div class="mb-6">
+    <MudText Typo="Typo.h4" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px;">PostgreSQL Şema Yönetimi</MudText>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">PostgreSQL master sunucusu üzerinde izole veritabanı şemalarını ve özel kullanıcı yetkilendirmelerini yönetin.</MudText>
+</div>
+
+<MudGrid Class="mb-6">
+    <!-- PostgreSQL Durum Kartı -->
+    <MudItem xs="12" md="4">
+        <div class="glass-panel pa-6 h-100 d-flex flex-column justify-between" style="border-radius: 12px !important;">
+            <div>
+                <MudText Typo="Typo.h6" Style="font-weight: 700; color: var(--text-main); font-family: 'Outfit', sans-serif;" Class="mb-4">PostgreSQL Cluster</MudText>
+                
+                <div class="d-flex align-center justify-between mb-3" style="font-size: 13px;">
+                    <span style="color: #64748b;">Internal Port:</span>
+                    <strong style="color: #10b981; font-family: 'JetBrains Mono', monospace;">5432</strong>
+                </div>
+
+                <div class="d-flex align-center justify-between mb-3" style="font-size: 13px;">
+                    <span style="color: #64748b;">Güvenlik Politikası:</span>
+                    <strong style="color: #6366f1;">İç Ağ İzolasyonu</strong>
+                </div>
+
+                <div class="d-flex align-center justify-between mb-3" style="font-size: 13px;">
+                    <span style="color: #64748b;">Aktif Bağlantı:</span>
+                    <strong style="color: var(--text-main);">3 / 100</strong>
+                </div>
+
+                <div class="d-flex align-center justify-between" style="font-size: 13px;">
+                    <span style="color: #64748b;">Disk Kullanımı (DB):</span>
+                    <strong style="color: #ef4444;">18.4 MB</strong>
+                </div>
+            </div>
+
+            <div class="pt-4" style="border-top: 1px solid rgba(255,255,255,0.05); font-size: 11px; color: #64748b; font-style: italic;">
+                * PostgreSQL master portu (5432) dış ağa kapalıdır, sadece dockerpanel iç ağındaki konteynerler ve API erişebilir.
+            </div>
+        </div>
+    </MudItem>
+
+    <!-- Veritabanı Listesi Tablosu ve Yeni Ekleme -->
+    <MudItem xs="12" md="8">
+        <div class="glass-panel pa-6 h-100" style="border-radius: 12px !important;">
+            <div class="d-flex align-center justify-between mb-6">
+                <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--text-main);">Aktif İzole Şemalar</MudText>
+                <div class="d-flex gap-2">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search" OnClick="OpenDiscoverModal" Style="text-transform: none; border-radius: 8px; font-weight: 700;">Eski DB Keşfet</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateModal" Style="text-transform: none; border-radius: 8px; font-weight: 700;">Yeni Şema Oluştur</MudButton>
+                </div>
+            </div>
+
+            @if (_isLoading)
+            {
+                <div class="d-flex align-center justify-center py-6">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                </div>
+            }
+            else
+            {
+                <MudTable Items="_databases" Elevation="0" Hover="true" Breakpoint="Breakpoint.Sm" Class="glass-panel" Style="border: none !important;">
+                    <HeaderContent>
+                        <MudTh Style="color: #94a3b8; font-weight: 700;">Veritabanı Şeması</MudTh>
+                        <MudTh Style="color: #94a3b8; font-weight: 700;">Yetkili Kullanıcı</MudTh>
+                        <MudTh Style="color: #94a3b8; font-weight: 700;">Veritabanı Tipi</MudTh>
+                        <MudTh Style="color: #94a3b8; font-weight: 700; text-align: right;">İşlemler</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Veritabanı Şeması">
+                            <span style="font-family: 'JetBrains Mono', monospace; color: #10b981; font-weight: 700;">@context.DbName</span>
+                        </MudTd>
+                        <MudTd DataLabel="Yetkili Kullanıcı">
+                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Person">
+                                @context.DbUser
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Veritabanı Tipi">
+                            <span style="color: #94a3b8; font-weight: 600;">PostgreSQL 16</span>
+                        </MudTd>
+                        <MudTd DataLabel="İşlemler" Style="text-align: right;">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteSchema(context))" />
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Typo="Typo.body2" Class="text-center py-6 mud-text-secondary">Henüz oluşturulmuş bir veritabanı şeması bulunmamaktadır.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            }
+        </div>
+    </MudItem>
+</MudGrid>
+
+<!-- Yeni Şema Oluşturma Modalı -->
+<MudDialog @bind-Visible="_createModalVisible">
+    <TitleContent>
+        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Yeni Veritabanı Şeması Yarat</MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="@_createModel" OnValidSubmit="HandleCreate">
+            <DataAnnotationsValidator />
+
+            <div class="mb-4">
+                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">Veritabanı Adı (DbName)</label>
+                <MudTextField @bind-Value="_createModel.DbName" Placeholder="örn: my_api_db" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.DbName)" />
+            </div>
+
+            <div class="mb-4">
+                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">Kullanıcı Adı (DbUser)</label>
+                <MudTextField @bind-Value="_createModel.DbUser" Placeholder="örn: my_api_user" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.DbUser)" />
+            </div>
+
+            <div class="mb-6">
+                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">Veritabanı Parolası</label>
+                <MudTextField @bind-Value="_createModel.Password" Placeholder="Master şifre" InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.Password)" />
+            </div>
+
+            <div class="d-flex justify-end gap-2">
+                <MudButton OnClick="CloseCreateModal" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none;">İptal</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_isCreating" Style="text-transform: none; font-weight: 700;">
+                    @if (_isCreating)
+                    {
+                        <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Veritabanı Sağlanıyor...</span>
+                    }
+                    else
+                    {
+                        <span>Şemayı Yarat</span>
+                    }
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+<!-- Veritabanı Keşif Modalı -->
+<MudDialog @bind-Visible="_discoverModalVisible">
+    <TitleContent>
+        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Sunucudaki Mevcut Veritabanlarını Keşfet</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+            PostgreSQL cluster'ınızda bulunan ancak panele henüz kaydedilmemiş (dışarıda oluşturulmuş) veritabanlarını tarar ve panele içe aktarmanıza olanak tanır.
+        </MudText>
+
+        @if (_isDiscovering)
+        {
+            <div class="d-flex flex-column align-center justify-center py-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-3" />
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">PostgreSQL kataloğu taranıyor...</MudText>
+            </div>
+        }
+        else if (!_discoveredDatabases.Any())
+        {
+            <div class="text-center py-8">
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">İçe aktarılabilecek yeni bir veritabanı bulunamadı veya tüm veritabanları zaten kayıtlı.</MudText>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="_discoveredDatabases" Elevation="0" Hover="true" Dense="true" Class="glass-panel" Style="border: none !important; background: transparent !important;">
+                <HeaderContent>
+                    <MudTh Style="color: #94a3b8; font-weight: 700;">Veritabanı Adı</MudTh>
+                    <MudTh Style="color: #94a3b8; font-weight: 700;">Sahibi (Owner)</MudTh>
+                    <MudTh Style="color: #94a3b8; font-weight: 700;">Boyut</MudTh>
+                    <MudTh Style="color: #94a3b8; font-weight: 700; text-align: right;">Durum</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Veritabanı Adı">
+                        <span style="font-family: 'JetBrains Mono', monospace; color: @(context.IsImported ? "#94a3b8" : "#10b981"); font-weight: 700;">@context.DbName</span>
+                    </MudTd>
+                    <MudTd DataLabel="Sahibi">
+                        <span style="color: var(--text-main);">@context.DbUser</span>
+                    </MudTd>
+                    <MudTd DataLabel="Boyut">
+                        <span style="color: #94a3b8;">@FormatSize(context.SizeInBytes)</span>
+                    </MudTd>
+                    <MudTd DataLabel="Durum" Style="text-align: right;">
+                        @if (context.IsImported)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Text" Icon="@Icons.Material.Filled.Check">Aktarıldı</MudChip>
+                        }
+                        else
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ImportDatabase(context))" Style="text-transform: none; border-radius: 6px; font-weight: 700;">İçe Aktar</MudButton>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDiscoverModal" Variant="Variant.Filled" Color="Color.Secondary" Style="text-transform: none;">Kapat</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<DatabaseSchemaDto> _databases = new();
+    private List<DiscoveredDatabaseDto> _discoveredDatabases = new();
+    private bool _discoverModalVisible = false;
+    private bool _isDiscovering = false;
+    private bool _isLoading = true;
+    private bool _createModalVisible = false;
+    private bool _isCreating = false;
+    private readonly CreateDatabaseModel _createModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDatabasesAsync();
+    }
+
+    private async Task LoadDatabasesAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var raw = await Http.GetFromJsonAsync<List<DatabaseSchemaDto>>("api/databases");
+            _databases = raw ?? new List<DatabaseSchemaDto>();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"PostgreSQL şemaları çekilirken hata oluştu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        _createModel.DbName = "";
+        _createModel.DbUser = "";
+        _createModel.Password = "";
+        _createModalVisible = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        _createModalVisible = false;
+    }
+
+    private async Task HandleCreate()
+    {
+        _isCreating = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/databases", _createModel);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("PostgreSQL şeması ve yetkili kullanıcısı başarıyla oluşturuldu!", Severity.Success);
+                _createModalVisible = false;
+                await LoadDatabasesAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Veritabanı oluşturulamadı: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isCreating = false;
+        }
+    }
+
+    private async Task DeleteSchema(DatabaseSchemaDto item)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/databases/{item.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("PostgreSQL şeması ve kullanıcısı başarıyla silindi.", Severity.Success);
+                await LoadDatabasesAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Şema silinemedi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OpenDiscoverModal()
+    {
+        _discoverModalVisible = true;
+        await DiscoverDatabasesAsync();
+    }
+
+    private void CloseDiscoverModal()
+    {
+        _discoverModalVisible = false;
+    }
+
+    private async Task DiscoverDatabasesAsync()
+    {
+        _isDiscovering = true;
+        try
+        {
+            var raw = await Http.GetFromJsonAsync<List<DiscoveredDatabaseDto>>("api/databases/discover");
+            _discoveredDatabases = raw ?? new List<DiscoveredDatabaseDto>();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Mevcut veritabanları keşfedilirken hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isDiscovering = false;
+        }
+    }
+
+    private async Task ImportDatabase(DiscoveredDatabaseDto item)
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/databases/import", new { DbName = item.DbName, DbUser = item.DbUser });
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"'{item.DbName}' veritabanı başarıyla içe aktarıldı!", Severity.Success);
+                item.IsImported = true;
+                await LoadDatabasesAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"İçe aktarılamadı: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string FormatSize(long bytes)
+    {
+        string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
+        int counter = 0;
+        decimal number = bytes;
+        while (Math.Round(number / 1024) >= 1)
+        {
+            number /= 1024;
+            counter++;
+        }
+        return $"{number:n1} {suffixes[counter]}";
+    }
+
+    public class DiscoveredDatabaseDto
+    {
+        public string DbName { get; set; } = string.Empty;
+        public string DbUser { get; set; } = string.Empty;
+        public long SizeInBytes { get; set; }
+        public bool IsImported { get; set; }
+    }
+
+    // DTO Tanımları
+    public class DatabaseSchemaDto
+    {
+        public Guid Id { get; set; }
+        public string DbName { get; set; } = string.Empty;
+        public string DbUser { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+
+    // Form Model Tanımı
+    public class CreateDatabaseModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Veritabanı adı zorunludur!")]
+        [System.ComponentModel.DataAnnotations.RegularExpression("^[a-z0-9_-]+$", ErrorMessage = "Yalnızca küçük harf, rakam, tire veya alt çizgi kullanabilirsiniz.")]
+        public string DbName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Kullanıcı adı zorunludur!")]
+        [System.ComponentModel.DataAnnotations.RegularExpression("^[a-z0-9_-]+$", ErrorMessage = "Yalnızca küçük harf, rakam, tire veya alt çizgi kullanabilirsiniz.")]
+        public string DbUser { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Veritabanı parolası zorunludur!")]
+        [System.ComponentModel.DataAnnotations.MinLength(6, ErrorMessage = "Parola en az 6 karakter olmalıdır.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}

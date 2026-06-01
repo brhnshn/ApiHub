@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "321837371587",
+    "project_id": "apihub-edb0e",
+    "storage_bucket": "apihub-edb0e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:321837371587:android:4ea92b30cfe2e6f235d276",
+        "android_client_info": {
+          "package_name": "com.burhansahin.apihub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHKnhPwjamTTYAf46frXJvNlWFUS3M1gY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

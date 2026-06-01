@@ -1,0 +1,831 @@
+@page "/"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject DockerPanel.Client.Services.AppState AppState
+@inject PlatformInfo PlatformInfo
+@inject JwtAuthenticationStateProvider AuthProvider
+@implements IDisposable
+
+<PageTitle>Genel Bakış - ApiHub</PageTitle>
+
+@if (PlatformInfo.IsMobileApp)
+{
+    <!-- STITCH MOBILE PREMIUM GLASSMORPHISM VIEW -->
+    <div class="space-y-6 text-[#e1e2ec] font-sans">
+        <!-- Page Actions Top Bar -->
+        <div class="flex justify-between items-center bg-[#1d2027]/40 p-4 rounded-2xl border border-white/5 shadow-lg">
+            <div class="flex items-center gap-3">
+                <svg class="text-[#3b82f6]" fill="none" height="24" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 5C4 4.44772 4.44772 4 5 4H9C9.55228 4 10 4.44772 10 5V11C10 11.5523 9.55228 12 9 12H5C4.44772 12 4 11.5523 4 11V5Z" fill="currentColor"></path>
+                    <path d="M4 15C4 14.4477 4.44772 14 5 14H9C9.55228 14 10 14.4477 10 15V19C10 19.5523 9.55228 20 9 20H5C4.44772 20 4 19.5523 4 19V15Z" fill="currentColor" fill-opacity="0.6"></path>
+                    <path d="M14 5C14 4.44772 14.4477 4 15 4H19C19.5523 4 20 4.44772 20 5V9C20 9.55228 19.5523 10 19 10H15C14.4477 10 14 9.55228 14 9V5Z" fill="currentColor" fill-opacity="0.6"></path>
+                    <path d="M14 13C14 12.4477 14.4477 12 15 12H19C19.5523 12 20 12.4477 20 13V19C20 19.5523 19.5523 20 19 20H15C14.4477 20 14 19.5523 14 19V13Z" fill="currentColor" fill-opacity="0.4"></path>
+                </svg>
+                <h1 class="text-base font-bold tracking-tight">Genel Bakış</h1>
+            </div>
+            <div class="bg-[#191b23] px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/5">
+                <span class="w-2 h-2 rounded-full bg-[#10b981] animate-pulse"></span>
+                <span class="text-[10px] font-bold text-[#10b981] tracking-wider uppercase">Uptime: 18G 5S</span>
+            </div>
+        </div>
+
+        <main class="space-y-6">
+
+            <!-- BEGIN: MetricsSection -->
+            <section class="grid grid-cols-3 gap-3" data-purpose="metrics-dashboard">
+                <!-- CPU Gauge -->
+                <div class="bg-[#191b23] border border-white/5 rounded-2xl p-4 flex flex-col items-center gap-3">
+                    <div class="relative w-20 h-20 flex items-center justify-center">
+                        <svg class="w-20 h-20 absolute -rotate-90" viewBox="0 0 100 100">
+                            <circle class="stroke-[#2d3139] fill-none" stroke-width="6" cx="50" cy="50" r="40"></circle>
+                            <circle class="stroke-[#3b82f6] fill-none stroke-linecap-round transition-all duration-500" stroke-width="6" cx="50" cy="50" r="40" stroke-dasharray="251.2" stroke-dashoffset="@(251.2 - (251.2 * _systemCpu) / 100)"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            @if (!AppState.IsSignalRConnected && _systemCpu == 0)
+                            {
+                                <span class="text-sm font-bold text-gray-400">--</span>
+                            }
+                            else
+                            {
+                                <span class="text-sm font-bold">@_systemCpu.ToString("0")%</span>
+                            }
+                        </div>
+                    </div>
+                    <span class="text-xs font-medium text-gray-400">CPU</span>
+                </div>
+                <!-- Bellek Gauge -->
+                <div class="bg-[#191b23] border border-white/5 rounded-2xl p-4 flex flex-col items-center gap-3">
+                    <div class="relative w-20 h-20 flex items-center justify-center">
+                        <svg class="w-20 h-20 absolute -rotate-90" viewBox="0 0 100 100">
+                            <circle class="stroke-[#2d3139] fill-none" stroke-width="6" cx="50" cy="50" r="40"></circle>
+                            <circle class="stroke-[#10b981] fill-none stroke-linecap-round transition-all duration-500" stroke-width="6" cx="50" cy="50" r="40" stroke-dasharray="251.2" stroke-dashoffset="@(251.2 - (251.2 * (_ramTotalGb > 0 ? (_ramUsedGb / _ramTotalGb) * 100 : 0)) / 100)"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            @if (!AppState.IsSignalRConnected && _ramUsedGb == 0)
+                            {
+                                <span class="text-sm font-bold text-gray-400">--</span>
+                            }
+                            else
+                            {
+                                <span class="text-sm font-bold">@((_ramTotalGb > 0 ? (_ramUsedGb / _ramTotalGb) * 100 : 0).ToString("0"))%</span>
+                            }
+                        </div>
+                    </div>
+                    <span class="text-xs font-medium text-gray-400">Bellek</span>
+                </div>
+                <!-- Disk Gauge -->
+                <div class="bg-[#191b23] border border-white/5 rounded-2xl p-4 flex flex-col items-center gap-3">
+                    <div class="relative w-20 h-20 flex items-center justify-center">
+                        <svg class="w-20 h-20 absolute -rotate-90" viewBox="0 0 100 100">
+                            <circle class="stroke-[#2d3139] fill-none" stroke-width="6" cx="50" cy="50" r="40"></circle>
+                            <circle class="stroke-[#f59e0b] fill-none stroke-linecap-round transition-all duration-500" stroke-width="6" cx="50" cy="50" r="40" stroke-dasharray="251.2" stroke-dashoffset="@(251.2 - (251.2 * _diskUsedPercentage) / 100)"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            @if (!AppState.IsSignalRConnected && _diskUsedPercentage == 0)
+                            {
+                                <span class="text-sm font-bold text-gray-400">--</span>
+                            }
+                            else
+                            {
+                                <span class="text-sm font-bold">@_diskUsedPercentage.ToString("0")%</span>
+                            }
+                        </div>
+                    </div>
+                    <span class="text-xs font-medium text-gray-400">Disk</span>
+                </div>
+            </section>
+            <!-- END: MetricsSection -->
+
+            <!-- BEGIN: SubdomainsSection -->
+            <section class="mt-4" data-purpose="active-subdomains">
+                <h2 class="text-sm font-bold tracking-widest text-gray-200 mb-3 px-1">AKTİF ALT ALAN ADLARI (@_subdomainCount)</h2>
+                <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                    @if (!_subdomainsList.Any())
+                    {
+                        <div class="flex-shrink-0 px-4 py-2 bg-[#1c1f26] border border-white/10 rounded-xl text-[13px] text-gray-400 font-mono">
+                            Kayıtlı alt alan adı yok
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var sub in _subdomainsList)
+                        {
+                            <div class="flex-shrink-0 px-4 py-2 bg-[#1c1f26] border border-white/10 rounded-xl text-[13px] text-gray-400 font-mono">
+                                @sub.SubdomainName.@sub.DomainName
+                            </div>
+                        }
+                    }
+                </div>
+            </section>
+            <!-- END: SubdomainsSection -->
+
+            <!-- BEGIN: OrchestrationSection -->
+            <section class="mt-6" data-purpose="orchestration-services">
+                <h2 class="text-sm font-bold tracking-widest text-gray-200 mb-3 px-1">ORKESTRASYON SERVİSLERİ</h2>
+                <div class="bg-[#191b23] border border-white/5 rounded-2xl overflow-hidden">
+                    <!-- Docker Engine Card -->
+                    <div class="flex items-center p-4 gap-4 border-b border-white/5">
+                        <div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center">
+                            <svg fill="none" height="24" stroke="#60a5fa" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24">
+                                <rect height="14" rx="2" ry="2" width="20" x="2" y="3"></rect>
+                                <line x1="8" x2="16" y1="21" y2="21"></line>
+                                <line x1="12" x2="12" y1="17" y2="21"></line>
+                                <polyline points="7 8 10 11 7 14"></polyline>
+                                <line x1="13" x2="17" y1="14" y2="14"></line>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-semibold">Docker Engine</h3>
+                            <p class="text-xs text-gray-500">v@_dockerVersion</p>
+                        </div>
+                        <div class="@(_dockerActive ? "bg-[#10b981]/10 text-[#10b981]" : "bg-rose-500/10 text-rose-500") px-3 py-1 rounded-full flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full @(_dockerActive ? "bg-[#10b981]" : "bg-rose-500")"></span>
+                            <span class="text-[11px] font-bold uppercase">@(_dockerActive ? "Aktif" : "Kapalı")</span>
+                        </div>
+                    </div>
+                    <!-- Nginx Gateway Card -->
+                    <div class="flex items-center p-4 gap-4 border-b border-white/5">
+                        <div class="w-12 h-12 bg-orange-900/30 rounded-xl flex items-center justify-center">
+                            <svg fill="none" height="24" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24">
+                                <rect height="8" rx="2" ry="2" width="20" x="2" y="2"></rect>
+                                <rect height="8" rx="2" ry="2" width="20" x="2" y="14"></rect>
+                                <line x1="6" x2="6" y1="6" y2="6.01"></line>
+                                <line x1="6" x2="6" y1="18" y2="18.01"></line>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-semibold">Nginx Gateway</h3>
+                            <p class="text-xs text-gray-500">L7 Proxy</p>
+                        </div>
+                        <div class="@(_nginxActive ? "bg-[#10b981]/10 text-[#10b981]" : "bg-rose-500/10 text-rose-500") px-3 py-1 rounded-full flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full @(_nginxActive ? "bg-[#10b981]" : "bg-rose-500")"></span>
+                            <span class="text-[11px] font-bold uppercase">@(_nginxActive ? "Aktif" : "Kapalı")</span>
+                        </div>
+                    </div>
+                    <!-- Docker Mail Server Card -->
+                    <div class="flex items-center p-4 gap-4">
+                        <div class="w-12 h-12 bg-red-900/30 rounded-xl flex items-center justify-center">
+                            <svg fill="none" height="24" stroke="#f87171" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-semibold">Docker Mail Server</h3>
+                            <p class="text-xs text-gray-500">SMTP/IMAP</p>
+                        </div>
+                        <div class="@(_mailServerActive ? "bg-[#10b981]/10 text-[#10b981]" : "bg-rose-500/10 text-rose-500") px-3 py-1 rounded-full flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full @(_mailServerActive ? "bg-[#10b981]" : "bg-rose-500")"></span>
+                            <span class="text-[11px] font-bold uppercase">@(_mailServerActive ? "Aktif" : "Kapalı")</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- END: OrchestrationSection -->
+        </main>
+    </div>
+}
+else
+{
+<div class="space-y-6 max-w-[1500px] mx-auto w-full pb-8">
+    <!-- Üst Başlık -->
+    <div>
+        <h2 class="text-2xl font-extrabold text-[#0b1c30] tracking-tight">Genel Bakış</h2>
+        <p class="text-xs text-slate-400 font-medium mt-1">Sunucu donanım durumunu ve konteyner orkestrasyonunu anlık takip edin.</p>
+    </div>
+
+    <!-- Üst Bilgi Kartları Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <!-- Aktif Konteyner Kartı -->
+        <div class="bg-white border border-[#bbcabf]/30 p-5 rounded-xl flex items-center justify-between zoom-hover shadow-sm min-w-0 overflow-hidden">
+            <div class="space-y-2 min-w-0">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Aktif Konteyner</p>
+                <p class="text-3xl font-extrabold text-[#0b1c30] truncate">@_runningContainerCount</p>
+                <p class="text-xs text-emerald-600 flex items-center gap-1 font-bold truncate">
+                    <i class="fa-solid fa-arrow-trend-up"></i> Tümü Sağlıklı
+                </p>
+            </div>
+            <div class="bg-indigo-500/10 p-4 rounded-lg text-indigo-500 flex-shrink-0">
+                <i class="fa-solid fa-box text-2xl"></i>
+            </div>
+        </div>
+
+        <!-- Sunucu CPU Kartı -->
+        <div class="bg-white border border-[#bbcabf]/30 p-5 rounded-xl flex items-center justify-between zoom-hover shadow-sm min-w-0 overflow-hidden">
+            <div class="space-y-2 min-w-0">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Sunucu CPU</p>
+                <p class="text-3xl font-extrabold text-[#0b1c30] truncate">%@_systemCpu.ToString("0.0")</p>
+                <p class="text-[11px] text-slate-400 font-semibold font-mono truncate" title="@_cpuCount vCPU / @_cpuModel">@_cpuCount vCPU / @_cpuModel</p>
+            </div>
+            <div class="bg-emerald-500/10 p-4 rounded-lg text-emerald-400 flex-shrink-0">
+                <i class="fa-solid fa-microchip text-2xl"></i>
+            </div>
+        </div>
+
+        <!-- Bellek Kullanımı Kartı -->
+        <div class="bg-white border border-[#bbcabf]/30 p-5 rounded-xl flex items-center justify-between zoom-hover shadow-sm min-w-0 overflow-hidden">
+            <div class="space-y-2 min-w-0">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Bellek Kullanımı</p>
+                <p class="text-3xl font-extrabold text-[#0b1c30] truncate">@_ramUsedGb.ToString("0.00") GB / @_ramTotalGb.ToString("0.00") GB</p>
+                <p class="text-xs text-slate-400 font-medium font-mono truncate">Limit: @((int)(_ramTotalGb * 1024)) MB</p>
+            </div>
+            <div class="bg-rose-500/10 p-4 rounded-lg text-rose-400 flex-shrink-0">
+                <i class="fa-solid fa-memory text-2xl"></i>
+            </div>
+        </div>
+
+        <!-- Disk Kullanımı Kartı -->
+        <div class="bg-white border border-[#bbcabf]/30 p-5 rounded-xl flex flex-col justify-between zoom-hover shadow-sm min-w-0 overflow-hidden">
+            <div class="flex items-center justify-between min-w-0">
+                <div class="space-y-1 min-w-0">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Disk Kullanımı</p>
+                    <p class="text-2xl font-extrabold text-[#0b1c30] truncate">%@_diskUsedPercentage.ToString("0.0")</p>
+                    <p class="text-[11px] text-slate-400 font-mono truncate">@_diskUsedGb.ToString("0.0") GB / @_diskTotalGb.ToString("0.0") GB</p>
+                </div>
+                <div class="bg-amber-500/10 p-4 rounded-lg text-amber-400 flex-shrink-0">
+                    <i class="fa-solid fa-hard-drive text-2xl"></i>
+                </div>
+            </div>
+            <!-- Disk doluluk çubuk grafik -->
+            <div class="mt-3 flex-shrink-0">
+                <div class="w-full bg-slate-100 rounded-full h-1.5">
+                    <div class="h-1.5 rounded-full transition-all duration-700"
+                         style="width: @(Math.Min(_diskUsedPercentage, 100).ToString(System.Globalization.CultureInfo.InvariantCulture))%; background: @(_diskUsedPercentage > 85 ? "#ef4444" : _diskUsedPercentage > 60 ? "#f59e0b" : "#10b981");"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aktif Subdomain Kartı -->
+        <div class="bg-white border border-[#bbcabf]/30 p-5 rounded-xl flex items-center justify-between zoom-hover shadow-sm min-w-0 overflow-hidden">
+            <div class="space-y-2 min-w-0">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">Aktif Subdomain</p>
+                <p class="text-3xl font-extrabold text-[#0b1c30] truncate">@_subdomainCount</p>
+                <p class="text-xs text-indigo-500 flex items-center gap-1 font-bold truncate">
+                    <i class="fa-solid fa-lock text-xs"></i> SSL / Let's Encrypt
+                </p>
+            </div>
+            <div class="bg-indigo-500/10 p-4 rounded-lg text-indigo-400 flex-shrink-0">
+                <i class="fa-solid fa-shield-halved text-2xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grafik ve Altyapı Düzeni Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-full overflow-hidden">
+        <!-- Kaynak Tüketim Grafiği (SignalR Stream) -->
+        <div class="lg:col-span-2 bg-white border border-[#bbcabf]/30 rounded-xl p-5 flex flex-col h-full shadow-sm min-w-0 overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 flex-wrap gap-2">
+                <div>
+                    <h3 class="font-bold text-[#0b1c30] text-base">Gerçek Zamanlı Sistem Yükü (SignalR Stream)</h3>
+                    <p class="text-[11px] text-slate-400">Her 3 saniyede bir güncellenir</p>
+                </div>
+                <div class="flex items-center gap-4 text-[11px] font-bold">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> CPU (Zümrüt)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> RAM (Yakut)</span>
+                </div>
+            </div>
+
+            <!-- Canlı Dinamik SVG Grafik -->
+            <div class="relative flex-grow min-h-[280px] bg-slate-50 rounded-lg p-2 border border-slate-200 flex flex-col justify-end">
+                <svg class="w-full h-full absolute inset-0" viewBox="0 0 500 150" preserveAspectRatio="none">
+                    <!-- Grafik Grid Çizgileri -->
+                    <line x1="0" y1="37.5" x2="500" y2="37.5" stroke="rgba(0,0,0,0.03)" stroke-dasharray="4,4" />
+                    <line x1="0" y1="75" x2="500" y2="75" stroke="rgba(0,0,0,0.03)" stroke-dasharray="4,4" />
+                    <line x1="0" y1="112.5" x2="500" y2="112.5" stroke="rgba(0,0,0,0.03)" stroke-dasharray="4,4" />
+                    <line x1="0" y1="150" x2="500" y2="150" stroke="rgba(0,0,0,0.06)" />
+
+                    <!-- CPU Çizgisi (Yeşil) -->
+                    @if (_cpuHistory.Count >= 2)
+                    {
+                        <polyline fill="none" stroke="#10b981" stroke-width="2.5" points="@GetSvgPath(_cpuHistory)" />
+                    }
+
+                    <!-- RAM Çizgisi (Kırmızı) -->
+                    @if (_ramHistory.Count >= 2)
+                    {
+                        <polyline fill="none" stroke="#ef4444" stroke-width="2.5" points="@GetSvgPath(_ramHistory)" />
+                    }
+                </svg>
+
+                <div class="absolute inset-0 flex flex-col justify-between p-2 text-[10px] text-slate-400 font-mono pointer-events-none font-bold">
+                    <div>100%</div>
+                    <div>50%</div>
+                    <div>0%</div>
+                </div>
+
+                @if (!_cpuHistory.Any())
+                {
+                    <div class="absolute inset-0 flex items-center justify-center text-slate-400 text-xs">
+                        Gerçek zamanlı SignalR akışı bekleniyor...
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Sunucu Altyapı Hızlı Durum -->
+        <div class="space-y-6 min-w-0">
+            <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-5 flex flex-col justify-between shadow-sm">
+                <div>
+                    <h3 class="font-bold text-[#0b1c30] mb-3 text-base">Orkestrasyon Altyapısı</h3>
+                    <div class="space-y-3 font-medium">
+                        <!-- Docker Engine Status -->
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-brands fa-docker text-2xl @(_dockerActive ? "text-indigo-600 animate-pulse" : "text-slate-400")"></i>
+                                <div>
+                                    <p class="text-xs font-bold text-[#0b1c30]">Docker Engine</p>
+                                    <p class="text-[10px] text-slate-400">v@_dockerVersion API: @_dockerApiVersion</p>
+                                </div>
+                            </div>
+                            @if (_dockerActive)
+                            {
+                                <span class="bg-emerald-50 text-emerald-600 text-[10px] px-2 py-0.5 rounded-full border border-emerald-200 font-bold">AÇIK</span>
+                            }
+                            else
+                            {
+                                <span class="bg-rose-50 text-rose-600 text-[10px] px-2 py-0.5 rounded-full border border-rose-200 font-bold">KAPALI</span>
+                            }
+                        </div>
+
+                        <!-- Nginx Gateway -->
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-network-wired text-lg @(_nginxActive ? "text-indigo-600" : "text-slate-400")"></i>
+                                <div>
+                                    <p class="text-xs font-bold text-[#0b1c30]">Nginx Gateway</p>
+                                    <p class="text-[10px] text-slate-400">Proxy Port: 80/443</p>
+                                </div>
+                            </div>
+                            @if (_nginxActive)
+                            {
+                                <span class="bg-emerald-50 text-emerald-600 text-[10px] px-2 py-0.5 rounded-full border border-emerald-200 font-bold">AKTİF</span>
+                            }
+                            else
+                            {
+                                <span class="bg-rose-50 text-rose-600 text-[10px] px-2 py-0.5 rounded-full border border-rose-200 font-bold">KAPALI</span>
+                            }
+                        </div>
+
+                        <!-- MailServer -->
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-envelope-open-text text-lg @(_mailServerActive ? "text-indigo-600" : "text-slate-400")"></i>
+                                <div>
+                                    <p class="text-xs font-bold text-[#0b1c30]">docker-mailserver</p>
+                                    <p class="text-[10px] text-slate-400">SMTP, IMAP, SpamAssassin</p>
+                                </div>
+                            </div>
+                            @if (_mailServerActive)
+                            {
+                                <span class="bg-emerald-50 text-emerald-600 text-[10px] px-2 py-0.5 rounded-full border border-emerald-200 font-bold">AKTİF</span>
+                            }
+                            else
+                            {
+                                <span class="bg-rose-50 text-rose-600 text-[10px] px-2 py-0.5 rounded-full border border-rose-200 font-bold">KAPALI</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Android Mobil Uygulama Widget -->
+            <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-5 flex flex-col justify-between shadow-sm">
+                <div>
+                    <h3 class="font-bold text-[#0b1c30] mb-1 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-mobile-screen-button text-indigo-600"></i>
+                        Android Mobil Uygulama
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mb-3 font-semibold">@_apkVersion • @_apkSize • @_apkLabel</p>
+                    
+                    <div class="space-y-2 mt-2">
+                        <button @onclick="DownloadApkDirectly" class="w-full text-xs font-bold text-white hover:bg-indigo-600 transition-all py-2 px-3 rounded bg-indigo-500 flex items-center justify-center gap-2 border border-indigo-600/30 shadow-md">
+                            <i class="fa-solid fa-download"></i> APK İndir
+                        </button>
+                        
+                        <button @onclick="ShowDownloadQrCode" class="w-full text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-all py-2 px-3 rounded bg-white border border-indigo-200 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-qrcode"></i> QR Kod ile İndir
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- En Son Loglar Akışı -->
+    <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+            <div>
+                <h3 class="font-bold text-[#0b1c30] text-base">Canlı Sunucu Orkestrasyon Logları</h3>
+                <p class="text-xs text-slate-400">Sunucudaki tüm servislerin orkestrasyon logları ve sistem olayları</p>
+            </div>
+            <button @onclick="ClearTerminal" class="text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-colors px-3 py-1.5 rounded bg-white border border-indigo-200">
+                Terminali Temizle
+            </button>
+        </div>
+
+        <div class="cyber-terminal">
+            @if (!_systemLogs.Any())
+            {
+                <div style="color: #64748b;">[OK] ApiHub orkestratör izleme modülü aktif edildi. Akış dinleniyor...</div>
+            }
+            else
+            {
+                @foreach (var log in _systemLogs)
+                {
+                    <div style="margin-bottom: 4px;">
+                        <span style="color: #64748b;">[@DateTime.Now.ToString("HH:mm:ss")]</span>
+                        <span>@log</span>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+}
+
+@if (_showQrCode)
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in">
+        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-sm p-6 space-y-4 text-[#0b1c30] shadow-2xl flex flex-col items-center text-center">
+            <h3 class="text-base font-bold text-[#0b1c30] flex items-center gap-2">
+                <i class="fa-solid fa-qrcode text-indigo-600"></i> QR Kod ile Mobil Uygulama İndir
+            </h3>
+            
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 shadow-inner">
+                <img src="@_qrCodeUrl" class="w-44 h-44 bg-white p-2 rounded-lg shadow-md border border-slate-300" alt="APK QR Code" />
+            </div>
+
+            <p class="text-xs text-slate-500 font-semibold px-2">
+                Telefonunuzun kamerası veya QR kod tarayıcısı ile taratarak uygulamayı doğrudan telefonunuza indirebilirsiniz.
+            </p>
+            <p class="text-[10px] text-indigo-600 font-mono">15 dakika geçerlidir</p>
+
+            <button type="button" @onclick="HideQrCode"
+                class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold py-2 rounded-lg transition-colors">
+                Kapat
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    private int _runningContainerCount = 0;
+    private double _systemCpu = 0;
+
+    // Mobil Uygulama Alanları
+    private string _apkVersion = "v1.0.1";
+    private string _apkSize = "24.0 MB";
+    private string _apkLabel = "ApiHub Mobil Asistan";
+    private bool _showQrCode = false;
+    private string _qrCodeUrl = string.Empty;
+    private string _qrToken = string.Empty;
+
+    private async Task DownloadApkDirectly()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<QrTokenResponse>("api/downloads/qr-token");
+            if (response != null && !string.IsNullOrEmpty(response.Token))
+            {
+                var downloadUrl = $"{Http.BaseAddress}api/downloads/apk/{response.Token}";
+                await JSRuntime.InvokeVoidAsync("open", downloadUrl, "_blank");
+                Snackbar.Add("APK indirme işlemi başlatıldı.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"APK indirilirken hata oluştu: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ShowDownloadQrCode()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<QrTokenResponse>("api/downloads/qr-token");
+            if (response != null && !string.IsNullOrEmpty(response.Token))
+            {
+                _qrToken = response.Token;
+                var downloadUrl = $"{Http.BaseAddress}api/downloads/apk/{_qrToken}";
+                _qrCodeUrl = $"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={Uri.EscapeDataString(downloadUrl)}";
+                _showQrCode = true;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"QR kod üretilirken hata oluştu: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void HideQrCode()
+    {
+        _showQrCode = false;
+        _qrCodeUrl = string.Empty;
+        _qrToken = string.Empty;
+    }
+
+    public class QrTokenResponse
+    {
+        public string Token { get; set; } = string.Empty;
+        public DateTime ExpiresAt { get; set; }
+    }
+    private double _ramUsedGb = 0;
+    private double _ramTotalGb = 8.0;
+    private double _diskUsedPercentage = 0;
+    private double _diskUsedGb = 0;
+    private double _diskTotalGb = 0;
+    private int _subdomainCount = 0;
+    private int _cpuCount = 1;
+    private string _cpuModel = "İşlemci...";
+
+    private bool _dockerActive = false;
+    private string _dockerVersion = "Bilinmiyor";
+    private string _dockerApiVersion = "Bilinmiyor";
+    private bool _nginxActive = false;
+    private bool _mailServerActive = false;
+
+    private List<double> _cpuHistory = new();
+    private List<double> _ramHistory = new();
+    private List<string> _systemLogs = new();
+    private List<SubdomainDto> _subdomainsList = new();
+
+    private List<AuditLogResponseDto> _latestAuditEvents = new();
+
+    private bool _showMoreMenu = false;
+
+    private void ToggleMoreMenu()
+    {
+        _showMoreMenu = !_showMoreMenu;
+        StateHasChanged();
+    }
+
+    private void NavigateToMobilePage(string url)
+    {
+        _showMoreMenu = false;
+        NavigationManager.NavigateTo(url);
+    }
+
+    protected override void OnInitialized()
+    {
+        AppState.OnStateChanged += SyncState;
+        SyncState();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Cihaz tipi PlatformInfo singleton servisi üzerinden statik korunur.
+
+        try
+        {
+            if (!AppState.IsInitialized)
+            {
+                await AppState.InitializeAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Home] AppState initialization failed on load: {ex.Message}");
+        }
+        try
+        {
+            var meta = await Http.GetFromJsonAsync<ApkMetadataDto>("api/downloads/apk-metadata");
+            if (meta != null)
+            {
+                _apkVersion = meta.Version;
+                _apkSize = meta.FormattedSize;
+                _apkLabel = meta.Label;
+                StateHasChanged();
+            }
+        }
+        catch
+        {
+            // Ignore, defaults are fine
+        }
+
+        try
+        {
+            var subdomains = await Http.GetFromJsonAsync<List<SubdomainDto>>("api/nginx");
+            if (subdomains != null)
+            {
+                _subdomainsList = subdomains;
+                StateHasChanged();
+            }
+        }
+        catch
+        {
+            // Ignore
+        }
+
+        try
+        {
+            var logsResult = await Http.GetFromJsonAsync<PagedLogsDto>("api/audit-logs?page=1&pageSize=3");
+            if (logsResult?.Items != null)
+            {
+                _latestAuditEvents = logsResult.Items;
+                StateHasChanged();
+            }
+        }
+        catch
+        {
+            // Ignore
+        }
+
+        if (PlatformInfo.IsMobileApp)
+        {
+            try
+            {
+                string? token = null;
+                if (PlatformInfo.GetFcmTokenFunc != null)
+                {
+                    token = await PlatformInfo.GetFcmTokenFunc();
+                }
+
+                if (string.IsNullOrEmpty(token))
+                {
+                    token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "fallback_device_token");
+                    if (string.IsNullOrEmpty(token))
+                    {
+                        token = "fcm_fallback_" + Guid.NewGuid().ToString("N");
+                        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "fallback_device_token", token);
+                    }
+                }
+
+                string deviceName = PlatformInfo.GetDeviceNameFunc?.Invoke() ?? "Bilinmeyen Android";
+                if (!deviceName.Contains("Mobil"))
+                {
+                    deviceName = "Mobil - " + deviceName;
+                }
+
+                var regRequest = new 
+                { 
+                    Token = token, 
+                    Platform = "Android", 
+                    DeviceName = deviceName 
+                };
+
+                var regResponse = await Http.PostAsJsonAsync("api/devices/register", regRequest);
+                if (regResponse.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Cihaz başarıyla kaydedildi: {deviceName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Cihaz kaydı sırasında hata oluştu: {ex.Message}");
+            }
+        }
+    }
+
+    private void SyncState()
+    {
+        _runningContainerCount = AppState.RunningContainerCount;
+        _systemCpu = AppState.SystemCpu;
+        _ramUsedGb = AppState.RamUsedGb;
+        _ramTotalGb = AppState.RamTotalGb;
+        _diskUsedPercentage = AppState.DiskUsedPercentage;
+        _diskUsedGb = AppState.DiskUsedGb;
+        _diskTotalGb = AppState.DiskTotalGb;
+        _subdomainCount = AppState.SubdomainCount;
+        _cpuCount = AppState.CpuCount;
+        _cpuModel = AppState.CpuModel;
+        _dockerActive = AppState.DockerActive;
+        _dockerVersion = AppState.DockerVersion;
+        _dockerApiVersion = AppState.DockerApiVersion;
+        _nginxActive = AppState.NginxActive;
+        _mailServerActive = AppState.MailServerActive;
+        
+        // Expose thread-safe copies of histories and logs
+        _cpuHistory = AppState.GetCpuHistory();
+        _ramHistory = AppState.GetRamHistory();
+        _systemLogs = AppState.GetSystemLogs();
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string GetSvgPath(List<double> history)
+    {
+        if (history.Count < 2) return "";
+        var points = new List<string>();
+        double stepX = 500.0 / (history.Count - 1);
+        double max = 100.0;
+        for (int i = 0; i < history.Count; i++)
+        {
+            string x = (i * stepX).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string y = (150 - (history[i] / max) * 150).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            points.Add($"{x},{y}");
+        }
+        return string.Join(" ", points);
+    }
+
+    private void ClearTerminal()
+    {
+        AppState.ClearTerminal();
+    }
+
+    public void Dispose()
+    {
+        AppState.OnStateChanged -= SyncState;
+    }
+
+    public class SystemMetricsDto
+    {
+        public double Cpu { get; set; }
+        public double RamPercentage { get; set; }
+        public double RamUsedGb { get; set; }
+        public double RamTotalGb { get; set; }
+    }
+
+    public class SystemStatusDto
+    {
+        public bool DockerActive { get; set; }
+        public string DockerVersion { get; set; } = "Bilinmiyor";
+        public string DockerApiVersion { get; set; } = "Bilinmiyor";
+        public bool NginxActive { get; set; }
+        public bool MailServerActive { get; set; }
+        public int CpuCount { get; set; }
+        public string CpuModel { get; set; } = "Bilinmiyor";
+    }
+
+    public class ContainerLogsDto
+    {
+        public Guid ContainerId { get; set; }
+        public List<string> Logs { get; set; } = new();
+    }
+
+    // Inline types matching backend definition
+    public class Container
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Image { get; set; } = string.Empty;
+        public ContainerStatus Status { get; set; }
+    }
+
+    public enum ContainerStatus
+    {
+        Running,
+        Stopped,
+        Provisioning,
+        Error
+    }
+
+    public class Subdomain
+    {
+        public Guid Id { get; set; }
+        public string SubdomainName { get; set; } = string.Empty;
+        public string DomainName { get; set; } = string.Empty;
+    }
+
+    public class SubdomainDto
+    {
+        public Guid Id { get; set; }
+        public string SubdomainName { get; set; } = string.Empty;
+        public string DomainName { get; set; } = string.Empty;
+        public bool SslEnabled { get; set; }
+        public Guid? ProjectId { get; set; }
+        public string ContainerName { get; set; } = string.Empty;
+        public int ContainerPort { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class ApkMetadataDto
+    {
+        public string Version { get; set; } = string.Empty;
+        public double SizeMb { get; set; }
+        public string FormattedSize { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+    }
+
+    public class PagedLogsDto
+    {
+        public int TotalItems { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public List<AuditLogResponseDto>? Items { get; set; }
+    }
+
+    public class AuditLogResponseDto
+    {
+        public Guid Id { get; set; }
+        public Guid UserId { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string Action { get; set; } = string.Empty;
+        public string TargetEntity { get; set; } = string.Empty;
+        public Guid? TargetId { get; set; }
+        public string Details { get; set; } = string.Empty;
+        public string IpAddress { get; set; } = string.Empty;
+        public string UserAgent { get; set; } = string.Empty;
+        public DateTimeOffset Timestamp { get; set; }
+    }
+
+    private async Task HandleLogout()
+    {
+        AppState.Reset();
+        await AuthProvider.LogoutAsync();
+        NavigationManager.NavigateTo("/login", replace: true);
+    }
+}

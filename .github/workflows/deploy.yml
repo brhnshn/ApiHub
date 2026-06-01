@@ -1,0 +1,152 @@
+name: DockerPanel CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: dockerpanel-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Detect Changed Areas
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            mobile:
+              - 'src/DockerPanel.Mobile/**'
+              - 'src/DockerPanel.Client/**'
+              - 'src/DockerPanel.Domain/**'
+              - 'global.json'
+              - 'DockerPanel.sln'
+              - '.github/workflows/deploy.yml'
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'global.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore Backend Dependencies
+        run: dotnet restore src/DockerPanel.API/DockerPanel.API.csproj -r linux-x64
+
+      - name: Build and Publish Web API
+        run: dotnet publish src/DockerPanel.API/DockerPanel.API.csproj -c Release -r linux-x64 --self-contained false --no-restore -o ./publish
+
+      - name: Setup Java JDK
+        if: steps.changes.outputs.mobile == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'microsoft'
+
+      - name: Install MAUI Android Workload
+        if: steps.changes.outputs.mobile == 'true'
+        run: dotnet workload install maui-android
+
+      - name: Restore Android Signing Key
+        if: steps.changes.outputs.mobile == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > apihub.keystore
+          fi
+
+      - name: Build Android APK
+        if: steps.changes.outputs.mobile == 'true'
+        run: |
+          SIGNING_ARGS=()
+          if [ -f apihub.keystore ]; then
+            SIGNING_ARGS+=("-p:AndroidKeyStore=true")
+            SIGNING_ARGS+=("-p:AndroidSigningKeyStore=$PWD/apihub.keystore")
+            SIGNING_ARGS+=("-p:AndroidSigningStorePass=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}")
+            SIGNING_ARGS+=("-p:AndroidSigningKeyAlias=${{ secrets.ANDROID_KEY_ALIAS }}")
+            SIGNING_ARGS+=("-p:AndroidSigningKeyPass=${{ secrets.ANDROID_KEY_PASSWORD }}")
+          fi
+
+          dotnet publish src/DockerPanel.Mobile/DockerPanel.Mobile.csproj \
+            -f net8.0-android \
+            -c Release \
+            -p:CheckEolWorkloads=false \
+            -p:ApplicationDisplayVersion=1.0.${{ github.run_number }} \
+            -p:ApplicationVersion=${{ github.run_number }} \
+            "${SIGNING_ARGS[@]}" \
+            -m:1
+
+      - name: Prepare APK for Deployment
+        if: steps.changes.outputs.mobile == 'true'
+        run: |
+          mkdir -p ./apk_out
+          cp src/DockerPanel.Mobile/bin/Release/net8.0-android/android-arm64/*-Signed.apk ./apk_out/apihub.apk
+          cat > ./apk_out/apihub.json <<EOF
+          {
+            "version": "1.0.${{ github.run_number }}",
+            "changelog": "- Mobil uygulama guncellendi.\\n- Commit: ${{ github.sha }}\\n- Build: #${{ github.run_number }}"
+          }
+          EOF
+
+      - name: Zip Publish Output
+        run: |
+          cd ./publish
+          zip -r ../DockerPanel.API.zip .
+
+      - name: Copy ZIP to Server via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "DockerPanel.API.zip"
+          target: "/opt/dockerpanel/api/"
+
+      - name: Copy APK to Server via SCP
+        if: steps.changes.outputs.mobile == 'true'
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "apk_out/apihub.apk,apk_out/apihub.json"
+          target: "/opt/dockerpanel/downloads/"
+          strip_components: 1
+
+      - name: Execute Remote SSH Commands
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            sudo systemctl stop dockerpanel-api
+
+            sudo mkdir -p /opt/dockerpanel/downloads
+            sudo chmod 755 /opt/dockerpanel/downloads
+
+            cd /opt/dockerpanel/api
+            rm -rf DockerPanel_V1
+            unzip -q DockerPanel.API.zip -d DockerPanel_V1
+
+            sudo systemctl start dockerpanel-api
+            sudo systemctl reload nginx
+
+            rm -f DockerPanel.API.zip

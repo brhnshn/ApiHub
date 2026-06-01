@@ -1,0 +1,1469 @@
+@page "/containers"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject DockerPanel.Client.Security.IAuthTokenStore TokenStore
+@inject PlatformInfo PlatformInfo
+@inject DockerPanel.Client.Services.AppState AppState
+@inject JwtAuthenticationStateProvider AuthProvider
+@implements IAsyncDisposable
+
+<PageTitle>Proje ve Konteyner Yönetimi - ApiHub</PageTitle>
+
+@if (PlatformInfo.IsMobileApp)
+{
+    <!-- STITCH MOBILE INFRASTRUCTURE VIEW -->
+    <style>
+        .glass-card {
+            background: rgba(29, 32, 39, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        .status-glow-green {
+            box-shadow: 0 0 8px rgba(78, 222, 163, 0.4);
+        }
+        .status-glow-red {
+            box-shadow: 0 0 8px rgba(255, 180, 171, 0.4);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        /* Custom Scrollbar for subtle look */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #32353c; border-radius: 10px; }
+    </style>
+
+    <div class="space-y-6 text-[#e1e2ec] font-sans">
+        <!-- Page Actions Top Bar -->
+        <div class="flex justify-between items-center bg-[#1d2027]/40 p-4 rounded-2xl border border-white/5 shadow-lg">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-[#adc6ff] text-2xl" style="font-variation-settings: 'FILL' 1;">monitor_heart</span>
+                <h1 class="text-base font-bold tracking-tight text-[#4edea3]">Servisler</h1>
+            </div>
+            <div class="flex items-center gap-1">
+                <!-- Listeyi Yenile Butonu -->
+                <button @onclick="LoadProjectsAsync" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition-colors text-[#adc6ff]" title="Listeyi Yenile">
+                    <span class="material-symbols-outlined">sync</span>
+                </button>
+                <!-- Toplu Yeniden Başlatma Butonu -->
+                <button @onclick="RestartAllProjects" disabled="@_isBulkRestarting" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition-colors relative text-[#ffb786]" title="Tümünü Yeniden Başlat">
+                    <span class="material-symbols-outlined">restart_alt</span>
+                </button>
+                <!-- Ekle Butonu -->
+                <button @onclick="OpenCreateModal" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition-colors text-white" title="Yeni Proje Ekle">
+                    <span class="material-symbols-outlined">add</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Search and Filters -->
+        <section class="space-y-4">
+            <div class="relative">
+                <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#8c909f]">search</span>
+                <input @bind-value="_searchText" @bind-value:event="oninput" class="w-full bg-[#1d2027] border border-[#8c909f]/20 rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-[#adc6ff] transition-all placeholder:text-[#8c909f]/50 text-white" placeholder="Konteyner ara..." type="text">
+            </div>
+            <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                <button type="button" @onclick='() => SetActiveFilter("Hepsi")' class="px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap @(_activeFilter == "Hepsi" ? "bg-[#adc6ff] text-[#001a42]" : "bg-[#32353c] text-[#c2c6d6] border border-white/5")">Hepsi</button>
+                <button type="button" @onclick='() => SetActiveFilter("Docker")' class="px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap @(_activeFilter == "Docker" ? "bg-[#adc6ff] text-[#001a42]" : "bg-[#32353c] text-[#c2c6d6] border border-white/5")">Docker</button>
+                <button type="button" @onclick='() => SetActiveFilter("Native")' class="px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap @(_activeFilter == "Native" ? "bg-[#adc6ff] text-[#001a42]" : "bg-[#32353c] text-[#c2c6d6] border border-white/5")">Native</button>
+                <button type="button" @onclick='() => SetActiveFilter("Static")' class="px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap @(_activeFilter == "Static" ? "bg-[#adc6ff] text-[#001a42]" : "bg-[#32353c] text-[#c2c6d6] border border-white/5")">Static</button>
+                <button type="button" @onclick='() => SetActiveFilter("Hatalı")' class="px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap @(_activeFilter == "Hatalı" ? "bg-[#adc6ff] text-[#001a42]" : "bg-[#32353c] text-[#c2c6d6] border border-white/5")">Hatalı</button>
+            </div>
+        </section>
+
+        <!-- Container List -->
+        <section class="space-y-4">
+            @if (_isLoading)
+            {
+                <div class="flex flex-col items-center justify-center py-12 gap-3">
+                    <div class="w-8 h-8 border-4 border-[#adc6ff] border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-xs text-gray-400">Yükleniyor...</span>
+                </div>
+            }
+            else if (!FilteredProjects.Any())
+            {
+                <div class="glass-card rounded-2xl p-6 text-center text-gray-400 border border-white/5">
+                    <span class="material-symbols-outlined text-4xl text-gray-500 mb-2">inbox</span>
+                    <p class="text-sm font-semibold">Uyumlu proje bulunamadı</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var project in FilteredProjects)
+                {
+                    var isRunning = project.Status == ProjectStatus.Running;
+                    var isProvisioning = project.Status == ProjectStatus.Provisioning;
+                    var isError = project.Status == ProjectStatus.Error;
+
+                    <div class="glass-card rounded-2xl p-4 space-y-4 @(isRunning ? "" : "opacity-70 grayscale-[0.5]")">
+                        <div class="flex justify-between items-start">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-bold text-[#adc6ff] truncate max-w-[180px] text-base">@project.Name</h3>
+                                    @if (isRunning)
+                                    {
+                                        <span class="w-2 h-2 rounded-full bg-[#4edea3] status-glow-green"></span>
+                                    }
+                                    else if (isProvisioning)
+                                    {
+                                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="w-2 h-2 rounded-full bg-[#ffb4ab] status-glow-red"></span>
+                                    }
+                                </div>
+                                <p class="text-xs text-[#c2c6d6]/70 font-mono truncate max-w-[220px]">
+                                    @(project.Type == ProjectType.DockerContainer ? project.ImageOrPath : (project.Type == ProjectType.StaticSite ? (project.EnablePhp ? "Statik Web (PHP)" : "Statik Web Dizini") : "Native Deploy Dizini"))
+                                </p>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider @(project.Type == ProjectType.DockerContainer ? "bg-[#adc6ff]/20 text-[#adc6ff]" : project.Type == ProjectType.StaticSite ? "bg-indigo-500/20 text-indigo-400" : "bg-[#4edea3]/20 text-[#4edea3]")">
+                                @project.Type.ToString().ToUpper()
+                            </span>
+                        </div>
+
+                        <div class="space-y-3">
+                            @if (isRunning)
+                            {
+                                <div class="space-y-1.5">
+                                    <div class="flex justify-between text-xs font-bold uppercase tracking-tighter text-[#c2c6d6]">
+                                        <span>Canlı CPU Kullanımı</span>
+                                        <span class="text-[#4edea3]">%@project.LiveCpu.ToString("0.0")</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-[#adc6ff] transition-all duration-1000" style="width: @(Math.Min(project.LiveCpu, 100).ToString(System.Globalization.CultureInfo.InvariantCulture))%;"></div>
+                                    </div>
+                                </div>
+                                <div class="space-y-1.5">
+                                    <div class="flex justify-between text-xs font-bold uppercase tracking-tighter text-[#c2c6d6]">
+                                        <span>Canlı RAM Kullanımı</span>
+                                        <span class="text-[#4edea3]">%@project.LiveRamPct.ToString("0.0") (@GetReadableBytes(project.LiveRamBytes))</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-[#4edea3] transition-all duration-1000" style="width: @(Math.Min(project.LiveRamPct, 100).ToString(System.Globalization.CultureInfo.InvariantCulture))%;"></div>
+                                    </div>
+                                </div>
+                            }
+                            else if (isProvisioning)
+                            {
+                                <div class="flex items-center justify-center py-4 bg-white/5 rounded-lg border border-dashed border-white/5 text-xs text-amber-400">
+                                    <div class="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+                                    İşleniyor, lütfen bekleyin...
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="flex items-center justify-center py-4 bg-white/5 rounded-lg border border-dashed border-white/5 text-gray-500 text-xs">
+                                    Proje aktif olmadığından metrik akışı kapalı.
+                                </div>
+                            }
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 pt-2 text-xs border-t border-white/5">
+                            <div class="space-y-1">
+                                <p class="text-[#8c909f]">İç Port: <span class="text-white font-mono">@project.InternalPort</span></p>
+                                @if (isRunning && project.StartedAt.HasValue)
+                                {
+                                    <div class="flex items-center gap-1 text-[#4edea3]">
+                                        <span class="material-symbols-outlined text-[14px]">schedule</span>
+                                        <span>@GetUptimeText(project.StartedAt.Value)</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="flex items-center gap-1 text-[#ffb4ab]">
+                                        <span class="material-symbols-outlined text-[14px]">block</span>
+                                        <span>Kapalı</span>
+                                    </div>
+                                }
+                            </div>
+                            <div class="space-y-1 text-right">
+                                <p class="text-[#8c909f]">Limit: <span class="text-white font-mono">@project.CpuCount CPU / @(project.MemoryLimitBytes / 1048576) MB</span></p>
+                                <p class="@(isRunning ? "text-[#4edea3]/80 font-bold" : "text-[#ffb4ab]/80 font-bold") uppercase">
+                                    @(isRunning ? "Aktif" : "Pasif")
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 pt-2">
+                            <button @onclick="@(() => RestartProject(project))" disabled="@_restartingProjectIds.Contains(project.Id)" 
+                                    class="flex-1 py-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/20 font-bold text-sm transition-all active:scale-95 flex items-center justify-center gap-2 select-none" style="border-radius: 12px;">
+                                <svg class="w-4 h-4 shrink-0 @(_restartingProjectIds.Contains(project.Id) ? "animate-spin" : "")" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                </svg>
+                                <span>@(_restartingProjectIds.Contains(project.Id) ? "Yeniden Başlatılıyor..." : "Yeniden Başlat")</span>
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </section>
+    </div>
+}
+else
+{
+    <!-- DESKTOP VIEW -->
+    <div class="d-flex align-center justify-between mb-6 flex-wrap gap-4">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px;">Proje & Servis Yönetimi</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Hibrit Docker konteynerlerinizi ve Native web projelerinizi tek bir merkezden canlı takip edin.</MudText>
+        </div>
+        
+        <div class="d-flex gap-3 align-center">
+            <!-- Toplu Yeniden Başlat Butonu -->
+            <MudButton Variant="Variant.Outlined" 
+                       Color="Color.Warning" 
+                       StartIcon="@Icons.Material.Filled.RestartAlt" 
+                       OnClick="RestartAllProjects" 
+                       Disabled="_isBulkRestarting"
+                       Style="font-weight: 700; text-transform: none; border-radius: 8px; font-family: 'Outfit', sans-serif; border: 1.5px solid #f59e0b !important;">
+                @if (_isBulkRestarting)
+                {
+                    <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Yeniden Başlatılıyor...</span>
+                }
+                else
+                {
+                    <span>Tüm Projeleri Yeniden Başlat</span>
+                }
+            </MudButton>
+        </div>
+    </div>
+
+    <!-- Proje Kartları Grid Yapısı -->
+    @if (_isLoading)
+    {
+        <div class="d-flex align-center justify-center py-12">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else if (!_projects.Any())
+    {
+        <div class="glass-panel pa-12 text-center" style="border-radius: 12px !important;">
+            <MudIcon Icon="@Icons.Material.Filled.Inbox" Style="font-size: 64px; color: #64748b;" Class="mb-4" />
+            <MudText Typo="Typo.h6" Style="color: var(--text-main); font-weight: 700;">Henüz hiç proje bulunmuyor</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-6">Yeni servis veya native proje eklemek için Dağıtım Sihirbazı sayfasını kullanın.</MudText>
+        </div>
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var project in _projects)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <div class="glass-panel pa-6 zoom-hover d-flex flex-column h-100" style="border-radius: 12px !important; position: relative; border: 1px solid rgba(255,255,255,0.06);">
+                        <!-- Tip Etiketi (Docker vs Native) -->
+                        <div style="position: absolute; top: 12px; right: 12px;">
+                            @if (project.Type == ProjectType.DockerContainer)
+                            {
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="font-weight: 700; font-size: 9px; height: 18px; margin: 0;">DOCKER</MudChip>
+                            }
+                            else if (project.Type == ProjectType.NativeProject)
+                            {
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Style="font-weight: 700; font-size: 9px; height: 18px; margin: 0; background-color: #10b981 !important;">NATIVE</MudChip>
+                            }
+                            else if (project.Type == ProjectType.StaticSite)
+                            {
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Style="font-weight: 700; font-size: 9px; height: 18px; margin: 0; background-color: #6366f1 !important;">STATIC</MudChip>
+                            }
+                        </div>
+
+                        <!-- Başlık ve Durum -->
+                        <div class="d-flex align-start justify-between mb-4 mt-2">
+                            <div>
+                                <MudText Typo="Typo.h6" Style="font-weight: 700; color: var(--text-main); font-family: 'Outfit', sans-serif; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@project.Name</MudText>
+                                <span style="font-size: 10px; color: #64748b; font-family: 'JetBrains Mono', monospace; display: block; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    @(project.Type == ProjectType.DockerContainer ? project.ImageOrPath : (project.Type == ProjectType.StaticSite ? (project.EnablePhp ? "Statik Web (PHP)" : "Statik Web Dizini") : "Native Deploy Dizini"))
+                                </span>
+                            </div>
+                            
+                            <!-- Aktiflik Durumu -->
+                            <div class="d-flex align-center gap-1.5" style="margin-right: 50px;">
+                                @if (project.Status == ProjectStatus.Running)
+                                {
+                                    <span class="pulse-green"></span>
+                                    <span style="font-size: 11px; color: #10b981; font-weight: 700;">Aktif</span>
+                                }
+                                else if (project.Status == ProjectStatus.Provisioning)
+                                {
+                                    <MudProgressCircular Color="Color.Warning" Size="Size.Small" Indeterminate="true" style="width:10px; height:10px;" />
+                                    <span style="font-size: 11px; color: #f59e0b; font-weight: 700;">Kuruluyor</span>
+                                }
+                                else if (project.Status == ProjectStatus.Error)
+                                {
+                                    <span class="pulse-red"></span>
+                                    <span style="font-size: 11px; color: #ef4444; font-weight: 700;">Hata</span>
+                                }
+                                else
+                                {
+                                    <span class="pulse-red" style="background-color: #94a3b8; box-shadow: none;"></span>
+                                    <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">Durduruldu</span>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Canlı Metrik İlerleme Çubukları -->
+                        <div class="my-4 flex-grow-1">
+                            @if (project.Status == ProjectStatus.Running)
+                            {
+                                <!-- CPU -->
+                                <div class="mb-3">
+                                    <div class="d-flex justify-between mb-1" style="font-size: 10px; font-weight: 700; letter-spacing: 0.5px;">
+                                        <span style="color: #94a3b8;">CANLI CPU KULLANIMI</span>
+                                        <span style="color: #10b981;">%@project.LiveCpu</span>
+                                    </div>
+                                    <MudProgressLinear Color="Color.Secondary" Value="@project.LiveCpu" Min="0" Max="100" Class="rounded-pill" Style="height: 5px;" />
+                                </div>
+
+                                <!-- Memory -->
+                                <div>
+                                    <div class="d-flex justify-between mb-1" style="font-size: 10px; font-weight: 700; letter-spacing: 0.5px;">
+                                        <span style="color: #94a3b8;">CANLI RAM KULLANIMI</span>
+                                        <span style="color: #6366f1;">%@project.LiveRamPct (@GetReadableBytes(project.LiveRamBytes))</span>
+                                    </div>
+                                    <MudProgressLinear Color="Color.Primary" Value="@project.LiveRamPct" Min="0" Max="100" Class="rounded-pill" Style="height: 5px;" />
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex align-center justify-center py-6" style="background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.05); color: #64748b; font-size: 11px;">
+                                    Proje çalışmadığından canlı performans metrikleri kapalı.
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Alt Bilgiler -->
+                        <div class="d-flex justify-between align-center mt-4 pt-3" style="border-top: 1px solid var(--border-light); font-size: 11px; color: var(--text-secondary);">
+                            <span>İç Port: <strong style="color: var(--text-main);">@project.InternalPort</strong></span>
+                            <span>Limit: <strong style="color: var(--text-main);">@project.CpuCount CPU / @(project.MemoryLimitBytes / 1048576) MB</strong></span>
+                        </div>
+                        @if (project.Status == ProjectStatus.Running && project.StartedAt.HasValue)
+                        {
+                            <div class="d-flex align-center gap-1 mt-2" style="font-size: 11px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: @GetUptimeColor(project.StartedAt.Value);">
+                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                                <span>@GetUptimeText(project.StartedAt.Value)</span>
+                            </div>
+                        }
+
+                        <!-- Aksiyon Butonları -->
+                        <div class="d-flex gap-2 mt-4">
+                            @if (project.Status == ProjectStatus.Running)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true" OnClick="@(() => StopProject(project))" Size="Size.Small" Style="font-weight: 700; text-transform:none;">Durdur</MudButton>
+                            }
+                            else if (project.Status == ProjectStatus.Stopped || project.Status == ProjectStatus.Error)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="@(() => StartProject(project))" Size="Size.Small" Style="font-weight: 700; text-transform:none;">Başlat</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Dark" FullWidth="true" Disabled="true" Size="Size.Small">İşleniyor...</MudButton>
+                            }
+
+                            @if (project.Type == ProjectType.NativeProject && project.Status == ProjectStatus.Running)
+                            {
+                                <MudTooltip Text="Native projeyi yeniden başlat">
+                                    <MudIconButton Icon="@( _restartingProjectIds.Contains(project.Id) ? Icons.Material.Filled.Sync : Icons.Material.Filled.RestartAlt )"
+                                                   Color="Color.Warning"
+                                                   Disabled="_restartingProjectIds.Contains(project.Id)"
+                                                   OnClick="@(() => RestartProject(project))"
+                                                   Variant="Variant.Outlined"
+                                                   Size="Size.Small" />
+                                </MudTooltip>
+                            }
+
+                            <MudTooltip Text="Canlı Log Gör">
+                                <MudIconButton Icon="@Icons.Material.Filled.Terminal" Color="Color.Inherit" OnClick="@(() => OpenLogsDrawer(project))" Variant="Variant.Outlined" Size="Size.Small" />
+                            </MudTooltip>
+                            <MudTooltip Text="Kaynak Limitlerini Düzenle">
+                                <MudIconButton Icon="@Icons.Material.Filled.Tune" Color="Color.Primary" OnClick="@(() => OpenLimitModal(project))" Variant="Variant.Outlined" Size="Size.Small" />
+                            </MudTooltip>
+                            <MudTooltip Text="Projeyi Yok Et">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteProject(project))" Variant="Variant.Outlined" Size="Size.Small" Style="border-color: rgba(239, 68, 68, 0.3) !important;" />
+                            </MudTooltip>
+                        </div>
+                    </div>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+}
+
+@if (_logsDrawerOpen)
+{
+    <div style="position: fixed; left: 0; right: 0; bottom: 0; z-index: 1300; background-color: var(--bg-card); border-top: 2px solid #10b981; box-shadow: 0 -18px 45px rgba(0,0,0,0.35); padding: 18px 24px;">
+        <div class="d-flex align-center justify-between mb-3">
+            <div>
+                <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: var(--text-main); font-family: 'Outfit', sans-serif;">@_activeLogProjectName</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Canlı log akışı</MudText>
+            </div>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" OnClick="CloseLogsDrawer" />
+        </div>
+
+        <div class="cyber-terminal" style="height: 260px; background-color: #030712; border: 1px solid rgba(255,255,255,0.05); padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; overflow-y: auto; border-radius: 8px;">
+            @if (!_activeLogs.Any())
+            {
+                <div style="color: #64748b;">Log akışı bekleniyor...</div>
+            }
+            else
+            {
+                @foreach (var log in _activeLogs)
+                {
+                    <div style="margin-bottom: 2px; color: #10b981; white-space: pre-wrap;">@log</div>
+                }
+            }
+        </div>
+    </div>
+}
+
+<MudDialog @bind-Visible="_limitModalVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Kaynak Limitleri</MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="@_limitModel" OnValidSubmit="HandleLimitUpdate">
+            <DataAnnotationsValidator />
+
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@_limitProjectName için CPU/RAM sınırlarını güncelleyin.</MudText>
+
+            <MudGrid Class="mb-4">
+                <MudItem xs="6">
+                    <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">RAM Limiti (MB)</label>
+                    <MudNumericField T="int" @bind-Value="_limitModel.MemoryLimitMb" Min="64" Max="65536" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6">
+                    <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">CPU Limiti</label>
+                    <MudNumericField T="double" @bind-Value="_limitModel.CpuCount" Min="0.1" Max="64.0" Step="0.1" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-end gap-2">
+                <MudButton OnClick="CloseLimitModal" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none;">İptal</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_isUpdatingLimits" Style="text-transform: none; font-weight: 700;">
+                    @if (_isUpdatingLimits)
+                    {
+                        <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Güncelleniyor...</span>
+                    }
+                    else
+                    {
+                        <span>Kaydet</span>
+                    }
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+<!-- Yeni Proje Modal/Sihirbaz Popup -->
+<MudDialog @bind-Visible="_createModalVisible">
+    <TitleContent>
+        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Yeni Proje Sağla</MudText>
+    </TitleContent>
+    <DialogContent>
+        <!-- Proje Tipi Seçici Segment (Toggle Button) -->
+        <div class="d-flex mb-6" style="background: var(--bg-sub); border-radius: 8px; padding: 4px; border: 1px solid var(--border-color);">
+            <button type="button" @onclick="() => SetProjectType(ProjectType.DockerContainer)" 
+                    style="flex: 1; padding: 10px; border-radius: 6px; font-weight: 700; border: none; font-size: 12px; transition: all 0.2s; font-family: 'Outfit', sans-serif; @( _selectedType == ProjectType.DockerContainer ? "background: #006c49; color: #fff;" : "background: transparent; color: #64748b;" )">
+                Docker Konteyner
+            </button>
+            <button type="button" @onclick="() => SetProjectType(ProjectType.NativeProject)"
+                    style="flex: 1; padding: 10px; border-radius: 6px; font-weight: 700; border: none; font-size: 12px; transition: all 0.2s; font-family: 'Outfit', sans-serif; @( _selectedType == ProjectType.NativeProject ? "background: #10b981; color: #fff;" : "background: transparent; color: #64748b;" )">
+                Native ZIP
+            </button>
+            <button type="button" @onclick="() => SetProjectType(ProjectType.StaticSite)"
+                    style="flex: 1; padding: 10px; border-radius: 6px; font-weight: 700; border: none; font-size: 12px; transition: all 0.2s; font-family: 'Outfit', sans-serif; @( _selectedType == ProjectType.StaticSite ? "background: #6366f1; color: #fff;" : "background: transparent; color: #64748b;" )">
+                Statik Web
+            </button>
+        </div>
+
+        <EditForm Model="@_createModel" OnValidSubmit="HandleCreate">
+            <DataAnnotationsValidator />
+            
+            <div class="mb-4">
+                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">Proje / Uygulama Adı</label>
+                <MudTextField @bind-Value="_createModel.Name" Placeholder="örn: node-api-service" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.Name)" />
+            </div>
+
+            @if (_selectedType == ProjectType.DockerContainer)
+            {
+                <div class="mb-4">
+                    <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">Docker İmajı ve Tag</label>
+                    <MudTextField @bind-Value="_createModel.ImageName" Placeholder="örn: node:20-alpine" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.ImageName)" />
+                </div>
+            }
+            else if (_selectedType == ProjectType.NativeProject)
+            {
+                <!-- Native ZIP Dosya Yükleyici -->
+                <div class="mb-4">
+                    <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">Proje ZIP Arşivi</label>
+                    
+                    <div style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 20px; text-align: center; background: var(--bg-sub); cursor: pointer; position: relative;">
+                        <InputFile OnChange="OnZipFileSelected" accept=".zip" style="position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" />
+                        
+                        @if (_selectedFile == null)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="Color.Primary" Style="font-size: 32px;" Class="mb-2" />
+                            <div style="font-size: 12px; color: var(--text-main); font-weight: 700;">Tıklayın veya ZIP dosyasını buraya sürükleyin</div>
+                            <div style="font-size: 10px; color: #64748b;">(Maksimum dosya boyutu: 200 MB)</div>
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.FolderZip" Color="Color.Success" Style="font-size: 32px;" Class="mb-2" />
+                            <div style="font-size: 12px; color: #10b981; font-weight: 700;">@_selectedFile.Name</div>
+                            <div style="font-size: 10px; color: #64748b;">(@GetReadableBytes(_selectedFile.Size))</div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Native ZIP Çalıştırma Ayarları -->
+                <div class="mb-4">
+                    <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">Çalışma Zamanı (Runtime)</label>
+                    <MudSelect @bind-Value="_createModel.RuntimeType" Variant="Variant.Outlined" Margin="Margin.Dense" T="string">
+                        <MudSelectItem Value="@("dotnet")">.NET / C#</MudSelectItem>
+                        <MudSelectItem Value="@("node")">Node.js</MudSelectItem>
+                        <MudSelectItem Value="@("python")">Python</MudSelectItem>
+                        <MudSelectItem Value="@("custom")">Özel Komut (Custom)</MudSelectItem>
+                    </MudSelect>
+                </div>
+
+                @if (_createModel.RuntimeType == "custom")
+                {
+                    <div class="mb-4">
+                        <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">Özel Çalıştırma Komutu</label>
+                        <MudTextField @bind-Value="_createModel.CustomCommand" Placeholder="örn: node api/index.js" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-4">
+                        <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">Ana Çalıştırılabilir Dosya (Entry File)</label>
+                        <MudTextField @bind-Value="_createModel.EntryFile" Placeholder="örn: TestProje.dll, server.js veya app.py" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Boş bırakılırsa dosya adından otomatik aranır." />
+                    </div>
+                }
+            }
+            else if (_selectedType == ProjectType.StaticSite)
+            {
+                <!-- Statik ZIP Dosya Yükleyici -->
+                <div class="mb-4">
+                    <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">Statik Site ZIP Arşivi</label>
+                    
+                    <div style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 20px; text-align: center; background: var(--bg-sub); cursor: pointer; position: relative;">
+                        <InputFile OnChange="OnZipFileSelected" accept=".zip" style="position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" />
+                        
+                        @if (_selectedFile == null)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="Color.Primary" Style="font-size: 32px;" Class="mb-2" />
+                            <div style="font-size: 12px; color: var(--text-main); font-weight: 700;">Tıklayın veya ZIP dosyasını buraya sürükleyin</div>
+                            <div style="font-size: 10px; color: #64748b;">(Maksimum dosya boyutu: 200 MB)</div>
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.FolderZip" Color="Color.Success" Style="font-size: 32px;" Class="mb-2" />
+                            <div style="font-size: 12px; color: #10b981; font-weight: 700;">@_selectedFile.Name</div>
+                            <div style="font-size: 10px; color: #64748b;">(@GetReadableBytes(_selectedFile.Size))</div>
+                        }
+                    </div>
+                </div>
+
+                <!-- PHP Desteği Switch -->
+                <div class="mb-4 d-flex align-center justify-between pa-3 rounded-lg" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15);">
+                    <div>
+                        <MudText Typo="Typo.body2" Style="color: #10b981; font-weight: 700;">PHP Desteğini Etkinleştir</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Statik siteye dinamik PHP betikleri (örneğin upload.php) desteği ekler.</MudText>
+                    </div>
+                    <MudSwitch T="bool" @bind-Value="_createModel.EnablePhp" Color="Color.Success" />
+                </div>
+            }
+
+            @if (_selectedType != ProjectType.StaticSite)
+            {
+                <MudGrid Class="mb-4">
+                    <MudItem xs="6">
+                        <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">RAM Limiti (MB)</label>
+                        <MudNumericField T="int" @bind-Value="_createModel.MemoryLimitMb" Min="64" Max="4096" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">CPU Limiti (Çekirdek)</label>
+                        <MudNumericField T="double" @bind-Value="_createModel.CpuCount" Min="0.1" Max="4.0" Step="0.1" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                </MudGrid>
+
+                <div class="mb-6">
+                    <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">İç Bağlantı Portu</label>
+                    <MudNumericField T="int" @bind-Value="_createModel.InternalPort" Min="1" Max="65535" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </div>
+            }
+
+            <div class="d-flex justify-end gap-2">
+                <MudButton OnClick="CloseCreateModal" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none;">İptal</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_isCreating" Style="text-transform: none; font-weight: 700;">
+                    @if (_isCreating)
+                    {
+                        <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Kurulum Yapılıyor...</span>
+                    }
+                    else
+                    {
+                        <span>Projeyi Kur</span>
+                    }
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+<!-- Toplu Yeniden Başlatma Orkestrasyon Modalı -->
+<MudDialog @bind-Visible="_bulkRestartModalVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = !_isBulkRestarting, CloseOnEscapeKey = !_isBulkRestarting, BackdropClick = !_isBulkRestarting }">
+    <TitleContent>
+        <div class="d-flex align-center gap-3">
+            <MudIcon Icon="@Icons.Material.Filled.RestartAlt" Color="Color.Warning" Style="font-size: 28px;" />
+            <div>
+                <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Toplu Yeniden Başlatma Orkestrasyonu</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Projeler sırayla ve güvenli bir şekilde yeniden başlatılıyor.</MudText>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <!-- Proje Sırası Listesi -->
+        <div class="glass-panel pa-4 mb-4" style="border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-sub); max-height: 220px; overflow-y: auto;">
+            <MudText Typo="Typo.subtitle2" Style="font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--text-secondary);" Class="mb-3">
+                Yeniden Başlatma Sırası
+            </MudText>
+            
+            @if (!_bulkRestartQueue.Any())
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary text-center py-4">Yeniden başlatılacak aktif proje bulunamadı.</MudText>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-2.5">
+                    @foreach (var item in _bulkRestartQueue)
+                    {
+                        <div class="d-flex align-center justify-between pa-2" style="background: rgba(255,255,255,0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.03);">
+                            <div class="d-flex align-center gap-3">
+                                @if (item.Project.Type == ProjectType.DockerContainer)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="font-weight: 700; font-size: 8px; height: 16px; margin:0;">DOCKER</MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Style="font-weight: 700; font-size: 8px; height: 16px; margin:0; background-color: #10b981 !important;">NATIVE</MudChip>
+                                }
+                                <MudText Typo="Typo.body2" Style="color: var(--text-main); font-weight: 700; font-family: 'Outfit', sans-serif;">@item.Project.Name</MudText>
+                            </div>
+                            
+                            <div class="d-flex align-center gap-2">
+                                @if (item.Status == BulkRestartStatus.Pending)
+                                {
+                                    <span style="font-size: 11px; color: #64748b; font-weight: 600;">Sırada</span>
+                                    <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty" Color="Color.Secondary" Size="Size.Small" />
+                                }
+                                else if (item.Status == BulkRestartStatus.Restarting)
+                                {
+                                    <span style="font-size: 11px; color: #f59e0b; font-weight: 700;">Yeniden Başlatılıyor</span>
+                                    <MudProgressCircular Color="Color.Warning" Size="Size.Small" Indeterminate="true" Style="width:14px; height:14px;" />
+                                }
+                                else if (item.Status == BulkRestartStatus.Completed)
+                                {
+                                    <span style="font-size: 11px; color: #10b981; font-weight: 700;">Tamamlandı</span>
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Style="color: #10b981 !important;" />
+                                }
+                                else if (item.Status == BulkRestartStatus.Failed)
+                                {
+                                    <span style="font-size: 11px; color: #ef4444; font-weight: 700;">Hata</span>
+                                    <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Canlı Log Penceresi -->
+        <MudText Typo="Typo.subtitle2" Style="font-family: 'Outfit', sans-serif; font-weight: 700; color: #94a3b8;" Class="mb-2">
+            Konsol Çıktısı (Orkestrasyon Günlüğü)
+        </MudText>
+        <div class="cyber-terminal" style="height: 180px; background-color: #030712; border: 1px solid rgba(255,255,255,0.05); padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; overflow-y: auto; border-radius: 8px;">
+            @if (!_bulkRestartLogs.Any())
+            {
+                <div style="color: #64748b;">Konsol çıktısı bekleniyor...</div>
+            }
+            else
+            {
+                @foreach (var log in _bulkRestartLogs)
+                {
+                    <div style="margin-bottom: 2px; color: #10b981; white-space: pre-wrap; font-family: 'JetBrains Mono', monospace;">@log</div>
+                }
+            }
+        </div>
+        
+        <div class="d-flex justify-end mt-4">
+            <MudButton OnClick="() => _bulkRestartModalVisible = false" Variant="Variant.Filled" Color="Color.Secondary" Disabled="_isBulkRestarting" Style="text-transform: none; font-weight: 700; border-radius: 6px;">
+                @(_isBulkRestarting ? "Lütfen Bekleyin..." : "Kapat")
+            </MudButton>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    private const long MaxZipUploadBytes = 200L * 1024 * 1024;
+
+    private List<ProjectCardDto> _projects = new();
+    private bool _isLoading = true;
+    private bool _createModalVisible = false;
+    private bool _isCreating = false;
+    private bool _isBulkRestarting = false;
+    private readonly HashSet<Guid> _restartingProjectIds = new();
+    private bool _limitModalVisible = false;
+    private bool _isUpdatingLimits = false;
+    private Guid? _limitProjectId;
+    private string _limitProjectName = string.Empty;
+    private readonly LimitEditModel _limitModel = new();
+    
+    // Toplu Yeniden Başlatma Modal Değişkenleri
+    private bool _bulkRestartModalVisible = false;
+    private List<BulkRestartItem> _bulkRestartQueue = new();
+    private List<string> _bulkRestartLogs = new();
+
+    private ProjectType _selectedType = ProjectType.DockerContainer;
+    private readonly CreateContainerModel _createModel = new();
+    
+    // Native ZIP Dosya Referansı
+    private IBrowserFile? _selectedFile;
+
+    // Log Drawer
+    private bool _logsDrawerOpen = false;
+    private string _activeLogProjectName = string.Empty;
+    private Guid? _activeLogProjectId;
+    private List<string> _activeLogs = new();
+
+    private string _searchText = string.Empty;
+    private string _activeFilter = "Hepsi";
+    private bool _showMoreMenu = false;
+
+    private void ToggleMoreMenu()
+    {
+        _showMoreMenu = !_showMoreMenu;
+        StateHasChanged();
+    }
+
+    private async Task HandleLogout()
+    {
+        AppState.Reset();
+        await AuthProvider.LogoutAsync();
+        NavigationManager.NavigateTo("/login", replace: true);
+    }
+
+    private void NavigateToMobilePage(string url)
+    {
+        _showMoreMenu = false;
+        NavigationManager.NavigateTo(url);
+    }
+
+    private void SetActiveFilter(string filterName)
+    {
+        _activeFilter = filterName;
+        StateHasChanged();
+    }
+
+    private IEnumerable<ProjectCardDto> FilteredProjects => _projects
+        .Where(p => string.IsNullOrWhiteSpace(_searchText) || p.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+        .Where(p => _activeFilter == "Hepsi" 
+            || (_activeFilter == "Docker" && p.Type == ProjectType.DockerContainer)
+            || (_activeFilter == "Native" && p.Type == ProjectType.NativeProject)
+            || (_activeFilter == "Static" && p.Type == ProjectType.StaticSite)
+            || (_activeFilter == "Hatalı" && p.Status == ProjectStatus.Error));
+
+    protected override void OnInitialized()
+    {
+        if (AppState.CachedProjects != null)
+        {
+            _projects = AppState.CachedProjects.Select(p => new ProjectCardDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Type = (ProjectType)(int)p.Type,
+                ImageOrPath = p.ImageOrPath,
+                MemoryLimitBytes = p.MemoryLimitBytes,
+                CpuCount = p.CpuCount,
+                InternalPort = p.InternalPort,
+                Status = (ProjectStatus)(int)p.Status,
+                StartedAt = p.StartedAt,
+                EnablePhp = p.EnablePhp,
+                LiveCpu = p.LiveCpu,
+                LiveRamBytes = p.LiveRamBytes,
+                LiveRamPct = p.LiveRamPct
+            }).ToList();
+            _isLoading = false;
+        }
+
+        AppState.OnProjectMetricReceived += HandleGlobalProjectMetric;
+        AppState.OnProjectLogsReceived += HandleGlobalProjectLogs;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjectsAsync();
+        
+        // Join all running project groups to start streaming live metrics via the shared global socket
+        foreach (var project in _projects.Where(p => p.Status == ProjectStatus.Running))
+        {
+            await AppState.JoinProjectGroupAsync(project.Id.ToString());
+        }
+    }
+
+    private void HandleGlobalProjectMetric(ProjectMetricStateDto metric)
+    {
+        InvokeAsync(() =>
+        {
+            var card = _projects.FirstOrDefault(p => p.Id == metric.ProjectId);
+            if (card != null)
+            {
+                card.LiveCpu = metric.Cpu;
+                card.LiveRamBytes = metric.RamBytes;
+                card.LiveRamPct = metric.RamPercentage;
+                StateHasChanged();
+            }
+        });
+    }
+
+    private void HandleGlobalProjectLogs(ProjectLogsStateDto logDto)
+    {
+        InvokeAsync(() =>
+        {
+            if (_logsDrawerOpen && _activeLogProjectId == logDto.ProjectId)
+            {
+                foreach (var logLine in logDto.Logs)
+                {
+                    _activeLogs.Add(logLine);
+                    if (_activeLogs.Count > 120) _activeLogs.RemoveAt(0);
+                }
+                StateHasChanged();
+            }
+        });
+    }
+
+    private async Task LoadProjectsAsync()
+    {
+        _isLoading = _projects.Count == 0;
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated != true) return;
+
+            var raw = await Http.GetFromJsonAsync<List<ProjectCardDto>>("api/projects");
+            _projects = raw ?? new List<ProjectCardDto>();
+
+            // Global önbelleği güncelle
+            AppState.CachedProjects = _projects.Select(p => new ProjectCardStateDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Type = (StateProjectType)(int)p.Type,
+                ImageOrPath = p.ImageOrPath,
+                MemoryLimitBytes = p.MemoryLimitBytes,
+                CpuCount = p.CpuCount,
+                InternalPort = p.InternalPort,
+                Status = (StateProjectStatus)(int)p.Status,
+                StartedAt = p.StartedAt,
+                EnablePhp = p.EnablePhp,
+                LiveCpu = p.LiveCpu,
+                LiveRamBytes = p.LiveRamBytes,
+                LiveRamPct = p.LiveRamPct
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                Snackbar.Add($"Proje listesi çekilirken hata oluştu: {ex.Message}", Severity.Error);
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void SetProjectType(ProjectType type)
+    {
+        _selectedType = type;
+        _selectedFile = null;
+    }
+
+    private void OnZipFileSelected(InputFileChangeEventArgs e)
+    {
+        _selectedFile = e.File;
+    }
+
+    private void OpenCreateModal()
+    {
+        _createModel.Name = "";
+        _createModel.ImageName = "";
+        _createModel.MemoryLimitMb = 512;
+        _createModel.CpuCount = 0.5;
+        _createModel.InternalPort = 80;
+        _selectedType = ProjectType.DockerContainer;
+        _selectedFile = null;
+        _createModalVisible = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        _createModalVisible = false;
+    }
+
+    private async Task HandleCreate()
+    {
+        if (_selectedType == ProjectType.NativeProject && _selectedFile == null)
+        {
+            Snackbar.Add("Lütfen Native projesi için bir ZIP deploy dosyası yükleyin!", Severity.Error);
+            return;
+        }
+
+        _isCreating = true;
+        try
+        {
+            if (_selectedType == ProjectType.DockerContainer)
+            {
+                var apiPayload = new
+                {
+                    Name = _createModel.Name.ToLower(),
+                    ImageName = _createModel.ImageName,
+                    MemoryLimitBytes = (long)_createModel.MemoryLimitMb * 1048576,
+                    CpuCount = _createModel.CpuCount,
+                    InternalPort = _createModel.InternalPort
+                };
+
+                var response = await Http.PostAsJsonAsync("api/projects/container", apiPayload);
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("Docker konteyner projesi başarıyla sağlandı ve başlatıldı!", Severity.Success);
+                    _createModalVisible = false;
+                    await LoadProjectsAsync();
+
+                    var newlyCreated = _projects.FirstOrDefault(p => p.Name == apiPayload.Name);
+                    if (newlyCreated != null && newlyCreated.Status == ProjectStatus.Running)
+                    {
+                        await AppState.JoinProjectGroupAsync(newlyCreated.Id.ToString());
+                    }
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Konteyner oluşturulamadı: {error}", Severity.Error);
+                }
+            }
+            else if (_selectedType == ProjectType.NativeProject)
+            {
+                // Native ZIP Deploying
+                using var content = new MultipartFormDataContent();
+                content.Add(new StringContent(_createModel.Name.ToLower()), "Name");
+                content.Add(new StringContent(((long)_createModel.MemoryLimitMb * 1048576).ToString()), "MemoryLimitBytes");
+                content.Add(new StringContent(_createModel.CpuCount.ToString()), "CpuCount");
+                content.Add(new StringContent(_createModel.InternalPort.ToString()), "InternalPort");
+                content.Add(new StringContent(_createModel.RuntimeType), "RuntimeType");
+                content.Add(new StringContent(_createModel.EntryFile ?? string.Empty), "EntryFile");
+                content.Add(new StringContent(_createModel.CustomCommand ?? string.Empty), "CustomCommand");
+
+                var fileStream = _selectedFile!.OpenReadStream(maxAllowedSize: MaxZipUploadBytes);
+                var streamContent = new StreamContent(fileStream);
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
+                content.Add(streamContent, "ZipFile", _selectedFile.Name);
+
+                var response = await Http.PostAsync("api/projects/native-deploy", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("Native ZIP projeniz başarıyla yüklendi, çıkarıldı ve başlatıldı!", Severity.Success);
+                    _createModalVisible = false;
+                    await LoadProjectsAsync();
+
+                    var newlyCreated = _projects.FirstOrDefault(p => p.Name == _createModel.Name.ToLower());
+                    if (newlyCreated != null && newlyCreated.Status == ProjectStatus.Running)
+                    {
+                        await AppState.JoinProjectGroupAsync(newlyCreated.Id.ToString());
+                    }
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Native deployment hatası: {error}", Severity.Error);
+                }
+            }
+            else if (_selectedType == ProjectType.StaticSite)
+            {
+                // Statik ZIP Deploying
+                using var content = new MultipartFormDataContent();
+                content.Add(new StringContent(_createModel.Name.ToLower()), "Name");
+                content.Add(new StringContent(_createModel.EnablePhp.ToString()), "EnablePhp");
+
+                var fileStream = _selectedFile!.OpenReadStream(maxAllowedSize: MaxZipUploadBytes);
+                var streamContent = new StreamContent(fileStream);
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
+                content.Add(streamContent, "ZipFile", _selectedFile.Name);
+
+                var response = await Http.PostAsync("api/projects/static-deploy", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("Statik Web projeniz başarıyla yüklendi, çıkarıldı ve Nginx entegrasyonu sağlandı!", Severity.Success);
+                    _createModalVisible = false;
+                    await LoadProjectsAsync();
+
+                    var newlyCreated = _projects.FirstOrDefault(p => p.Name == _createModel.Name.ToLower());
+                    if (newlyCreated != null && newlyCreated.Status == ProjectStatus.Running)
+                    {
+                        await AppState.JoinProjectGroupAsync(newlyCreated.Id.ToString());
+                    }
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Statik deployment hatası: {error}", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isCreating = false;
+        }
+    }
+
+    private async Task StartProject(ProjectCardDto project)
+    {
+        project.Status = ProjectStatus.Provisioning;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsync($"api/projects/{project.Id}/start", null);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Proje başarıyla başlatıldı!", Severity.Success);
+                await LoadProjectsAsync();
+
+                await AppState.JoinProjectGroupAsync(project.Id.ToString());
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Başlatma hatası: {error}", Severity.Error);
+                await LoadProjectsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+            await LoadProjectsAsync();
+        }
+    }
+
+    private async Task StopProject(ProjectCardDto project)
+    {
+        project.Status = ProjectStatus.Provisioning;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsync($"api/projects/{project.Id}/stop", null);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Proje durduruldu.", Severity.Success);
+                await LoadProjectsAsync();
+
+                await AppState.LeaveProjectGroupAsync(project.Id.ToString());
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Durdurma hatası: {error}", Severity.Error);
+                await LoadProjectsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+            await LoadProjectsAsync();
+        }
+    }
+
+    private async Task RestartProject(ProjectCardDto project)
+    {
+        if (project.Type != ProjectType.NativeProject)
+        {
+            return;
+        }
+
+        if (!_restartingProjectIds.Add(project.Id))
+        {
+            return;
+        }
+
+        project.Status = ProjectStatus.Provisioning;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsync($"api/projects/{project.Id}/restart", null);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Native proje yeniden başlatıldı.", Severity.Success);
+                await LoadProjectsAsync();
+
+                var restartedProject = _projects.FirstOrDefault(p => p.Id == project.Id);
+                if (restartedProject?.Status == ProjectStatus.Running)
+                {
+                    await AppState.JoinProjectGroupAsync(project.Id.ToString());
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Yeniden başlatma hatası: {error}", Severity.Error);
+                await LoadProjectsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Yeniden başlatma hatası: {ex.Message}", Severity.Error);
+            await LoadProjectsAsync();
+        }
+        finally
+        {
+            _restartingProjectIds.Remove(project.Id);
+            StateHasChanged();
+        }
+    }
+
+    private async Task RestartAllProjects()
+    {
+        if (!_projects.Any())
+        {
+            Snackbar.Add("Yeniden başlatılacak aktif/kayıtlı proje bulunmuyor.", Severity.Warning);
+            return;
+        }
+
+        _isBulkRestarting = true;
+        _bulkRestartModalVisible = true;
+        _bulkRestartLogs.Clear();
+        _bulkRestartQueue = _projects.Select(p => new BulkRestartItem 
+        { 
+            Project = p, 
+            Status = BulkRestartStatus.Pending 
+        }).ToList();
+        
+        StateHasChanged();
+
+        _bulkRestartLogs.Add($"[{DateTime.Now:HH:mm:ss}] [Sistem] Toplu yeniden başlatma orkestrasyonu başlatıldı.");
+        _bulkRestartLogs.Add($"[{DateTime.Now:HH:mm:ss}] [Sistem] Sıraya alınan toplam proje sayısı: {_bulkRestartQueue.Count}");
+        StateHasChanged();
+
+        foreach (var item in _bulkRestartQueue)
+        {
+            item.Status = BulkRestartStatus.Restarting;
+        }
+        _bulkRestartLogs.Add($"[{DateTime.Now:HH:mm:ss}] [Sistem] Orkestratör arka plan görevi tetikleniyor...");
+        _bulkRestartLogs.Add($"[{DateTime.Now:HH:mm:ss}] [Sistem] Docker projeleri Docker Engine üzerinden, Native projeler ise project-manager.sh ile asenkron olarak yeniden başlatılacaktır.");
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsync("api/projects/restart-all", null);
+            if (response.IsSuccessStatusCode)
+            {
+                foreach (var item in _bulkRestartQueue)
+                {
+                    item.Status = BulkRestartStatus.Completed;
+                }
+
+                _bulkRestartLogs.Add($"[{DateTime.Now:HH:mm:ss}] [Sistem] Orkestrasyon görevi arka planda başarıyla tetiklendi!");
+                _bulkRestartLogs.Add($"[{DateTime.Now:HH:mm:ss}] [Sistem] Canlı durum geçişlerini ve logları terminal konsolundan izleyebilirsiniz.");
+                Snackbar.Add("Toplu yeniden başlatma işlemi arka planda başlatıldı.", Severity.Success);
+            }
+            else
+            {
+                foreach (var item in _bulkRestartQueue)
+                {
+                    item.Status = BulkRestartStatus.Failed;
+                }
+
+                var error = await response.Content.ReadAsStringAsync();
+                _bulkRestartLogs.Add($"[{DateTime.Now:HH:mm:ss}] [Sistem] HATA: {error}");
+                Snackbar.Add($"Toplu yeniden başlatma tetiklenemedi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            foreach (var item in _bulkRestartQueue)
+            {
+                item.Status = BulkRestartStatus.Failed;
+            }
+
+            _bulkRestartLogs.Add($"[{DateTime.Now:HH:mm:ss}] [Sistem] HATA: {ex.Message}");
+            Snackbar.Add($"Toplu yeniden başlatma hatası: {ex.Message}", Severity.Error);
+        }
+
+        _isBulkRestarting = false;
+        _bulkRestartLogs.Add($"[{DateTime.Now:HH:mm:ss}] [Sistem] Orkestrasyon tetiklemesi tamamlandı.");
+        StateHasChanged();
+
+        // Proje durumlarını ve metrikleri arayüzde tazeleyelim
+        await LoadProjectsAsync();
+    }
+
+    private void OpenLimitModal(ProjectCardDto project)
+    {
+        _limitProjectId = project.Id;
+        _limitProjectName = project.Name;
+        _limitModel.MemoryLimitMb = Math.Max(64, (int)(project.MemoryLimitBytes / 1048576));
+        _limitModel.CpuCount = project.CpuCount;
+        _limitModalVisible = true;
+    }
+
+    private void CloseLimitModal()
+    {
+        _limitModalVisible = false;
+        _limitProjectId = null;
+        _limitProjectName = string.Empty;
+    }
+
+    private async Task HandleLimitUpdate()
+    {
+        if (_limitProjectId == null) return;
+
+        _isUpdatingLimits = true;
+        try
+        {
+            var payload = new
+            {
+                MemoryLimitBytes = (long)_limitModel.MemoryLimitMb * 1048576,
+                CpuCount = _limitModel.CpuCount
+            };
+
+            var response = await Http.PutAsJsonAsync($"api/projects/{_limitProjectId}/limits", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Kaynak limitleri güncellendi.", Severity.Success);
+                CloseLimitModal();
+                await LoadProjectsAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Limit güncelleme hatası: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Limit güncelleme hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUpdatingLimits = false;
+        }
+    }
+
+    private async Task DeleteProject(ProjectCardDto project)
+    {
+        var confirmed = await JsConfirm($"Dikkat! '{project.Name}' adlı projeyi, yapılandırmalarını ve tüm fiziksel verilerini tamamen yok etmek istediğinize emin misiniz?");
+        if (!confirmed) return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/projects/{project.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Proje başarıyla yok edildi.", Severity.Success);
+                
+                await AppState.LeaveProjectGroupAsync(project.Id.ToString());
+
+                await LoadProjectsAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Silme hatası: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OpenLogsDrawer(ProjectCardDto project)
+    {
+        _activeLogProjectId = project.Id;
+        _activeLogProjectName = project.Name;
+        _activeLogs.Clear();
+        _logsDrawerOpen = true;
+
+        await AppState.JoinProjectGroupAsync(project.Id.ToString());
+
+        try
+        {
+            var initialLogs = await Http.GetFromJsonAsync<List<string>>($"api/projects/{project.Id}/logs?tail=30");
+            if (initialLogs != null)
+            {
+                _activeLogs.AddRange(initialLogs);
+            }
+        }
+        catch
+        {
+            // Sessizce geç
+        }
+    }
+
+    private void CloseLogsDrawer()
+    {
+        _logsDrawerOpen = false;
+        _activeLogProjectId = null;
+    }
+
+    private async Task<bool> JsConfirm(string message)
+    {
+        return await JSRuntime.InvokeAsync<bool>("confirm", message);
+    }
+
+    private string GetReadableBytes(long bytes)
+    {
+        string[] suffix = { "B", "KB", "MB", "GB", "TB" };
+        int i;
+        double dblBytes = bytes;
+        for (i = 0; i < suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+        {
+            dblBytes = bytes / 1024.0;
+        }
+        return $"{dblBytes:0.##} {suffix[i]}";
+    }
+
+    private string GetUptimeText(DateTimeOffset startedAt)
+    {
+        var uptime = DateTimeOffset.UtcNow - startedAt.ToUniversalTime();
+        if (uptime < TimeSpan.Zero)
+        {
+            uptime = TimeSpan.Zero;
+        }
+
+        var parts = new List<string>();
+        if (uptime.Days > 0) parts.Add($"{uptime.Days}g");
+        if (uptime.Hours > 0) parts.Add($"{uptime.Hours}s");
+        if (uptime.Minutes > 0) parts.Add($"{uptime.Minutes}dk");
+        if (parts.Count == 0) parts.Add("1dk altinda");
+
+        return string.Join(" ", parts);
+    }
+
+    private string GetUptimeColor(DateTimeOffset startedAt)
+    {
+        var uptime = DateTimeOffset.UtcNow - startedAt.ToUniversalTime();
+        return uptime.TotalDays < 7 ? "#10b981" : "#f59e0b";
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        AppState.OnProjectMetricReceived -= HandleGlobalProjectMetric;
+        AppState.OnProjectLogsReceived -= HandleGlobalProjectLogs;
+        return ValueTask.CompletedTask;
+    }
+
+    // Frontend için Proje DTO'ları
+    public class ProjectCardDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public ProjectType Type { get; set; }
+        public string ImageOrPath { get; set; } = string.Empty;
+        public long MemoryLimitBytes { get; set; }
+        public double CpuCount { get; set; }
+        public int InternalPort { get; set; }
+        public ProjectStatus Status { get; set; }
+        public DateTimeOffset? StartedAt { get; set; }
+        public bool EnablePhp { get; set; }
+        
+        // Canlı Değerler
+        public double LiveCpu { get; set; }
+        public long LiveRamBytes { get; set; }
+        public double LiveRamPct { get; set; }
+    }
+
+    public enum ProjectType
+    {
+        DockerContainer,
+        NativeProject,
+        StaticSite
+    }
+
+    public enum ProjectStatus
+    {
+        Running,
+        Stopped,
+        Provisioning,
+        Error
+    }
+
+    public enum BulkRestartStatus
+    {
+        Pending,
+        Restarting,
+        Completed,
+        Failed
+    }
+
+    public class BulkRestartItem
+    {
+        public ProjectCardDto Project { get; set; } = null!;
+        public BulkRestartStatus Status { get; set; }
+    }
+
+    public class LimitEditModel
+    {
+        public int MemoryLimitMb { get; set; } = 512;
+        public double CpuCount { get; set; } = 0.5;
+    }
+
+    public class ProjectMetricDto
+    {
+        public Guid ProjectId { get; set; }
+        public double Cpu { get; set; }
+        public long RamBytes { get; set; }
+        public double RamPercentage { get; set; }
+    }
+
+    public class ProjectLogsDto
+    {
+        public Guid ProjectId { get; set; }
+        public List<string> Logs { get; set; } = new();
+    }
+
+    public class CreateContainerModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Proje adı zorunludur!")]
+        [System.ComponentModel.DataAnnotations.RegularExpression("^[a-z0-9_-]+$", ErrorMessage = "Yalnızca küçük harf, rakam, tire (-) veya altçizgi (_) kullanabilirsiniz.")]
+        public string Name { get; set; } = string.Empty;
+
+        public string ImageName { get; set; } = string.Empty;
+        public int MemoryLimitMb { get; set; } = 512;
+        public double CpuCount { get; set; } = 0.5;
+        public int InternalPort { get; set; } = 80;
+
+        // Native ZIP Çalıştırma Ayarları
+        public string RuntimeType { get; set; } = "dotnet";
+        public string EntryFile { get; set; } = string.Empty;
+        public string CustomCommand { get; set; } = string.Empty;
+        public bool EnablePhp { get; set; } = false;
+    }
+}

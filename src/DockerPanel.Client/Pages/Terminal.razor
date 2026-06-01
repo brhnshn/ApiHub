@@ -1,0 +1,416 @@
+@page "/terminal"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject DockerPanel.Client.Security.IAuthTokenStore TokenStore
+@implements IAsyncDisposable
+
+<PageTitle>Canlı Terminal & Sistem Logları - ApiHub</PageTitle>
+
+<style>
+    .mud-input-label {
+        color: #94a3b8 !important;
+    }
+    .mud-input-label-active {
+        color: #4edea3 !important;
+    }
+    .mud-select .mud-input {
+        color: #f1f5f9 !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    .mud-input-control:hover .mud-input-outlined-border {
+        border-color: #4edea3 !important;
+    }
+</style>
+
+<div class="d-flex align-center justify-between mb-6">
+    <div>
+        <div class="d-flex align-center gap-3">
+            <span class="pulse-green"></span>
+            <MudText Typo="Typo.h4" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px;">Canlı Terminal & Sistem Logları</MudText>
+        </div>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Gerçek zamanlı sunucu sistem günlüğü, orkestratör ve proje loglarını canlı izleyin.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Delete" OnClick="ClearTerminal" Style="text-transform: none; border-radius: 8px;">
+        Temizle
+    </MudButton>
+</div>
+
+<!-- Premium Glassmorphic Kontrol Paneli -->
+<div class="glass-panel p-4 mb-6 rounded-xl">
+    <div class="d-flex align-center justify-between gap-4 flex-wrap">
+        <div class="d-flex align-center gap-4 flex-1 flex-wrap">
+            <div style="min-width: 280px;">
+                <MudSelect T="string" Label="Log Kaynağı" Value="@_selectedSource" ValueChanged="OnSourceChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem Value="@("orchestrator")">Orkestrasyon Olayları (cpanel-orchestrator)</MudSelectItem>
+                    <MudSelectItem Value="@("syslog")">Sunucu Sistem Günlüğü (syslog)</MudSelectItem>
+                    <MudSelectItem Value="@("nginx-access")">Nginx Erişim Logları (access.log)</MudSelectItem>
+                    <MudSelectItem Value="@("nginx-error")">Nginx Hata Logları (error.log)</MudSelectItem>
+                    <MudSelectItem Value="@("project-manager")">Süreç Yöneticisi Logları (project-manager.log)</MudSelectItem>
+                    <MudSelectItem Value="@("project")">Proje / Konteyner Logları (Canlı)</MudSelectItem>
+                </MudSelect>
+            </div>
+
+            @if (_selectedSource == "project")
+            {
+                <div style="min-width: 280px;" class="animate-fade-in">
+                    <MudSelect T="Guid?" Label="Hedef Proje Seçin" Value="@_selectedProjectId" ValueChanged="OnProjectChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem Value="@((Guid?)null)">Lütfen bir proje seçin...</MudSelectItem>
+                        @foreach (var p in _activeContainers)
+                        {
+                            <MudSelectItem Value="@((Guid?)p.Id)">@p.Name (Port: @p.InternalPort)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+            }
+        </div>
+
+        <div class="d-flex align-center gap-3">
+            <span class="d-flex align-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-[#bbcabf]/30">
+                @if (IsLiveSource())
+                {
+                    <span class="pulse-green"></span>
+                    <span class="text-emerald-400 font-mono" style="font-size: 11px;">CANLI BAĞLANTI AKTİF</span>
+                }
+                else
+                {
+                    <span class="pulse-red"></span>
+                    <span class="text-slate-400 font-mono" style="font-size: 11px;">STATİK GÖRÜNÜM (GEÇMİŞ)</span>
+                }
+            </span>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ReloadLogsAsync" Disabled="@_isLoading" Style="text-transform: none; border-radius: 8px;">
+                Yenile
+            </MudButton>
+        </div>
+    </div>
+</div>
+
+<!-- Tam Ekran Geliştirici Terminal Konsolu -->
+<div class="cyber-terminal" style="height: calc(100vh - 300px); border-radius: 12px !important;">
+    @if (_isLoading)
+    {
+        <div style="color: #64748b; display: flex; align-items: center; gap: 8px;">
+            <span class="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
+            <span>Log verileri yükleniyor...</span>
+        </div>
+    }
+    else if (!_logs.Any())
+    {
+        <div style="color: #64748b;">
+            @if (_selectedSource == "project" && !_selectedProjectId.HasValue)
+            {
+                <span>[!] Lütfen yukarıdaki menüden loglarını izlemek istediğiniz projeyi seçin.</span>
+            }
+            else
+            {
+                <span>[OK] Log kanalı dinleniyor. Akış bekleniyor veya kayıtlı log bulunmamaktadır...</span>
+            }
+        </div>
+    }
+    else
+    {
+        @foreach (var log in _logs)
+        {
+            <div style="margin-bottom: 6px;">
+                <span style="color: #64748b;">[@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff")]</span>
+                <span style="color: @GetLogLevelColor(log.Level); font-weight: 700; margin: 0 4px;">[@log.Level.ToUpper()]</span>
+                <span style="color: #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 13px;">@log.Message</span>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<TerminalLogLine> _logs = new();
+    private List<ContainerSelectDto> _activeContainers = new();
+    private string _selectedSource = "orchestrator";
+    private Guid? _selectedProjectId;
+    private bool _isLoading = false;
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        // 1. Aktif Proje Listesini Yükle
+        try
+        {
+            var rawProjects = await Http.GetFromJsonAsync<List<ContainerSelectDto>>("api/projects");
+            _activeContainers = rawProjects ?? new List<ContainerSelectDto>();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Proje listesi yüklenirken hata oluştu: {ex.Message}", Severity.Error);
+        }
+
+        // 2. SignalR ile Canlı Sistem Loglarına Bağlan
+        try
+        {
+            var baseUri = Http.BaseAddress?.ToString() ?? NavigationManager.BaseUri;
+            var hubUrl = baseUri.TrimEnd('/') + "/hubs/metriclog";
+
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(hubUrl, options =>
+                {
+                    options.Transports =
+                        Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets |
+                        Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                    options.AccessTokenProvider = async () =>
+                        await TokenStore.GetTokenAsync();
+                })
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<List<SystemLogLineDto>>("ReceiveSystemLogs", (logLines) =>
+            {
+                InvokeAsync(() =>
+                {
+                    foreach (var line in logLines)
+                    {
+                        if (_selectedSource == "syslog" && line.Level == "syslog")
+                        {
+                            AddLogLine("info", line.Message, line.Timestamp.LocalDateTime);
+                        }
+                        else if (_selectedSource == "orchestrator" && line.Level != "syslog")
+                        {
+                            AddLogLine(line.Level, line.Message, line.Timestamp.LocalDateTime);
+                        }
+                    }
+                });
+            });
+
+            _hubConnection.On<ProjectLogsDto>("ReceiveProjectLogs", (dto) =>
+            {
+                if (_selectedSource == "project" && _selectedProjectId.HasValue && dto.ProjectId == _selectedProjectId.Value)
+                {
+                    InvokeAsync(() =>
+                    {
+                        foreach (var log in dto.Logs)
+                        {
+                            AddLogLine("info", log);
+                        }
+                    });
+                }
+            });
+
+            await _hubConnection.StartAsync();
+            AddLogLine("info", "Orkestrasyon SignalR gerçek zamanlı log kanalı başarıyla bağlandı.");
+        }
+        catch (Exception ex)
+        {
+            AddLogLine("warning", $"Canlı SignalR log kanalına bağlanılamadı: {ex.Message}. Yeniden bağlanmayı bekliyor...");
+        }
+
+        _isLoading = false;
+        await LoadInitialLogsAsync();
+    }
+
+    private async Task OnSourceChanged(string source)
+    {
+        if (_selectedSource == "project" && _selectedProjectId.HasValue && _hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            try
+            {
+                await _hubConnection.SendAsync("LeaveProjectGroup", _selectedProjectId.Value.ToString());
+            }
+            catch { }
+        }
+
+        _selectedSource = source;
+        _logs.Clear();
+        _selectedProjectId = null;
+
+        if (source != "project")
+        {
+            await LoadInitialLogsAsync();
+        }
+        else
+        {
+            AddLogLine("info", "Lütfen yukarıdaki menüden loglarını izlemek istediğiniz projeyi seçin.");
+        }
+    }
+
+    private async Task OnProjectChanged(Guid? projectId)
+    {
+        if (_selectedProjectId.HasValue && _hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            try
+            {
+                await _hubConnection.SendAsync("LeaveProjectGroup", _selectedProjectId.Value.ToString());
+            }
+            catch { }
+        }
+
+        _selectedProjectId = projectId;
+        _logs.Clear();
+
+        if (_selectedProjectId.HasValue)
+        {
+            _isLoading = true;
+            StateHasChanged();
+            try
+            {
+                if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+                {
+                    await _hubConnection.SendAsync("JoinProjectGroup", _selectedProjectId.Value.ToString());
+                }
+
+                var initialLogs = await Http.GetFromJsonAsync<List<string>>($"api/projects/{_selectedProjectId.Value}/logs?tail=100");
+                if (initialLogs != null && initialLogs.Any())
+                {
+                    foreach (var log in initialLogs)
+                    {
+                        AddLogLine("info", log);
+                    }
+                }
+                else
+                {
+                    AddLogLine("info", "Projede henüz kayıtlı log bulunmamaktadır.");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLogLine("warning", $"Proje logları yüklenirken hata oluştu: {ex.Message}");
+            }
+            finally
+            {
+                _isLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task LoadInitialLogsAsync()
+    {
+        if (_selectedSource == "project") return;
+
+        _isLoading = true;
+        _logs.Clear();
+        StateHasChanged();
+
+        try
+        {
+            if (_selectedSource == "orchestrator")
+            {
+                AddLogLine("info", "Orkestrasyon canlı log kanalı dinleniyor. Akış bekleniyor...");
+            }
+            else
+            {
+                var lines = await Http.GetFromJsonAsync<string[]>($"api/system/logs?source={_selectedSource}&tail=100");
+                if (lines != null)
+                {
+                    foreach (var line in lines)
+                    {
+                        AddLogLine("info", line);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AddLogLine("warning", $"Loglar yüklenirken hata oluştu: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ReloadLogsAsync()
+    {
+        if (_selectedSource == "project")
+        {
+            await OnProjectChanged(_selectedProjectId);
+        }
+        else
+        {
+            await LoadInitialLogsAsync();
+        }
+    }
+
+    private bool IsLiveSource()
+    {
+        return _selectedSource == "orchestrator" || _selectedSource == "syslog" || (_selectedSource == "project" && _selectedProjectId.HasValue);
+    }
+
+    private void AddLogLine(string level, string message, DateTime? timestamp = null)
+    {
+        _logs.Add(new TerminalLogLine
+        {
+            Timestamp = timestamp ?? DateTime.Now,
+            Level = level,
+            Message = message
+        });
+
+        if (_logs.Count > 300)
+        {
+            _logs.RemoveAt(0);
+        }
+        StateHasChanged();
+    }
+
+    private string GetLogLevelColor(string level)
+    {
+        return level.ToLower() switch
+        {
+            "error" => "#ef4444",   // Asil Yakut (Ruby Red)
+            "warning" => "#f59e0b", // Amber Warning
+            "info" => "#10b981",    // Siber Zümrüt (Emerald Green)
+            _ => "#94a3b8"
+        };
+    }
+
+    private void ClearTerminal()
+    {
+        _logs.Clear();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_selectedProjectId.HasValue && _hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            try
+            {
+                await _hubConnection.SendAsync("LeaveProjectGroup", _selectedProjectId.Value.ToString());
+            }
+            catch { }
+        }
+
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    public class TerminalLogLine
+    {
+        public DateTime Timestamp { get; set; }
+        public string Level { get; set; } = "info";
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public class SystemLogLineDto
+    {
+        public DateTimeOffset Timestamp { get; set; }
+        public string Level { get; set; } = "info";
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public class ContainerSelectDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int InternalPort { get; set; }
+    }
+
+    public class ProjectLogsDto
+    {
+        public Guid ProjectId { get; set; }
+        public List<string> Logs { get; set; } = new();
+    }
+}

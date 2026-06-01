@@ -1,0 +1,2196 @@
+@page "/webmail"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject AuthenticationStateProvider AuthStateProvider
+@inject PlatformInfo Platform
+@implements IDisposable
+
+<PageTitle>ApiHubMail - E-posta</PageTitle>
+
+<style>
+    /* Scoped custom classes for smooth scrollbar and active row effects */
+    .stitch-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .stitch-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .stitch-scrollbar::-webkit-scrollbar-thumb {
+        background: #bbcabf;
+        border-radius: 9999px;
+    }
+    .stitch-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #6c7a71;
+    }
+    
+    .thread-row:active {
+        transform: scale(0.98);
+        background-color: #e5eeff !important;
+    }
+
+    /* Explicitly override global dark theme input/textarea/select styles inside Webmail container */
+    .webmail-container-box input:not(.bg-transparent), 
+    .webmail-container-box textarea:not(.bg-transparent) {
+        background-color: #ffffff !important;
+        color: #0b1c30 !important;
+        border: 1px solid #bbcabf !important;
+        border-radius: 8px !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+    
+    .webmail-container-box input:focus:not(.bg-transparent), 
+    .webmail-container-box textarea:focus:not(.bg-transparent) {
+        border-color: #006c49 !important;
+        outline: none !important;
+        box-shadow: 0 0 0 2px rgba(0, 108, 73, 0.15) !important;
+    }
+
+    .webmail-container-box input::placeholder, 
+    .webmail-container-box textarea::placeholder {
+        color: #3c4a42 !important;
+        opacity: 0.5 !important;
+    }
+
+    /* Quick Reply specific adjustments to prevent padding/border overrides */
+    .webmail-container-box textarea.bg-transparent {
+        background-color: transparent !important;
+        color: #0b1c30 !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 4px !important;
+    }
+
+    /* WYSIWYG Editor styling */
+    .webmail-mobile-editor:empty:before {
+        content: attr(placeholder);
+        color: #6b7280 !important;
+        opacity: 0.6;
+        pointer-events: none;
+        display: block;
+    }
+    .webmail-desktop-editor:empty:before {
+        content: attr(placeholder);
+        color: #94a3b8 !important;
+        opacity: 0.6;
+        pointer-events: none;
+        display: block;
+    }
+    .webmail-mobile-editor:focus, .webmail-desktop-editor:focus {
+        outline: none !important;
+    }
+</style>
+
+@if (Platform.IsMobileApp)
+{
+    <!-- ========================================== -->
+    <!--          GMAIL-STYLE MOBILE VIEW           -->
+    <!-- ========================================== -->
+    <div class="fixed inset-0 bg-[#0b0e15] overflow-hidden flex flex-col text-[#e1e2ec] font-sans pt-16 z-10" 
+         @ontouchstart="HandlePageTouchStart" 
+         @ontouchmove="HandlePageTouchMove" 
+         @ontouchend="HandlePageTouchEnd">
+        
+        @if (_selectedMail == null && !_isComposing)
+        {
+            <!-- 1. MOBİL ARAMA VE ÜST BAR (GMAIL STYLE SEARCH BAR) -->
+            <div class="p-3 shrink-0">
+                <div class="bg-[#171a21]/90 backdrop-blur-md rounded-2xl px-4 py-2.5 flex items-center justify-between border border-white/5 gap-3 shadow-lg shadow-black/20">
+                    <button @onclick="OpenMobileDrawer" class="text-gray-400 hover:text-white flex items-center justify-center select-none cursor-pointer">
+                        <span class="material-symbols-outlined text-xl">menu</span>
+                    </button>
+                    <input class="flex-grow bg-transparent border-none focus:outline-none text-xs text-white placeholder-gray-500 font-semibold outline-none py-1" 
+                           placeholder="E-postalarda ara..." 
+                           type="text" 
+                           @bind="_searchQuery" 
+                           @bind:event="oninput" />
+                    <!-- Aktif Hesap Avatarlı Switcher -->
+                    <button @onclick="ToggleAccountDropdown" 
+                            class="w-7 h-7 rounded-full bg-[#4edea3] text-[#0f172a] flex items-center justify-center font-bold text-[10px] shadow-sm select-none cursor-pointer active:scale-90 transition-transform">
+                        @if (!string.IsNullOrEmpty(_activeAccount))
+                        {
+                            @(_activeAccount.Substring(0, Math.Min(2, _activeAccount.Length)).ToUpper())
+                        }
+                        else
+                        {
+                            <span>??</span>
+                        }
+                    </button>
+                </div>
+            </div>
+
+            <!-- MOBİL KLASÖR BAŞLIĞI VE YENİLEME -->
+            <div class="px-4 py-2 flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest shrink-0">
+                <span>
+                    @(_activeFolder switch {
+                        "inbox" => "Gelen Kutusu",
+                        "sent" => "Gönderilenler",
+                        "draft" => "Taslaklar",
+                        "spam" => "Spam",
+                        "trash" => "Çöp Kutusu",
+                        "archive" => "Arşiv",
+                        _ => "Klasör"
+                    })
+                </span>
+                <button @onclick="RefreshMailsAsync" class="text-[#4edea3] flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm @(_isRefreshing ? "animate-spin" : "")">refresh</span>
+                    <span>@(_isRefreshing ? "Yenileniyor" : "Yenile")</span>
+                </button>
+            </div>
+
+            <!-- 2. MOBİL E-POSTA AKIŞI (SWIPE DESTEKLİ LISTE) -->
+            <div class="flex-grow overflow-y-auto p-3 space-y-2 no-scrollbar">
+                @if (!GetFilteredMails().Any())
+                {
+                    <div class="py-24 text-center text-gray-500">
+                        <span class="material-symbols-outlined text-6xl mb-3" style="font-variation-settings: 'wght' 200;">mail</span>
+                        <p class="text-xs font-semibold">Bu klasörde e-posta bulunmuyor.</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var mail in GetFilteredMails())
+                    {
+                        var isSelected = mail.Id == _selectedMail?.Id;
+                        var isUnread = !mail.IsRead && _activeFolder == "inbox";
+                        
+                        <!-- Kaydırma (Swipe) Kapsayıcı Kartı -->
+                        <div class="relative overflow-hidden rounded-2xl bg-[#171a21]/40 border border-white/5 shadow-md shadow-black/10 select-none" style="border-radius: 16px;">
+                            
+                            <!-- Arka Plan Kaydırma Eylemleri Göstergeleri -->
+                            <div class="absolute inset-0 flex items-center justify-between px-6 z-0 rounded-2xl overflow-hidden pointer-events-none">
+                                <!-- Sağa Kaydırma: Arşivle (Yeşil) -->
+                                <div class="absolute inset-y-0 left-0 bg-emerald-600 flex items-center pl-6 pr-16 transition-opacity duration-200"
+                                     style="opacity: @(GetSwipeDirection(mail.Id) > 0 ? "1" : "0");">
+                                    <span class="material-symbols-outlined text-white text-xl animate-pulse">archive</span>
+                                </div>
+                                
+                                <!-- Sola Kaydırma: Sil (Kırmızı) -->
+                                <div class="absolute inset-y-0 right-0 bg-rose-600 flex items-center pr-6 pl-16 transition-opacity duration-200"
+                                     style="opacity: @(GetSwipeDirection(mail.Id) < 0 ? "1" : "0");">
+                                    <span class="material-symbols-outlined text-white text-xl animate-pulse">delete</span>
+                                </div>
+                            </div>
+
+                            <!-- Ön Plan Kart İçeriği (Tetikleyiciler Dahil) -->
+                            <div class="relative z-10 p-4 transition-transform duration-150 bg-[#141720]/95 cursor-pointer"
+                                 style="transform: translateX(@(GetSwipeOffset(mail.Id))px); border-radius: 16px;"
+                                 @ontouchstart="(e) => HandleTouchStart(e, mail.Id)"
+                                 @ontouchmove="HandleTouchMove"
+                                 @ontouchend="() => HandleTouchEnd(mail)"
+                                 @onclick="() => SelectMail(mail)">
+                                
+                                <div class="flex justify-between items-baseline mb-1">
+                                    <span class="text-xs font-bold flex items-center gap-1.5 @(isUnread ? "text-[#4edea3] font-black" : "text-gray-300 font-medium")">
+                                        @if (isUnread)
+                                        {
+                                            <span class="w-1.5 h-1.5 bg-[#4edea3] rounded-full shrink-0"></span>
+                                        }
+                                        @if (_activeFolder == "sent")
+                                        {
+                                            <span>Kime: @mail.To</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@mail.SenderName</span>
+                                        }
+                                    </span>
+                                    <span class="text-[10px] text-gray-500">@mail.Date.ToString("HH:mm")</span>
+                                </div>
+                                
+                                <h3 class="text-xs text-white leading-snug truncate @(isUnread ? "font-extrabold" : "font-semibold")">
+                                    @mail.Subject
+                                </h3>
+                                
+                                <p class="text-[10px] text-gray-400 line-clamp-2 mt-1 font-medium">
+                                    @mail.Snippet
+                                </p>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <!-- MOBİL YAZMA/OLUŞTUR FAB BUTONU -->
+            <button class="fixed bottom-24 right-6 w-14 h-14 bg-[#4edea3] text-slate-900 rounded-full shadow-lg shadow-[#4edea3]/20 flex items-center justify-center z-40 hover:scale-105 active:scale-95 transition-transform" 
+                    @onclick="OpenComposePane">
+                <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'wght' 600;">edit</span>
+            </button>
+        }
+        else if (_selectedMail != null)
+        {
+            <!-- 3. MOBİL E-POSTA OKUMA DETAY SAYFASI (GMAIL STYLE DETAIL VIEW) -->
+            <div class="flex-grow flex flex-col bg-[#0b0e15] overflow-hidden relative">
+                <!-- Üst Toolbar -->
+                <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-[#10131a]">
+                    <button @onclick="GoBackToList" class="flex items-center justify-center p-1.5 text-[#4edea3] rounded-lg">
+                        <span class="material-symbols-outlined text-xl">arrow_back</span>
+                    </button>
+                    
+                    <div class="flex gap-4 items-center">
+                        <button class="text-gray-400 hover:text-white flex items-center justify-center" title="Arşivle" @onclick="ArchiveSelectedMail">
+                            <span class="material-symbols-outlined text-xl">archive</span>
+                        </button>
+                        <button class="text-rose-400 hover:text-rose-500 flex items-center justify-center" title="Sil" @onclick="DeleteSelectedMail">
+                            <span class="material-symbols-outlined text-xl">delete</span>
+                        </button>
+                        <button class="text-gray-400 hover:text-white flex items-center justify-center" title="Cevapla" @onclick="OpenReplyModal">
+                            <span class="material-symbols-outlined text-xl">reply</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Başlık & Gönderici -->
+                <div class="p-4 border-b border-white/5 bg-[#10131a]/40">
+                    <h2 class="text-base font-extrabold text-white leading-tight mb-4">@_selectedMail.Subject</h2>
+                    
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-full bg-[#171a21] border border-white/10 flex items-center justify-center text-[#4edea3] font-bold text-xs shrink-0">
+                            @((_selectedMail.SenderName ?? "?").Substring(0, Math.Min(2, (_selectedMail.SenderName ?? "?").Length)).ToUpper())
+                        </div>
+                        <div class="min-w-0 flex-grow">
+                            <div class="flex justify-between items-baseline">
+                                <h4 class="font-bold text-gray-200 text-xs truncate">@_selectedMail.SenderName</h4>
+                                <span class="text-[9px] text-gray-500">@_selectedMail.Date.ToString("dd MMM, HH:mm")</span>
+                            </div>
+                            <p class="text-[9px] text-gray-400 truncate mt-0.5">@_selectedMail.SenderEmail</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gövde Metni (HTML render) -->
+                <div class="flex-grow overflow-y-auto p-4 bg-[#0d1016]/40 text-xs leading-relaxed space-y-4 no-scrollbar">
+                    <div class="p-4 rounded-2xl bg-[#171a21]/50 border border-white/5 max-w-4xl mx-auto shadow-sm">
+                        @((MarkupString)(_selectedMail.Body ?? ""))
+                    </div>
+
+                    <!-- Dosya Ekleri listesi -->
+                    @if (_selectedMail.Attachments != null && _selectedMail.Attachments.Any())
+                    {
+                        <div class="border-t border-white/5 pt-4 mt-6 max-w-4xl mx-auto text-left">
+                            <p class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-2">Dosya Ekleri (@_selectedMail.Attachments.Count)</p>
+                            <div class="flex flex-col gap-2">
+                                @foreach (var att in _selectedMail.Attachments)
+                                {
+                                    <div class="p-2.5 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between text-[11px] text-slate-300">
+                                        <div class="min-width-0 flex-grow truncate mr-2">
+                                            <span>📂 @att.FileName</span>
+                                            <span class="text-[9px] text-slate-400 ml-1.5">(@FormatBytes(att.FileSize))</span>
+                                        </div>
+                                        <a href="api/mail/@Uri.EscapeDataString(_activeAccount)/emails/attachment?folder=@Uri.EscapeDataString(_activeFolder)&mailFile=@Uri.EscapeDataString(_selectedMail.FilePath)&attachmentId=@Uri.EscapeDataString(att.Id)" 
+                                           target="_blank" download="@att.FileName"
+                                           class="text-[#4edea3] hover:underline font-bold text-[10px] shrink-0">İndir</a>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Hızlı Yanıt Kutusu (Gmail-Style Quick Reply) -->
+                <div class="p-3 border-t border-white/5 bg-[#10131a] flex flex-col gap-2">
+                    <div class="flex items-end gap-2 bg-[#171a21] border border-white/10 rounded-2xl p-2">
+                        <textarea @bind="_quickReplyText" placeholder="Hızlıca yanıt yazın..." 
+                                  class="flex-grow bg-transparent border-none text-xs text-white placeholder-gray-500 focus:outline-none outline-none resize-none p-1 max-h-24 stitch-scrollbar"></textarea>
+                        
+                        <button @onclick="SendQuickReply" disabled="@(string.IsNullOrWhiteSpace(_quickReplyText))"
+                                class="w-8 h-8 rounded-xl bg-[#4edea3] text-slate-900 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-40 disabled:scale-100 shrink-0 select-none cursor-pointer">
+                            <span class="material-symbols-outlined text-sm font-bold">send</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (_isComposing)
+        {
+            <!-- 4. MOBİL OLUŞTURMA / YAZMA EKRANI (FULL SCREEN EDIT FORM) -->
+            <div class="flex-grow flex flex-col bg-[#0b0e15] overflow-hidden">
+                <!-- Mobil Üst Bar -->
+                <div class="px-4 py-3 bg-[#10131a] border-b border-white/5 flex items-center justify-between">
+                    <button @onclick="GoBackToList" class="flex items-center gap-1 text-[#4edea3] font-bold text-xs">
+                        <span class="material-symbols-outlined text-xl">arrow_back</span>
+                    </button>
+                    <span class="text-xs font-bold text-white">Yeni İleti</span>
+                    <button @onclick="HandleSendMail" disabled="@_isSending"
+                            class="text-[#4edea3] font-bold text-xs flex items-center gap-1 select-none">
+                        @if (_isSending)
+                        {
+                            <div class="w-3.5 h-3.5 border-2 border-[#4edea3] border-t-transparent rounded-full animate-spin"></div>
+                        }
+                        else
+                        {
+                            <span>Gönder</span>
+                            <span class="material-symbols-outlined text-sm">send</span>
+                        }
+                    </button>
+                </div>
+
+                <!-- Form -->
+                <div class="p-4 border-b border-white/5 flex flex-col gap-3 bg-[#10131a]/40">
+                    <div class="flex items-center gap-3">
+                        <span class="text-gray-400 font-bold text-xs w-12">Kime:</span>
+                        <input class="flex-1 bg-white/5 border border-white/10 rounded-xl focus:outline-none py-1.5 px-3 text-xs text-white placeholder:text-gray-600 outline-none" 
+                               type="text" 
+                               @bind="_composeModel.To" 
+                               placeholder="alici@domain.com" />
+                    </div>
+                    <div class="flex items-center gap-3 border-t border-white/5 pt-3">
+                        <span class="text-gray-400 font-bold text-xs w-12">Konu:</span>
+                        <input class="flex-1 bg-white/5 border border-white/10 rounded-xl focus:outline-none py-1.5 px-3 text-xs text-white placeholder:text-gray-600 outline-none" 
+                               type="text" 
+                               @bind="_composeModel.Subject" 
+                               placeholder="Konu başlığı" />
+                    </div>
+                </div>
+
+                <!-- Gövde Yazma -->
+                <div class="p-4 bg-[#0d1016]/20 flex flex-col gap-2">
+                    <!-- Premium WYSIWYG Toolbar -->
+                    <div class="flex flex-wrap gap-1 bg-[#171a21]/80 border border-white/5 p-1.5 rounded-xl shadow-inner">
+                        <button type="button" @onclick='() => ExecuteEditorCommand("bold")' class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Kalın">
+                            <span class="material-symbols-outlined text-sm font-bold">format_bold</span>
+                        </button>
+                        <button type="button" @onclick='() => ExecuteEditorCommand("italic")' class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Eğik">
+                            <span class="material-symbols-outlined text-sm font-bold">format_italic</span>
+                        </button>
+                        <button type="button" @onclick='() => ExecuteEditorCommand("underline")' class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Altı Çizili">
+                            <span class="material-symbols-outlined text-sm font-bold">format_underlined</span>
+                        </button>
+                        <button type="button" @onclick='() => ExecuteEditorCommand("formatBlock", "<h3>")' class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Başlık (H3)">
+                            <span class="material-symbols-outlined text-sm font-bold">title</span>
+                        </button>
+                        <button type="button" @onclick="PromptLink" class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Bağlantı">
+                            <span class="material-symbols-outlined text-sm font-bold">link</span>
+                        </button>
+                        <button type="button" @onclick='() => ExecuteEditorCommand("formatBlock", "<p>")' class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Paragraf">
+                            <span class="material-symbols-outlined text-sm font-bold">notes</span>
+                        </button>
+                    </div>
+                    <div id="emailBodyEditorMobile" 
+                         class="w-full h-48 bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-white focus:outline-none outline-none overflow-y-auto stitch-scrollbar min-h-[12rem] webmail-mobile-editor"
+                         contenteditable="true"
+                         placeholder="E-posta gövdesini yazın..."></div>
+                </div>
+
+                <!-- Dosya Ekleme -->
+                <div class="p-3 bg-[#10131a] border-t border-white/5">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-bold text-gray-400 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">attachment</span> Ekler
+                        </span>
+                        <label class="text-[10px] font-bold text-[#4edea3] hover:underline cursor-pointer">
+                            Dosya Ekle
+                            <InputFile OnChange="OnInputFileChange" multiple style="display: none;" />
+                        </label>
+                    </div>
+
+                    @if (_attachments.Any())
+                    {
+                        <div class="flex flex-wrap gap-1.5">
+                            @foreach (var file in _attachments)
+                            {
+                                <div class="flex items-center gap-2 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5 text-[10px] text-gray-300">
+                                    <span class="truncate max-w-[150px]">📂 @file.FileName</span>
+                                    <button class="text-rose-400 hover:text-rose-500 ml-1" @onclick="() => RemoveAttachment(file)">
+                                        <span class="material-symbols-outlined text-xs">close</span>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- 5. MOBİL SLIDING LEFT DRAWER (GMAIL DRAWERS OVERLAY) -->
+        <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[99999] transition-opacity duration-300 @(_mobileDrawerOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")" 
+             @onclick="CloseMobileDrawer"></div>
+
+        <div class="fixed top-0 bottom-0 left-0 w-[280px] bg-[#10131a] border-r border-white/10 z-[100000] shadow-2xl transition-transform duration-500 flex flex-col justify-between p-4 @(_mobileDrawerOpen ? "translate-x-0" : "-translate-x-full")"
+             @ontouchstart="HandleDrawerTouchStart"
+             @ontouchmove="HandleDrawerTouchMove"
+             @ontouchend="HandleDrawerTouchEnd">
+            <div class="space-y-6 overflow-y-auto no-scrollbar flex-grow">
+                <!-- Drawer Header -->
+                <div>
+                    <h2 class="text-lg font-black text-[#4edea3] leading-none tracking-tight">ApiHubMail</h2>
+                    <p class="text-[9px] text-gray-500 mt-1 font-medium">Kurumsal Mobil E-posta Yönetimi</p>
+                </div>
+
+                <!-- Klasör Listesi -->
+                <nav class="flex flex-col gap-1.5">
+                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "inbox" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                            @onclick='() => SetFolder("inbox")'>
+                        <span class="material-symbols-outlined text-base">inbox</span>
+                        <span class="flex-grow text-left">Gelen Kutusu</span>
+                        @if (_unreadCount > 0)
+                        {
+                            <span class="text-[9px] bg-[#4edea3]/20 text-[#4edea3] px-2 py-0.5 rounded-full font-bold">@_unreadCount</span>
+                        }
+                    </button>
+
+                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "sent" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                            @onclick='() => SetFolder("sent")'>
+                        <span class="material-symbols-outlined text-base">send</span>
+                        <span class="text-left">Gönderilenler</span>
+                    </button>
+
+                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "draft" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                            @onclick='() => SetFolder("draft")'>
+                        <span class="material-symbols-outlined text-base">drafts</span>
+                        <span class="text-left">Taslaklar</span>
+                    </button>
+
+                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "spam" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                            @onclick='() => SetFolder("spam")'>
+                        <span class="material-symbols-outlined text-base">report</span>
+                        <span class="text-left">Spam</span>
+                    </button>
+
+                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "trash" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                            @onclick='() => SetFolder("trash")'>
+                        <span class="material-symbols-outlined text-base">delete</span>
+                        <span class="text-left">Çöp Kutusu</span>
+                    </button>
+
+                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "archive" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                            @onclick='() => SetFolder("archive")'>
+                        <span class="material-symbols-outlined text-base">archive</span>
+                        <span class="text-left">Arşiv</span>
+                    </button>
+                </nav>
+
+                <!-- Özel Etiketler (Mobil) -->
+                <div class="mt-4 border-t border-white/5 pt-4">
+                    <div class="flex justify-between items-center mb-2 px-3 text-[10px] font-bold text-gray-500 tracking-wider uppercase">
+                        <span>Özel Etiketler</span>
+                        <button @onclick="ToggleNewLabelInput" class="text-[#4edea3] hover:text-[#38c18c] transition-colors flex items-center justify-center p-0.5 rounded hover:bg-white/5">
+                            <span class="material-symbols-outlined text-sm font-bold">add</span>
+                        </button>
+                    </div>
+
+                    @if (_showNewLabelInput)
+                    {
+                        <div class="flex items-center gap-1.5 mb-2.5 mx-3 p-1 bg-white/5 border border-white/10 rounded-xl">
+                            <input class="flex-grow bg-transparent border-none text-xs p-1 focus:ring-0 outline-none text-white placeholder-gray-600 font-semibold" 
+                                   placeholder="Etiket adı..." 
+                                   @bind="_newLabelName" 
+                                   @onkeyup="HandleNewLabelKeyup" />
+                            <button @onclick="CreateLabelAsync" class="text-[#4edea3] hover:text-[#38c18c] flex items-center justify-center p-1">
+                                <span class="material-symbols-outlined text-sm font-bold">check</span>
+                            </button>
+                        </div>
+                    }
+
+                    <div class="flex flex-col gap-1 max-h-36 overflow-y-auto stitch-scrollbar">
+                        @if (_customLabels.Any())
+                        {
+                            @foreach (var label in _customLabels)
+                            {
+                                var folderKey = "label-" + label.ToLower();
+                                var isActive = _activeFolder == folderKey;
+                                var capturedLabel = label;
+                                <div class="w-full flex items-center gap-1 group px-3">
+                                    <button class="flex-grow flex items-center gap-3 px-2 py-2 rounded-xl transition-all text-xs font-semibold text-left @(isActive ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                                            @onclick="() => SetFolder(folderKey)">
+                                        <span class="material-symbols-outlined text-base" style="font-variation-settings: 'FILL' @(isActive ? "1" : "0");">label</span>
+                                        <span class="flex-grow truncate leading-none">@label</span>
+                                    </button>
+                                    <button class="opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-500 p-1 rounded transition-all duration-150 shrink-0" 
+                                            title="Etiketi Sil"
+                                            @onclick="() => DeleteLabelAsync(capturedLabel)"
+                                            @onclick:stopPropagation="true">
+                                        <span class="material-symbols-outlined text-xs">close</span>
+                                    </button>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-[10px] text-gray-600 italic px-4 py-1">Özel etiket bulunmuyor.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alt Kota ve Hesap Kontrolleri -->
+            <div class="space-y-4 pt-4 border-t border-white/5 shrink-0">
+                <!-- Kota Barları -->
+                <div class="p-2.5 bg-white/5 rounded-xl border border-white/5">
+                    <div class="flex justify-between items-center mb-1 text-[8px] font-bold tracking-wider">
+                        <span class="text-gray-500">KOTA KULLANIMI</span>
+                        <span class="text-[#4edea3]">@_quotaPercent%</span>
+                    </div>
+                    <div class="w-full bg-white/10 h-1 rounded-full overflow-hidden">
+                        <div class="bg-[#4edea3] h-full transition-all duration-500" style="width: @_quotaPercent%"></div>
+                    </div>
+                    <p class="text-[7px] text-gray-500 mt-0.5 text-right">@FormatBytes(_usedBytes) / @FormatBytes(_quotaBytes)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. GÜZEL GOOGLE SWITCHER HESAP DEĞİŞTİRİCİ MODAL (CENTER OVERLAY) -->
+        @if (_isAccountDropdownOpen)
+        {
+            <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[999999] flex items-center justify-center p-4 animate-fade-in" @onclick="ToggleAccountDropdown">
+                <div class="glass max-w-sm w-full rounded-2xl bg-[#171a21]/95 border border-white/10 p-5 text-[#e1e2ec] shadow-2xl relative space-y-4" @onclick:stopPropagation>
+                    <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span class="text-[9px] font-black text-gray-400 uppercase tracking-wider">Hesap Değiştir</span>
+                        <button @onclick="ToggleAccountDropdown" class="text-gray-500 hover:text-rose-500">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
+                        @foreach (var acc in _accounts)
+                        {
+                            var isActive = acc == _activeAccount;
+                            <button @onclick="() => SwitchAccount(acc)" 
+                                    class="w-full text-left p-2 rounded-xl transition-all flex items-center gap-3 border @(isActive ? "bg-[#4edea3]/10 border-[#4edea3]/20" : "border-transparent hover:bg-white/5")">
+                                <div class="w-6.5 h-6.5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 @(isActive ? "bg-[#4edea3] text-slate-900" : "bg-white/5 text-gray-400")">
+                                    @(acc.Substring(0, Math.Min(2, acc.Length)).ToUpper())
+                                </div>
+                                <div class="min-w-0 flex-grow">
+                                    <p class="text-xs font-semibold truncate @(isActive ? "text-[#4edea3]" : "text-gray-300")">@acc</p>
+                                </div>
+                                @if (isActive)
+                                {
+                                    <span class="material-symbols-outlined text-[#4edea3] text-sm shrink-0">check</span>
+                                }
+                            </button>
+                        }
+                    </div>
+
+                    <div class="border-t border-white/5 pt-3">
+                        <a href="/email" @onclick="ToggleAccountDropdown"
+                           class="w-full py-2 bg-transparent text-center border border-white/10 hover:border-[#4edea3] hover:bg-[#4edea3]/5 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-[#4edea3]">
+                            <span class="material-symbols-outlined text-xs">settings</span>
+                            <span>E-Posta Hesaplarını Yönet</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <!-- ========================================== -->
+    <!--          DESKTOP 3-COLUMN VIEW             -->
+    <!-- ========================================== -->
+    <div class="flex flex-col h-full w-full overflow-hidden">
+        <div class="webmail-container-box w-full flex-grow bg-[#f8f9ff] text-[#0b1c30] overflow-hidden flex font-sans relative">
+        
+        <!-- 1. Kolon: Sol Navigasyon Paneli (Sidebar - w-[280px] Alan Optimizasyonlu Tasarım) -->
+        <aside style="background-color: #eff4ff !important; border-right: 1px solid rgba(187, 202, 191, 0.3) !important;" 
+               class="hidden md:flex flex-col w-[280px] shrink-0 p-2.5 pt-16 gap-1.5 justify-between h-full overflow-y-auto stitch-scrollbar">
+            <div>
+                <!-- Logo & E-Posta Hesap Switcher -->
+                <div class="px-2 py-1 mb-2 relative">
+                    <h2 class="text-lg font-black text-[#006c49] leading-none tracking-tight">ApiHubMail</h2>
+                    
+                    <!-- Aktif Hesap Switcher Butonu -->
+                    <button @onclick="ToggleAccountDropdown" 
+                            class="w-full mt-3 p-2 bg-white/50 hover:bg-white/90 border border-[#bbcabf]/30 rounded-xl transition-all duration-300 flex items-center justify-between gap-2 shadow-sm text-left group">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div class="w-7 h-7 rounded-full bg-[#006c49] text-white flex items-center justify-center font-black text-[10px] shrink-0 shadow-sm shadow-emerald-700/10">
+                                @if (!string.IsNullOrEmpty(_activeAccount))
+                                {
+                                    @(_activeAccount.Substring(0, Math.Min(2, _activeAccount.Length)).ToUpper())
+                                }
+                                else
+                                {
+                                    <span>??</span>
+                                }
+                            </div>
+                            <div class="min-w-0 flex-grow">
+                                <p class="text-[8px] font-bold leading-none text-[#3c4a42]/60 uppercase tracking-wider">E-POSTA HESABI</p>
+                                <p class="text-[11px] font-bold text-[#0b1c30] truncate mt-0.5" title="@_activeAccount">@_activeAccount</p>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined text-[#3c4a42]/60 text-sm select-none shrink-0 transition-transform @(_isAccountDropdownOpen ? "rotate-180 text-[#006c49]" : "")">keyboard_arrow_down</span>
+                    </button>
+                    
+                    @if (_isAccountDropdownOpen)
+                    {
+                        <div style="box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);" 
+                             class="absolute left-2 right-2 mt-1.5 bg-white rounded-2xl border border-[#bbcabf]/30 z-50 p-3 flex flex-col gap-3">
+                            
+                            <div class="flex justify-between items-center border-b border-[#bbcabf]/10 pb-1.5">
+                                <span class="text-[9px] font-black text-[#3c4a42]/70 uppercase tracking-wider">Bağlı Hesaplar</span>
+                                <button @onclick="ToggleAccountDropdown" class="text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center p-0.5 rounded-lg hover:bg-slate-100">
+                                    <span class="material-symbols-outlined text-sm">close</span>
+                                </button>
+                            </div>
+
+                            <!-- Hesaplar Listesi -->
+                            @if (_accounts.Any())
+                            {
+                                <div class="flex flex-col gap-1 max-h-48 overflow-y-auto stitch-scrollbar pr-1">
+                                    @foreach (var acc in _accounts)
+                                    {
+                                        var isActive = acc == _activeAccount;
+                                        <button @onclick="() => SwitchAccount(acc)" 
+                                                class="w-full text-left p-1.5 rounded-lg transition-all flex items-center gap-2 group border @(isActive ? "bg-[#006c49]/5 border-[#006c49]/20" : "border-transparent hover:bg-[#eff4ff]/40")">
+                                            <div class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 @(isActive ? "bg-[#006c49] text-white" : "bg-slate-100 text-[#3c4a42]")">
+                                                @(acc.Substring(0, Math.Min(2, acc.Length)).ToUpper())
+                                            </div>
+                                            <div class="min-w-0 flex-grow">
+                                                <p class="text-[11px] font-semibold truncate @(isActive ? "text-[#006c49]" : "text-[#0b1c30]")">@acc</p>
+                                            </div>
+                                            @if (isActive)
+                                            {
+                                                <span class="material-symbols-outlined text-[#006c49] text-sm shrink-0">check</span>
+                                            }
+                                        </button>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-[10px] text-center text-[#3c4a42]/50 italic my-1">Bağlı e-posta hesabı bulunamadı.</p>
+                            }
+
+                            <!-- Alt Aksiyonlar -->
+                            <div class="border-t border-[#bbcabf]/10 pt-2 flex flex-col gap-1.5">
+                                <a href="/email" 
+                                   class="w-full py-1.5 bg-transparent text-center border border-[#bbcabf]/30 hover:border-[#006c49] hover:bg-[#006c49]/5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 text-[#006c49]">
+                                    <span class="material-symbols-outlined text-xs">settings</span>
+                                    <span>Hesapları Yönet</span>
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Oluştur Butonu -->
+                <div class="px-1 mb-1.5">
+                    <button style="background-color: #10b981 !important;" 
+                            class="w-full text-white font-bold py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-md shadow-emerald-700/10" 
+                            @onclick="OpenComposePane">
+                        <span class="material-symbols-outlined text-sm">edit</span>
+                        <span class="text-sm">Oluştur</span>
+                    </button>
+                </div>
+                
+                <!-- Klasörler Navigasyonu (Türkçe) -->
+                <nav class="flex flex-col gap-1 px-1">
+                    <button style="@(GetFolderStyle("inbox"))" 
+                            class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-200" 
+                            @onclick='() => SetFolder("inbox")'>
+                        <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' @(_activeFolder == "inbox" ? "1" : "0");">inbox</span>
+                        <span class="flex-grow text-left text-xs font-semibold">Gelen Kutusu</span>
+                        @if (_unreadCount > 0)
+                        {
+                            <span class="text-[10px] bg-[#006c49]/10 text-[#006c49] px-1.5 py-0.5 rounded-full font-bold">@_unreadCount</span>
+                        }
+                    </button>
+                    
+                    <button style="@(GetFolderStyle("sent"))" 
+                            class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-200" 
+                            @onclick='() => SetFolder("sent")'>
+                        <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' @(_activeFolder == "sent" ? "1" : "0");">send</span>
+                        <span class="flex-grow text-left text-xs font-semibold">Gönderilenler</span>
+                    </button>
+                    
+                    <button style="@(GetFolderStyle("draft"))" 
+                            class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-200" 
+                            @onclick='() => SetFolder("draft")'>
+                        <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' @(_activeFolder == "draft" ? "1" : "0");">draft</span>
+                        <span class="flex-grow text-left text-xs font-semibold">Taslaklar</span>
+                    </button>
+                    
+                    <button style="@(GetFolderStyle("archive"))" 
+                            class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-200" 
+                            @onclick='() => SetFolder("archive")'>
+                        <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' @(_activeFolder == "archive" ? "1" : "0");">archive</span>
+                        <span class="flex-grow text-left text-xs font-semibold">Arşiv</span>
+                    </button>
+
+                    <button style="@(GetFolderStyle("label"))" 
+                            class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-200" 
+                            @onclick='() => SetFolder("label")'>
+                        <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' @(_activeFolder == "label" ? "1" : "0");">label</span>
+                        <span class="flex-grow text-left text-xs font-semibold">Etiketler</span>
+                    </button>
+                    
+                     <button style="@(GetFolderStyle("spam"))" 
+                             class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-200" 
+                             @onclick='() => SetFolder("spam")'>
+                         <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' @(_activeFolder == "spam" ? "1" : "0");">report</span>
+                         <span class="flex-grow text-left text-xs font-semibold">Spam</span>
+                     </button>
+                </nav>
+
+                <!-- Özel Etiketler -->
+                <div class="mt-4 px-1">
+                    <div class="flex justify-between items-center mb-1.5 text-[9px] font-black text-[#3c4a42]/60 tracking-wider uppercase">
+                        <span>Özel Etiketler</span>
+                        <button @onclick="ToggleNewLabelInput" class="text-[#006c49] hover:text-[#005236] transition-colors flex items-center justify-center p-0.5 rounded hover:bg-[#eff4ff]">
+                            <span class="material-symbols-outlined text-xs font-bold">add</span>
+                        </button>
+                    </div>
+
+                    @if (_showNewLabelInput)
+                    {
+                        <div class="flex items-center gap-1.5 mb-2 p-1 bg-white border border-[#bbcabf]/30 rounded-lg">
+                            <input class="flex-grow bg-transparent border-none text-[11px] p-0.5 focus:ring-0 outline-none text-[#0b1c30] placeholder-slate-400 font-semibold" 
+                                   placeholder="Etiket adı..." 
+                                   @bind="_newLabelName" 
+                                   @onkeyup="HandleNewLabelKeyup" />
+                            <button @onclick="CreateLabelAsync" class="text-[#006c49] hover:text-[#005236] flex items-center justify-center p-0.5">
+                                <span class="material-symbols-outlined text-xs font-bold">check</span>
+                            </button>
+                        </div>
+                    }
+
+                    <div class="flex flex-col gap-0.5 max-h-36 overflow-y-auto stitch-scrollbar pr-0.5">
+                        @if (_customLabels.Any())
+                        {
+                            @foreach (var label in _customLabels)
+                            {
+                                var folderKey = "label-" + label.ToLower();
+                                var isActive = _activeFolder == folderKey;
+                                var capturedLabel = label;
+                                <div class="w-full flex items-center gap-1 group">
+                                    <button style="@(GetFolderStyle(folderKey))" 
+                                            class="flex-grow flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-200 text-left" 
+                                            @onclick="() => SetFolder(folderKey)">
+                                        <span class="material-symbols-outlined text-sm shrink-0" style="font-variation-settings: 'FILL' @(isActive ? "1" : "0");">label</span>
+                                        <span class="flex-grow text-[11px] font-semibold truncate leading-none">@label</span>
+                                    </button>
+                                    <button class="opacity-0 group-hover:opacity-100 text-[#b91c1c] hover:text-[#7f1d1d] p-0.5 rounded transition-all duration-150 shrink-0" 
+                                            title="Etiketi Sil"
+                                            @onclick="() => DeleteLabelAsync(capturedLabel)"
+                                            @onclick:stopPropagation="true">
+                                        <span class="material-symbols-outlined text-xs font-bold">close</span>
+                                    </button>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-[9px] text-[#3c4a42]/50 italic px-1 py-0.5">Özel etiket bulunmuyor.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Alt Menüler ve Kota Vurgusu (Storage Kaldırıldı / Spacing Daraltıldı) -->
+            <div class="px-1 pt-1.5 border-t border-[#bbcabf]/30 flex flex-col gap-1">
+                <!-- Çöp Kutusu -->
+                <button style="@(GetFolderStyle("trash"))" 
+                        class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-200" 
+                        @onclick='() => SetFolder("trash")'>
+                    <span class="material-symbols-outlined text-sm">delete</span>
+                    <span class="flex-grow text-left text-xs font-semibold">Çöp Kutusu</span>
+                </button>
+                
+                <!-- Plan Kota Göstergesi -->
+                <div class="mt-1 p-2 bg-[#eff4ff] border border-[#bbcabf]/20 rounded-xl">
+                    <div class="flex justify-between items-center mb-1 text-[8px] font-bold tracking-wider">
+                        <span class="text-[#3c4a42]/70">KOTA KULLANIMI</span>
+                        <span class="@(_quotaPercent >= 90 ? "text-red-600" : "text-[#006c49]")">@_quotaPercent%</span>
+                    </div>
+                    <div class="w-full bg-[#bbcabf]/30 h-1 rounded-full overflow-hidden">
+                        <div class="@(_quotaPercent >= 90 ? "bg-red-500" : "bg-[#006c49]") h-full transition-all duration-500" style="width: @_quotaPercent%"></div>
+                    </div>
+                    <p class="text-[7px] text-[#3c4a42]/50 mt-0.5 text-right">@FormatBytes(_usedBytes) / @FormatBytes(_quotaBytes)</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 2. Kolon: Thread List (E-posta Listesi - Türkçe) -->
+        <section class="w-full md:w-[380px] lg:w-[400px] border-r border-[#bbcabf]/20 bg-white flex flex-col h-full overflow-hidden shrink-0 @(IsShowingDetailOnMobile() ? "hidden md:flex" : "flex")">
+            <!-- Arama Header (Gmail-Style Search & Account Switcher) -->
+            <div class="p-4 border-b border-[#bbcabf]/10 flex items-center gap-2">
+                <div class="relative flex-grow">
+                    <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#3c4a42]/60 text-lg">search</span>
+                    <input style="background-color: #eff4ff !important; color: #0b1c30 !important;" 
+                           class="w-full border-none rounded-full py-2 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#006c49]/20 outline-none placeholder-[#3c4a42]/50" 
+                           placeholder="E-postalarda ara..." 
+                           type="text"
+                           @bind="_searchQuery" 
+                           @bind:event="oninput" />
+                </div>
+
+                <!-- Yenileme Butonu -->
+                <button @onclick="RefreshMailsAsync" 
+                        disabled="@_isRefreshing"
+                        class="p-2 rounded-xl bg-[#eff4ff] hover:bg-[#eff4ff]/80 text-[#006c49] border border-[#bbcabf]/20 hover:border-[#006c49]/30 flex items-center justify-center transition-all duration-300 shrink-0 select-none cursor-pointer"
+                        title="Yenile">
+                    <span class="material-symbols-outlined text-lg @(_isRefreshing ? "animate-spin" : "")">refresh</span>
+                </button>
+            </div>
+
+            <!-- E-posta Kartları Akışı -->
+            <div class="flex-grow overflow-y-auto stitch-scrollbar p-2 space-y-1 bg-[#eff4ff]/10">
+                @if (!GetFilteredMails().Any())
+                {
+                    <div class="py-16 text-center text-[#3c4a42]/40">
+                        <span class="material-symbols-outlined text-5xl mb-2" style="font-variation-settings: 'wght' 200;">inbox</span>
+                        <p class="text-sm font-medium">Bu klasörde e-posta bulunmuyor.</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var mail in GetFilteredMails())
+                    {
+                        var isSelected = mail.Id == _selectedMail?.Id;
+                        <div style="@(GetRowStyle(isSelected))" 
+                             class="p-4 mx-1 my-1 rounded-xl cursor-pointer transition-all border-l-4 @(isSelected ? "border-l-[#006c49] shadow-sm" : "border-l-transparent hover:bg-[#eff4ff]/30")" 
+                             @onclick="@(() => SelectMail(mail))">
+                            
+                            <div class="flex justify-between items-baseline mb-1">
+                                <span class="text-xs font-bold text-[#0b1c30] truncate flex items-center gap-1.5 @(mail.IsRead ? "font-semibold opacity-70" : "font-black")">
+                                    @if (!mail.IsRead && _activeFolder == "inbox")
+                                    {
+                                        <span class="w-2 h-2 bg-[#006c49] rounded-full shrink-0"></span>
+                                    }
+                                    @if (_activeFolder == "sent")
+                                    {
+                                        <span>Kime: @mail.To</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@mail.SenderName</span>
+                                    }
+                                </span>
+                                <span class="text-[10px] text-[#3c4a42]/60 font-semibold shrink-0">@mail.Date.ToString("HH:mm")</span>
+                            </div>
+                            
+                            <h3 class="text-sm text-[#0b1c30] leading-snug truncate @(mail.IsRead ? "font-semibold" : "font-black")">
+                                @mail.Subject
+                            </h3>
+                            
+                            <p class="text-xs text-[#3c4a42]/80 line-clamp-2 mt-1 font-medium">
+                                @mail.Snippet
+                            </p>
+                        </div>
+                    }
+                }
+            </div>
+        </section>
+
+        <!-- 3. Kolon: Detay / Yazma Paneli (Açık Tema Okuma ve Editör Kartı) -->
+        <section class="flex-grow flex flex-col bg-[#f8f9ff] overflow-hidden h-full @(IsShowingDetailOnMobile() ? "flex" : "hidden md:flex")">
+            @if (_selectedMail == null && !_isComposing)
+            {
+                <div class="flex flex-col items-center justify-center flex-grow text-[#3c4a42]/50 p-8">
+                    <span class="material-symbols-outlined text-6xl mb-3" style="font-variation-settings: 'wght' 200;">mail_outline</span>
+                    <p class="font-medium text-sm">Okumak için bir e-posta seçin.</p>
+                </div>
+            }
+            else if (_isComposing)
+            {
+                <!-- Yeni İleti Yazma Düzenleyicisi -->
+                <div class="flex-grow flex flex-col overflow-hidden bg-white">
+                    <div class="p-6 border-b border-[#bbcabf]/20 flex flex-col gap-4 bg-[#eff4ff]/20">
+                        <div class="flex items-center gap-3">
+                            <span class="text-[#3c4a42] font-bold text-xs w-16">Kime:</span>
+                            <input class="flex-1 bg-white border border-[#bbcabf]/30 focus:outline-none py-1.5 px-3 text-sm text-[#0b1c30] placeholder:text-slate-400 font-sans outline-none" 
+                                   type="text" 
+                                   @bind="_composeModel.To" 
+                                   placeholder="alici@domain.com" />
+                        </div>
+                        <div class="flex items-center gap-3 border-t border-[#bbcabf]/10 pt-3">
+                            <span class="text-[#3c4a42] font-bold text-xs w-16">Konu:</span>
+                            <input class="flex-1 bg-white border border-[#bbcabf]/30 focus:outline-none py-1.5 px-3 text-sm text-[#0b1c30] font-semibold placeholder:text-slate-400 font-sans outline-none" 
+                                   type="text" 
+                                   @bind="_composeModel.Subject" 
+                                   placeholder="Konu başlığı" />
+                        </div>
+                    </div>
+                    
+                    <div class="px-6 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                        <div class="flex items-center gap-1">
+                            <button type="button" class="p-1.5 hover:bg-slate-200/50 rounded-lg text-[#3c4a42] hover:text-[#006c49] transition-all flex items-center justify-center active:scale-95" title="Kalın" @onclick='() => ExecuteEditorCommand("bold")'>
+                                <span class="material-symbols-outlined text-lg">format_bold</span>
+                            </button>
+                            <button type="button" class="p-1.5 hover:bg-slate-200/50 rounded-lg text-[#3c4a42] hover:text-[#006c49] transition-all flex items-center justify-center active:scale-95" title="Eğik" @onclick='() => ExecuteEditorCommand("italic")'>
+                                <span class="material-symbols-outlined text-lg">format_italic</span>
+                            </button>
+                            <button type="button" class="p-1.5 hover:bg-slate-200/50 rounded-lg text-[#3c4a42] hover:text-[#006c49] transition-all flex items-center justify-center active:scale-95" title="Altı Çizili" @onclick='() => ExecuteEditorCommand("underline")'>
+                                <span class="material-symbols-outlined text-lg">format_underlined</span>
+                            </button>
+                            <button type="button" class="p-1.5 hover:bg-slate-200/50 rounded-lg text-[#3c4a42] hover:text-[#006c49] transition-all flex items-center justify-center active:scale-95" title="Başlık (H3)" @onclick='() => ExecuteEditorCommand("formatBlock", "<h3>")'>
+                                <span class="material-symbols-outlined text-lg">title</span>
+                            </button>
+                            <button type="button" class="p-1.5 hover:bg-slate-200/50 rounded-lg text-[#3c4a42] hover:text-[#006c49] transition-all flex items-center justify-center active:scale-95" title="Bağlantı" @onclick="PromptLink">
+                                <span class="material-symbols-outlined text-lg">link</span>
+                            </button>
+                            <button type="button" class="p-1.5 hover:bg-slate-200/50 rounded-lg text-[#3c4a42] hover:text-[#006c49] transition-all flex items-center justify-center active:scale-95" title="Paragraf" @onclick='() => ExecuteEditorCommand("formatBlock", "<p>")'>
+                                <span class="material-symbols-outlined text-lg">notes</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-grow p-6 overflow-y-auto">
+                        <div id="emailBodyEditorDesktop" 
+                             class="w-full h-full min-h-[20rem] bg-white border border-[#bbcabf]/30 p-4 text-sm text-[#0b1c30] focus:outline-none outline-none overflow-y-auto stitch-scrollbar webmail-desktop-editor"
+                             contenteditable="true"
+                             placeholder="E-posta gövdesini yazın..."></div>
+                    </div>
+
+                    <div class="p-4 bg-slate-50 border-t border-slate-100">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-bold text-[#3c4a42] flex items-center gap-1">
+                                <span class="material-symbols-outlined text-base">attachment</span> Dosya Ekleri
+                            </span>
+                            <label class="text-xs font-bold text-[#006c49] hover:underline cursor-pointer">
+                                Dosya Ekle
+                                <InputFile OnChange="OnInputFileChange" multiple style="display: none;" />
+                            </label>
+                        </div>
+
+                        @if (_attachments.Any())
+                        {
+                            <div class="flex flex-wrap gap-2">
+                                @foreach (var file in _attachments)
+                                {
+                                    <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-[#bbcabf]/30 text-xs text-slate-700">
+                                        <span>📂 @file.FileName (@(file.Size / 1024) KB)</span>
+                                        <button class="text-rose-500 hover:text-rose-700 transition-colors ml-1" @onclick="() => RemoveAttachment(file)">
+                                            <span class="material-symbols-outlined text-sm">close</span>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="p-6 border-t border-[#bbcabf]/10 flex items-center justify-between bg-slate-50">
+                        <div class="flex items-center gap-3">
+                            <button class="bg-[#006c49] hover:bg-[#005236] text-white font-bold px-6 py-2.5 rounded-full flex items-center gap-2 hover:shadow-md active:scale-95 transition-all" 
+                                    @onclick="HandleSendMail" disabled="@_isSending">
+                                @if (_isSending)
+                                {
+                                    <span>Gönderiliyor...</span>
+                                }
+                                else
+                                {
+                                    <span>Gönder</span>
+                                    <span class="material-symbols-outlined text-sm">send</span>
+                                }
+                            </button>
+                            <button class="p-2.5 text-[#3c4a42] hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors flex items-center justify-center" title="İptal" @onclick="GoBackToList">
+                                <span class="material-symbols-outlined text-xl">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Okuma Paneli -->
+                <div class="flex-grow flex flex-col overflow-hidden bg-white">
+                     <div class="px-6 py-3 border-b border-[#bbcabf]/20 flex items-center justify-between bg-[#eff4ff]/20">
+                         <div class="flex gap-3 items-center">
+                             <button @onclick="ArchiveSelectedMail" class="flex items-center gap-1.5 text-[#006c49] hover:bg-[#006c49]/5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all" title="Arşivle">
+                                 <span class="material-symbols-outlined text-lg">archive</span> Arşivle
+                             </button>
+                             <button class="flex items-center gap-1.5 text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all" title="Sil" @onclick="DeleteSelectedMail">
+                                 <span class="material-symbols-outlined text-lg">delete</span> Sil
+                             </button>
+                             <button class="flex items-center gap-1.5 text-slate-600 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all" title="Cevapla" @onclick="OpenReplyModal">
+                                 <span class="material-symbols-outlined text-lg">reply</span> Cevapla
+                             </button>
+                         </div>
+                     </div>
+
+                    <div class="p-6 border-b border-slate-100 bg-[#eff4ff]/5">
+                        <h2 class="text-2xl font-bold text-[#0b1c30] leading-tight mb-6">@_selectedMail?.Subject</h2>
+                        
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-[#eff4ff] border border-[#bbcabf]/30 flex items-center justify-center text-[#006c49] font-bold text-lg">
+                                @((_selectedMail?.SenderName ?? "?").Substring(0, Math.Min(2, (_selectedMail?.SenderName ?? "?").Length)).ToUpper())
+                            </div>
+                            <div class="flex-grow min-w-0">
+                                <div class="flex justify-between items-baseline">
+                                    <h4 class="font-bold text-[#0b1c30] text-base leading-none">@_selectedMail?.SenderName</h4>
+                                    <span class="text-xs text-[#3c4a42]/70 font-semibold">@_selectedMail?.Date.ToString("dd MMM yyyy, HH:mm")</span>
+                                </div>
+                                <p class="text-xs text-[#3c4a42]/70 leading-normal mt-1">@_selectedMail?.SenderEmail</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex-grow overflow-y-auto p-6 bg-slate-50/20 text-slate-700 text-sm">
+                        <div class="p-4 rounded-xl border bg-white max-w-4xl mx-auto leading-relaxed space-y-4">
+                            @((MarkupString)(_selectedMail?.Body ?? ""))
+                        </div>
+
+                        <!-- Dosya Ekleri -->
+                        @if (_selectedMail?.Attachments != null && _selectedMail.Attachments.Any())
+                        {
+                            <div class="border-t border-slate-100 pt-4 mt-6 max-w-4xl mx-auto text-left">
+                                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Dosya Ekleri (@_selectedMail.Attachments.Count)</p>
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach (var att in _selectedMail.Attachments)
+                                    {
+                                        <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700">
+                                            <span>📂 @att.FileName (@(att.FileSize / 1024) KB)</span>
+                                            <a href="api/mail/@Uri.EscapeDataString(_activeAccount)/emails/attachment?folder=@Uri.EscapeDataString(_activeFolder)&mailFile=@Uri.EscapeDataString(_selectedMail.FilePath)&attachmentId=@Uri.EscapeDataString(att.Id)" 
+                                               target="_blank" download="@att.FileName"
+                                               class="text-[#006c49] hover:underline font-bold ml-2">İndir</a>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Hızlı Yanıt Gönderme Kutusu -->
+                    <div class="p-6 border-t border-[#bbcabf]/20 bg-slate-50">
+                        <div class="flex flex-col gap-3 max-w-4xl mx-auto">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="material-symbols-outlined text-[#006c49] text-lg">quickreply</span>
+                                <span class="text-xs font-bold text-slate-700">@_selectedMail?.SenderEmail Adresine Hızlı Yanıt</span>
+                            </div>
+                            <div class="bg-white border border-[#bbcabf]/30 rounded-2xl p-3 shadow-sm flex flex-col gap-2.5">
+                                <textarea class="w-full bg-transparent border-none text-sm text-[#0b1c30] placeholder-slate-400 focus:outline-none outline-none resize-none p-1 min-h-[80px]" 
+                                          placeholder="Hızlı yanıtınızı buraya yazın..."
+                                          @bind="_quickReplyText"></textarea>
+                                
+                                <div class="flex justify-between items-center border-t border-slate-100 pt-2.5">
+                                    <div class="flex items-center gap-2">
+                                        <label class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer flex items-center justify-center transition-colors">
+                                            <span class="material-symbols-outlined text-lg">attachment</span>
+                                            <InputFile OnChange="OnQuickReplyFileChange" multiple style="display: none;" />
+                                        </label>
+                                        
+                                        @if (_quickAttachments.Any())
+                                        {
+                                            <span class="text-[10px] font-bold text-[#006c49]">@_quickAttachments.Count dosya eklendi</span>
+                                        }
+                                    </div>
+                                    <button class="bg-[#006c49] hover:bg-[#005236] text-white font-bold px-5 py-1.5 rounded-full text-xs shadow-sm hover:shadow active:scale-95 transition-all" 
+                                            @onclick="SendQuickReply" disabled="@(string.IsNullOrWhiteSpace(_quickReplyText))">
+                                        Gönder
+                                    </button>
+                                </div>
+                            </div>
+
+                            @if (_quickAttachments.Any())
+                            {
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach (var file in _quickAttachments)
+                                    {
+                                        <div class="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-[10px] text-slate-600 shadow-sm">
+                                            <span>📎 @file.FileName</span>
+                                            <button class="text-rose-500 hover:text-rose-700 ml-1 font-bold" @onclick="() => RemoveQuickAttachment(file)">×</button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </section>
+        </div>
+    </div>
+}
+
+@code {
+    private List<string> _accounts = new();
+    private string _activeAccount = "";
+    private string _activeFolder = "inbox";
+    private string _searchQuery = "";
+    private string _quickReplyText = "";
+    private int _unreadCount = 0;
+    private bool _isAccountDropdownOpen = false;
+
+    private bool _isRefreshing = false;
+    private bool _showSnoozeMenu = false;
+    private bool _showLabelsMenu = false;
+    private bool _showNewLabelInput = false;
+    private string _newLabelName = "";
+    private List<string> _customLabels = new();
+
+    // Swipe gestures ve Mobile Drawer state
+    private double _touchStartX;
+    private double _touchCurrentX;
+    private Guid? _swipedMailId;
+
+    private bool _isPageSwiping = false;
+    private double _pageTouchStartX;
+    private double _pageTouchCurrentX;
+    private bool _mobileDrawerOpen = false;
+
+    // Kota
+    private long _usedBytes = 0;
+    private long _quotaBytes = 1073741824; // 1 GB varsayılan
+    private int _quotaPercent = 0;
+    private List<AttachmentItem> _quickAttachments = new();
+
+    private List<MailItem> _mails = new();
+    private MailItem? _selectedMail;
+    
+    // Compose/Draft Editor Control
+    private bool _isComposing = false;
+    private bool _isSending = false;
+    private readonly ComposeMailModel _composeModel = new();
+    private DotNetObjectReference<Webmail>? _dotNetRef;
+    private bool _shouldInitEditor = false;
+
+    // Eklentiler Listesi
+    private List<AttachmentItem> _attachments = new();
+
+    public class AttachmentItem
+    {
+        public string FileName { get; set; } = "";
+        public string Base64Data { get; set; } = "";
+        public string ContentType { get; set; } = "";
+        public long Size { get; set; }
+    }
+
+    private bool IsShowingDetailOnMobile() => _selectedMail != null || _isComposing;
+
+    private void ToggleAccountDropdown()
+    {
+        _isAccountDropdownOpen = !_isAccountDropdownOpen;
+    }
+
+    private async Task SwitchAccount(string newAcc)
+    {
+        _isAccountDropdownOpen = false;
+        await HandleAccountChanged(newAcc);
+    }
+
+    private void ToggleSnoozeMenu()
+    {
+        _showSnoozeMenu = !_showSnoozeMenu;
+        _showLabelsMenu = false;
+    }
+
+    private void ToggleLabelsMenu()
+    {
+        _showLabelsMenu = !_showLabelsMenu;
+        _showSnoozeMenu = false;
+    }
+
+    private void ToggleNewLabelInput()
+    {
+        _showNewLabelInput = !_showNewLabelInput;
+        _newLabelName = "";
+    }
+
+    // Mobil Sola/Sağa Kaydırma (Swipe) C# İşleyicileri
+    private void HandleTouchStart(TouchEventArgs e, Guid mailId)
+    {
+        if (_mobileDrawerOpen || IsShowingDetailOnMobile()) return;
+        _swipedMailId = mailId;
+        _touchStartX = e.Touches[0].ClientX;
+        _touchCurrentX = _touchStartX;
+    }
+
+    private void HandleTouchMove(TouchEventArgs e)
+    {
+        if (_swipedMailId == null) return;
+        _touchCurrentX = e.Touches[0].ClientX;
+    }
+
+    private async Task HandleTouchEnd(MailItem mail)
+    {
+        if (_swipedMailId == null) return;
+        
+        var deltaX = _touchCurrentX - _touchStartX;
+        _swipedMailId = null; // Reset immediately
+
+        if (deltaX > 120) // Swipe Right: Archive
+        {
+            await ArchiveMailDirect(mail);
+        }
+        else if (deltaX < -120) // Swipe Left: Delete
+        {
+            await DeleteMailDirect(mail);
+        }
+
+        _touchStartX = 0;
+        _touchCurrentX = 0;
+        StateHasChanged();
+    }
+
+    private double GetSwipeOffset(Guid mailId)
+    {
+        if (_swipedMailId != mailId) return 0;
+        var offset = _touchCurrentX - _touchStartX;
+        
+        if (offset > 150) return 150;
+        if (offset < -150) return -150;
+        return offset;
+    }
+
+    private int GetSwipeDirection(Guid mailId)
+    {
+        if (_swipedMailId != mailId) return 0;
+        var offset = _touchCurrentX - _touchStartX;
+        if (offset > 15) return 1;
+        if (offset < -15) return -1;
+        return 0;
+    }
+
+    // Ekran Kenarından Çekerek Çekmeceyi Açma (Edge Swipe-to-Drawer)
+    private void HandlePageTouchStart(TouchEventArgs e)
+    {
+        if (e.Touches[0].ClientX < 35 && !IsShowingDetailOnMobile())
+        {
+            _isPageSwiping = true;
+            _pageTouchStartX = e.Touches[0].ClientX;
+        }
+    }
+
+    private void HandlePageTouchMove(TouchEventArgs e)
+    {
+        if (_isPageSwiping)
+        {
+            _pageTouchCurrentX = e.Touches[0].ClientX;
+            if (_pageTouchCurrentX - _pageTouchStartX > 60)
+            {
+                _mobileDrawerOpen = true;
+                _isPageSwiping = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void HandlePageTouchEnd()
+    {
+        _isPageSwiping = false;
+    }
+
+    private double _drawerTouchStartX;
+    private double _drawerTouchCurrentX;
+    private bool _isDrawerSwiping = false;
+
+    private void HandleDrawerTouchStart(TouchEventArgs e)
+    {
+        if (!_mobileDrawerOpen) return;
+        _isDrawerSwiping = true;
+        _drawerTouchStartX = e.Touches[0].ClientX;
+        _drawerTouchCurrentX = _drawerTouchStartX;
+    }
+
+    private void HandleDrawerTouchMove(TouchEventArgs e)
+    {
+        if (!_isDrawerSwiping) return;
+        _drawerTouchCurrentX = e.Touches[0].ClientX;
+    }
+
+    private void HandleDrawerTouchEnd()
+    {
+        if (!_isDrawerSwiping) return;
+        _isDrawerSwiping = false;
+        var delta = _drawerTouchCurrentX - _drawerTouchStartX;
+        if (delta < -60) // Swiped left to close
+        {
+            _mobileDrawerOpen = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OpenMobileDrawer()
+    {
+        _mobileDrawerOpen = true;
+    }
+
+    private void CloseMobileDrawer()
+    {
+        _mobileDrawerOpen = false;
+    }
+
+    private async Task ArchiveMailDirect(MailItem mail)
+    {
+        if (string.IsNullOrEmpty(_activeAccount) || string.IsNullOrEmpty(mail.FilePath)) return;
+
+        try
+        {
+            var payload = new
+            {
+                SourceFolder = _activeFolder,
+                DestFolder = "archive",
+                FileName = mail.FilePath
+            };
+
+            var response = await Http.PostAsJsonAsync($"api/mail/{Uri.EscapeDataString(_activeAccount)}/emails/move", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("E-posta arşivlendi.", Severity.Success);
+                if (_selectedMail?.Id == mail.Id) _selectedMail = null;
+                await LoadMailsAsync();
+            }
+            else
+            {
+                Snackbar.Add("Arşivlenirken hata oluştu.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteMailDirect(MailItem mail)
+    {
+        if (string.IsNullOrEmpty(_activeAccount) || string.IsNullOrEmpty(mail.FilePath)) return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/mail/{Uri.EscapeDataString(_activeAccount)}/emails/{Uri.EscapeDataString(_activeFolder)}/{Uri.EscapeDataString(mail.FilePath)}");
+            if (response.IsSuccessStatusCode)
+            {
+                if (_activeFolder == "trash")
+                {
+                    Snackbar.Add("E-posta kalıcı olarak silindi.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("E-posta Çöp Kutusu'na taşındı.", Severity.Success);
+                }
+                if (_selectedMail?.Id == mail.Id) _selectedMail = null;
+                await LoadMailsAsync();
+            }
+            else
+            {
+                Snackbar.Add("Silinirken hata oluştu.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task HandleNewLabelKeyup(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await CreateLabelAsync();
+        }
+    }
+
+    private async Task CreateLabelAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newLabelName) || string.IsNullOrEmpty(_activeAccount)) return;
+
+        try
+        {
+            var payload = new { Name = _newLabelName.Trim() };
+            var response = await Http.PostAsJsonAsync($"api/mail/{Uri.EscapeDataString(_activeAccount)}/labels", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"'{_newLabelName}' etiketi başarıyla oluşturuldu.", Severity.Success);
+                _newLabelName = "";
+                _showNewLabelInput = false;
+                await LoadCustomLabelsAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Etiket oluşturulamadı: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadCustomLabelsAsync()
+    {
+        if (string.IsNullOrEmpty(_activeAccount)) return;
+
+        try
+        {
+            var raw = await Http.GetFromJsonAsync<List<string>>($"api/mail/{Uri.EscapeDataString(_activeAccount)}/labels");
+            if (raw != null)
+            {
+                _customLabels = raw;
+            }
+        }
+        catch
+        {
+            _customLabels = new List<string>();
+        }
+    }
+
+    private async Task DeleteLabelAsync(string labelName)
+    {
+        if (string.IsNullOrEmpty(_activeAccount)) return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/mail/{Uri.EscapeDataString(_activeAccount)}/labels/{Uri.EscapeDataString(labelName)}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"'{labelName}' etiketi silindi.", Severity.Success);
+                if (_activeFolder == "label-" + labelName.ToLower())
+                {
+                    _activeFolder = "inbox";
+                    await LoadMailsAsync();
+                }
+                await LoadCustomLabelsAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Etiket silinemedi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadQuotaAsync()
+    {
+        if (string.IsNullOrEmpty(_activeAccount)) return;
+
+        try
+        {
+            var result = await Http.GetFromJsonAsync<QuotaDto>($"api/mail/{Uri.EscapeDataString(_activeAccount)}/quota");
+            if (result != null)
+            {
+                _usedBytes = result.UsedBytes;
+                _quotaBytes = result.QuotaBytes > 0 ? result.QuotaBytes : 1073741824;
+                _quotaPercent = result.Percentage;
+            }
+        }
+        catch
+        {
+            // Sessizce yoksay
+        }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes} B";
+    }
+
+    public class QuotaDto
+    {
+        public long UsedBytes { get; set; }
+        public long QuotaBytes { get; set; }
+        public int Percentage { get; set; }
+    }
+
+    private async Task RefreshMailsAsync()
+    {
+        if (_isRefreshing) return;
+        _isRefreshing = true;
+        try
+        {
+            await LoadMailsAsync();
+            await LoadCustomLabelsAsync();
+            await LoadQuotaAsync();
+            Snackbar.Add("E-postalar güncellendi.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Güncelleme hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
+    }
+
+    private async Task ArchiveSelectedMail()
+    {
+        if (_selectedMail == null || string.IsNullOrEmpty(_activeAccount)) return;
+
+        try
+        {
+            var payload = new
+            {
+                SourceFolder = _activeFolder,
+                DestFolder = "archive",
+                FileName = _selectedMail.FilePath
+            };
+
+            var response = await Http.PostAsJsonAsync($"api/mail/{Uri.EscapeDataString(_activeAccount)}/emails/move", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("E-posta başarıyla arşivlendi.", Severity.Success);
+                _selectedMail = null;
+                await LoadMailsAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"E-posta arşivlenemedi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void SnoozeMail(string option)
+    {
+        _showSnoozeMenu = false;
+        Snackbar.Add($"E-posta ertelendi: {option}", Severity.Success);
+        _selectedMail = null;
+    }
+
+    private async Task LabelMailAsync(string labelName)
+    {
+        if (_selectedMail == null || string.IsNullOrEmpty(_activeAccount)) return;
+        _showLabelsMenu = false;
+
+        try
+        {
+            var payload = new
+            {
+                SourceFolder = _activeFolder,
+                DestFolder = "label-" + labelName.ToLower(),
+                FileName = _selectedMail.FilePath
+            };
+
+            var response = await Http.PostAsJsonAsync($"api/mail/{Uri.EscapeDataString(_activeAccount)}/emails/move", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"E-posta '{labelName}' klasörüne taşındı.", Severity.Success);
+                _selectedMail = null;
+                await LoadMailsAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"E-posta etiketlenemedi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OnQuickReplyFileChange(InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles(5))
+        {
+            try
+            {
+                if (file.Size > 10 * 1024 * 1024)
+                {
+                    Snackbar.Add($"Eklenti Hatası: '{file.Name}' dosya boyutu 10MB sınırını aşamaz!", Severity.Error);
+                    continue;
+                }
+
+                var currentTotalSize = _quickAttachments.Sum(a => a.Size);
+                if (currentTotalSize + file.Size > 15 * 1024 * 1024)
+                {
+                    Snackbar.Add($"Eklenti Hatası: Toplam eklenti boyutu 15MB sınırını aşamaz!", Severity.Error);
+                    continue;
+                }
+
+                var buffer = new byte[file.Size];
+                using var stream = file.OpenReadStream(10 * 1024 * 1024);
+                await stream.ReadExactlyAsync(buffer);
+
+                _quickAttachments.Add(new AttachmentItem
+                {
+                    FileName = file.Name,
+                    Base64Data = Convert.ToBase64String(buffer),
+                    ContentType = file.ContentType,
+                    Size = file.Size
+                });
+                Snackbar.Add($"{file.Name} başarıyla eklendi.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Eklenti eklenirken hata oluştu: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void RemoveQuickAttachment(AttachmentItem file)
+    {
+        _quickAttachments.Remove(file);
+        Snackbar.Add($"{file.FileName} eki kaldırıldı.", Severity.Info);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                window.wrapTextareaSelection = (elementId, openTag, closeTag) => {
+                    const textarea = document.getElementById(elementId);
+                    if (!textarea) return '';
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const text = textarea.value;
+                    const selected = text.substring(start, end);
+                    const replacement = openTag + selected + closeTag;
+                    textarea.value = text.substring(0, start) + replacement + text.substring(end);
+                    textarea.focus();
+                    textarea.setSelectionRange(start + openTag.length, start + openTag.length + selected.length);
+                    
+                    const event = new Event('input', { bubbles: true });
+                    textarea.dispatchEvent(event);
+                    
+                    return textarea.value;
+                };
+
+                window.initWysiwygEditor = (elementId, dotNetRef) => {
+                    const editor = document.getElementById(elementId);
+                    if (!editor) return;
+                    
+                    editor.oninput = () => {
+                        dotNetRef.invokeMethodAsync('UpdateEditorBody', editor.innerHTML);
+                    };
+
+                    editor.onpaste = () => {
+                        setTimeout(() => {
+                            dotNetRef.invokeMethodAsync('UpdateEditorBody', editor.innerHTML);
+                        }, 20);
+                    };
+                };
+
+                window.setWysiwygHtml = (elementId, html) => {
+                    const editor = document.getElementById(elementId);
+                    if (editor) {
+                        editor.innerHTML = html || '';
+                    }
+                };
+
+                window.execWysiwygCommand = (elementId, command, value) => {
+                    const editor = document.getElementById(elementId);
+                    if (!editor) return;
+                    editor.focus();
+                    document.execCommand(command, false, value || null);
+                    if (editor.oninput) {
+                        editor.oninput();
+                    }
+                };
+            ");
+        }
+        catch { }
+        
+        await LoadAccountsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_shouldInitEditor)
+        {
+            _shouldInitEditor = false;
+            try
+            {
+                var editorId = Platform.IsMobileApp ? "emailBodyEditorMobile" : "emailBodyEditorDesktop";
+                _dotNetRef ??= DotNetObjectReference.Create(this);
+                
+                await JSRuntime.InvokeVoidAsync("initWysiwygEditor", editorId, _dotNetRef);
+                await JSRuntime.InvokeVoidAsync("setWysiwygHtml", editorId, _composeModel.Body);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("WYSIWYG Editor Init Error: " + ex.Message);
+            }
+        }
+    }
+
+    [JSInvokable]
+    public void UpdateEditorBody(string html)
+    {
+        _composeModel.Body = html;
+    }
+
+    private async Task ExecuteEditorCommand(string command, string? value = null)
+    {
+        try
+        {
+            var editorId = Platform.IsMobileApp ? "emailBodyEditorMobile" : "emailBodyEditorDesktop";
+            await JSRuntime.InvokeVoidAsync("execWysiwygCommand", editorId, command, value);
+        }
+        catch { }
+    }
+
+    private async Task PromptLink()
+    {
+        try
+        {
+            var editorId = Platform.IsMobileApp ? "emailBodyEditorMobile" : "emailBodyEditorDesktop";
+            var url = await JSRuntime.InvokeAsync<string>("prompt", "Bağlantı adresi (URL) girin:", "https://");
+            if (!string.IsNullOrEmpty(url) && url != "https://")
+            {
+                await JSRuntime.InvokeVoidAsync("execWysiwygCommand", editorId, "createLink", url);
+            }
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        _dotNetRef?.Dispose();
+    }
+
+    private async Task LoadAccountsAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated != true) return;
+
+            var raw = await Http.GetFromJsonAsync<List<Email.MailAccountDto>>("api/mail");
+            if (raw != null && raw.Any())
+            {
+                _accounts = raw.Select(a => a.EmailAddress).ToList();
+                _activeAccount = _accounts.First();
+                await LoadMailsAsync();
+                _ = InvokeAsync(async () =>
+                {
+                    await Task.WhenAll(LoadCustomLabelsAsync(), LoadQuotaAsync());
+                    StateHasChanged();
+                });
+            }
+            else
+            {
+                _accounts = new List<string>();
+                _mails = new List<MailItem>();
+                _selectedMail = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"E-posta hesapları yüklenirken hata oluştu: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadMailsAsync()
+    {
+        if (string.IsNullOrEmpty(_activeAccount)) return;
+
+        try
+        {
+            var rawMails = await Http.GetFromJsonAsync<List<BackendMailDto>>($"api/mail/{Uri.EscapeDataString(_activeAccount)}/emails?folder={Uri.EscapeDataString(_activeFolder)}&take=75");
+            if (rawMails != null)
+            {
+                _mails = rawMails.Select(m => new MailItem
+                {
+                    Id = m.Id,
+                    SenderName = m.SenderName,
+                    SenderEmail = m.SenderEmail,
+                    To = m.To,
+                    Subject = m.Subject,
+                    Snippet = m.Snippet,
+                    Body = m.Body,
+                    Date = m.Date.LocalDateTime,
+                    IsRead = m.IsRead,
+                    Folder = _activeFolder,
+                    FilePath = m.FilePath,
+                    Attachments = m.Attachments ?? new List<AttachmentDto>()
+                }).ToList();
+
+                if (_activeFolder == "inbox")
+                {
+                    _unreadCount = _mails.Count(m => !m.IsRead && m.Folder == "inbox");
+                }
+                _selectedMail = null;
+                _isComposing = false;
+                _mobileDrawerOpen = false;
+            }
+            else
+            {
+                _mails = new List<MailItem>();
+                _selectedMail = null;
+                _isComposing = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"E-postalar alınırken hata oluştu: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task HandleAccountChanged(string newAcc)
+    {
+        _activeAccount = newAcc;
+        _isAccountDropdownOpen = false;
+        _showSnoozeMenu = false;
+        _showLabelsMenu = false;
+        _showNewLabelInput = false;
+        _quickAttachments.Clear();
+        await LoadMailsAsync();
+        _ = InvokeAsync(async () =>
+        {
+            await Task.WhenAll(LoadCustomLabelsAsync(), LoadQuotaAsync());
+            StateHasChanged();
+        });
+        Snackbar.Add($"{newAcc} hesabı mailleri senkronize edildi.", Severity.Info);
+    }
+
+    private async Task SetFolder(string folder)
+    {
+        if (_activeFolder == folder) return;
+        _activeFolder = folder;
+        _selectedMail = null;
+        _isComposing = false;
+        _mobileDrawerOpen = false;
+        await LoadMailsAsync();
+    }
+
+    private IEnumerable<MailItem> GetFilteredMails()
+    {
+        var filtered = _mails.Where(m => m.Folder == _activeFolder);
+        if (!string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            filtered = filtered.Where(m => m.Subject.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                                           m.SenderName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                                           m.To.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                                           m.Body.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase));
+        }
+        return filtered.OrderByDescending(m => m.Date);
+    }
+
+    private void SelectMail(MailItem mail)
+    {
+        _selectedMail = mail;
+        _isComposing = false;
+        
+        if (!mail.IsRead)
+        {
+            mail.IsRead = true;
+            _unreadCount = _mails.Count(m => !m.IsRead && m.Folder == "inbox");
+            _ = MarkSelectedMailAsReadAsync(mail);
+        }
+        
+        if (_activeFolder == "draft")
+        {
+            _composeModel.To = mail.To;
+            _composeModel.Subject = mail.Subject;
+            _composeModel.Body = mail.Body;
+            _isComposing = true;
+            _shouldInitEditor = true;
+        }
+    }
+
+    private async Task MarkSelectedMailAsReadAsync(MailItem mail)
+    {
+        if (string.IsNullOrEmpty(_activeAccount) || string.IsNullOrEmpty(mail.FilePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var payload = new
+            {
+                Folder = _activeFolder,
+                FileName = mail.FilePath
+            };
+
+            await Http.PostAsJsonAsync($"api/mail/{Uri.EscapeDataString(_activeAccount)}/emails/read", payload);
+        }
+        catch { }
+    }
+
+    private void GoBackToList()
+    {
+        _selectedMail = null;
+        _isComposing = false;
+    }
+
+    private async Task DeleteSelectedMail()
+    {
+        if (_selectedMail == null || string.IsNullOrEmpty(_activeAccount)) return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/mail/{Uri.EscapeDataString(_activeAccount)}/emails/{Uri.EscapeDataString(_activeFolder)}/{Uri.EscapeDataString(_selectedMail.FilePath)}");
+            if (response.IsSuccessStatusCode)
+            {
+                if (_activeFolder == "trash")
+                {
+                    Snackbar.Add("E-posta kalıcı olarak silindi.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("E-posta Çöp Kutusu klasörüne taşındı.", Severity.Success);
+                }
+                _selectedMail = null;
+                await LoadMailsAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"E-posta silinemedi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SendQuickReply()
+    {
+        if (string.IsNullOrWhiteSpace(_quickReplyText) || _selectedMail == null || string.IsNullOrEmpty(_activeAccount)) return;
+
+        _isSending = true;
+        try
+        {
+            var finalBody = $"<p>Yanıtlanan Mesaj:</p><blockquote style='border-left: 2px solid #006c49; padding-left: 12px; color: #64748b;'>{_selectedMail.Body}</blockquote><br><p>{_quickReplyText}</p>";
+
+            var payload = new
+            {
+                To = _selectedMail.SenderEmail,
+                Subject = $"Re: {_selectedMail.Subject}",
+                Body = finalBody,
+                Attachments = _quickAttachments.Select(a => new
+                {
+                    FileName = a.FileName,
+                    Base64Data = a.Base64Data,
+                    ContentType = a.ContentType
+                }).ToList()
+            };
+
+            var response = await Http.PostAsJsonAsync($"api/mail/{Uri.EscapeDataString(_activeAccount)}/send", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Yanıtınız başarıyla gönderildi!", Severity.Success);
+                _quickReplyText = "";
+                _quickAttachments.Clear();
+                _activeFolder = "sent";
+                _selectedMail = null;
+                await LoadMailsAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Yanıt gönderilemedi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSending = false;
+        }
+    }
+
+    private void OpenReplyModal()
+    {
+        if (_selectedMail == null) return;
+        _composeModel.To = _selectedMail.SenderEmail;
+        _composeModel.Subject = $"Re: {_selectedMail.Subject}";
+        _composeModel.Body = "\n\n--- Yanıtlanan Mesaj ---\n" + _selectedMail.Snippet;
+        _attachments.Clear();
+        _isComposing = true;
+        _shouldInitEditor = true;
+        _selectedMail = null;
+    }
+
+    private void OpenComposePane()
+    {
+        _composeModel.To = "";
+        _composeModel.Subject = "";
+        _composeModel.Body = "";
+        _attachments.Clear();
+        _isComposing = true;
+        _shouldInitEditor = true;
+        _selectedMail = null;
+    }
+
+    private async Task WrapSelection(string openTag, string closeTag)
+    {
+        try
+        {
+            var newValue = await JSRuntime.InvokeAsync<string>("wrapTextareaSelection", "emailBodyEditor", openTag, closeTag);
+            if (newValue != null)
+            {
+                _composeModel.Body = newValue;
+            }
+        }
+        catch
+        {
+            _composeModel.Body += $"{openTag}{closeTag}";
+        }
+    }
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles(5))
+        {
+            try
+            {
+                if (file.Size > 10 * 1024 * 1024)
+                {
+                    Snackbar.Add($"Eklenti Hatası: '{file.Name}' dosya boyutu 10MB sınırını aşamaz!", Severity.Error);
+                    continue;
+                }
+
+                var currentTotalSize = _attachments.Sum(a => a.Size);
+                if (currentTotalSize + file.Size > 15 * 1024 * 1024)
+                {
+                    Snackbar.Add($"Eklenti Hatası: Toplam eklenti boyutu 15MB sınırını aşamaz!", Severity.Error);
+                    continue;
+                }
+
+                var buffer = new byte[file.Size];
+                using var stream = file.OpenReadStream(10 * 1024 * 1024);
+                await stream.ReadExactlyAsync(buffer);
+
+                _attachments.Add(new AttachmentItem
+                {
+                    FileName = file.Name,
+                    Base64Data = Convert.ToBase64String(buffer),
+                    ContentType = file.ContentType,
+                    Size = file.Size
+                });
+                Snackbar.Add($"{file.Name} başarıyla eklendi.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Eklenti eklenirken hata oluştu: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void RemoveAttachment(AttachmentItem file)
+    {
+        _attachments.Remove(file);
+        Snackbar.Add($"{file.FileName} eki kaldırıldı.", Severity.Info);
+    }
+
+    private async Task HandleSendMail()
+    {
+        if (string.IsNullOrEmpty(_activeAccount)) return;
+
+        if (string.IsNullOrWhiteSpace(_composeModel.To) || string.IsNullOrWhiteSpace(_composeModel.Subject) || string.IsNullOrWhiteSpace(_composeModel.Body))
+        {
+            Snackbar.Add("Lütfen Alıcı, Konu ve İleti alanlarını doldurun!", Severity.Warning);
+            return;
+        }
+
+        _isSending = true;
+        try
+        {
+            var finalBody = _composeModel.Body;
+            if (!finalBody.Contains("<p>") && !finalBody.Contains("<div>") && !finalBody.Contains("<br") && !finalBody.Contains("<b>") && !finalBody.Contains("<i>"))
+            {
+                finalBody = $"<p>{finalBody.Replace("\n", "<br/>")}</p>";
+            }
+
+            var payload = new
+            {
+                To = _composeModel.To,
+                Subject = _composeModel.Subject,
+                Body = finalBody,
+                Attachments = _attachments.Select(a => new
+                {
+                    FileName = a.FileName,
+                    Base64Data = a.Base64Data,
+                    ContentType = a.ContentType
+                }).ToList()
+            };
+
+            var response = await Http.PostAsJsonAsync($"api/mail/{Uri.EscapeDataString(_activeAccount)}/send", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"E-posta {_composeModel.To} adresine başarıyla gönderildi!", Severity.Success);
+                _isComposing = false;
+                _attachments.Clear();
+                _activeFolder = "sent";
+                _selectedMail = null;
+                await LoadMailsAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"E-posta gönderilemedi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSending = false;
+        }
+    }
+
+    private string GetFolderStyle(string folder)
+    {
+        if (_activeFolder == folder)
+        {
+            return "background-color: #adedd3 !important; color: #306d58 !important; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid #006c49 !important;";
+        }
+        return "color: #3c4a42 !important; background-color: transparent !important; border-left: 4px solid transparent !important;";
+    }
+
+    private string GetRowStyle(bool isSelected)
+    {
+        if (isSelected)
+        {
+            return "background-color: rgba(173, 237, 211, 0.3) !important; border-left-color: #006c49 !important;";
+        }
+        return "background-color: transparent !important; border-left-color: transparent !important;";
+    }
+
+    public class MailItem
+    {
+        public Guid Id { get; set; }
+        public string SenderName { get; set; } = string.Empty;
+        public string SenderEmail { get; set; } = string.Empty;
+        public string To { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
+        public string Snippet { get; set; } = string.Empty;
+        public string Body { get; set; } = string.Empty;
+        public DateTime Date { get; set; }
+        public bool IsRead { get; set; }
+        public string Folder { get; set; } = "inbox";
+        public string FilePath { get; set; } = string.Empty;
+        public List<AttachmentDto> Attachments { get; set; } = new();
+    }
+
+    public class BackendMailDto
+    {
+        public Guid Id { get; set; }
+        public string SenderName { get; set; } = string.Empty;
+        public string SenderEmail { get; set; } = string.Empty;
+        public string To { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
+        public string Snippet { get; set; } = string.Empty;
+        public string Body { get; set; } = string.Empty;
+        public DateTimeOffset Date { get; set; }
+        public bool IsRead { get; set; }
+        public string FilePath { get; set; } = string.Empty;
+        public List<AttachmentDto> Attachments { get; set; } = new();
+    }
+
+    public class AttachmentDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public string ContentType { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+    }
+
+    public class ComposeMailModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Alıcı adresi zorunludur!")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin.")]
+        public string To { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Konu başlığı zorunludur!")]
+        public string Subject { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Mesaj gövdesi boş bırakılamaz!")]
+        public string Body { get; set; } = string.Empty;
+    }
+}

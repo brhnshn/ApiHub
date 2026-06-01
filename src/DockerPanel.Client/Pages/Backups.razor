@@ -1,0 +1,1145 @@
+@page "/backups"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DockerPanel.Client.Security.IAuthTokenStore TokenStore
+@inject PlatformInfo PlatformInfo
+@using DockerPanel.Domain.Interfaces
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
+
+@if (PlatformInfo.IsMobileApp)
+{
+    <style>
+        h2, h3, h4, th, td, span, p, .text-\[\#0b1c30\], .text-slate-600 {
+            color: #f1f5f9 !important;
+        }
+        .bg-white, .hover\:bg-slate-50, .hover\:bg-slate-50\/50 {
+            background-color: rgba(23, 26, 33, 0.6) !important;
+            background: rgba(23, 26, 33, 0.6) !important;
+            border-color: rgba(255, 255, 255, 0.05) !important;
+        }
+        .bg-slate-50, .bg-slate-100 {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+        }
+        .border-\[\#bbcabf\]\/30, .border-slate-200, .border-slate-150 {
+            border-color: rgba(255, 255, 255, 0.05) !important;
+        }
+        .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+            border-color: rgba(255, 255, 255, 0.05) !important;
+        }
+        tr {
+            border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+        }
+        .mud-menu .mud-button {
+            color: #f1f5f9 !important;
+        }
+        .mud-typography {
+            color: #f1f5f9 !important;
+        }
+        /* Custom modal override for recovery guide/restore dialog */
+        .z-50 .bg-white {
+            background-color: #171a21 !important;
+            border-color: rgba(255, 255, 255, 0.08) !important;
+        }
+        .z-50 .bg-slate-50 {
+            background-color: rgba(255, 255, 255, 0.02) !important;
+            border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+        }
+        .mud-input-control .mud-input {
+            color: #f1f5f9 !important;
+        }
+    </style>
+}
+
+<PageTitle>Yedekleme Yönetimi - ApiHub</PageTitle>
+
+<div class="space-y-6">
+    <!-- Üst Başlık -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-extrabold text-[#0b1c30] tracking-tight">Yedekleme & Geri Yükleme</h2>
+            <p class="text-xs text-slate-500 font-medium mt-1">Sistemin tüm veritabanını, projelerini ve Nginx ayarlarını yedekleyin veya eski bir yedekten geri yükleyin.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button @onclick="OpenRecoveryGuide" type="button"
+                class="bg-[#0b1c30] hover:bg-[#15293d] text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-md border border-[#0b1c30]/10">
+                <i class="fa-solid fa-book-medical text-indigo-400"></i>
+                <span>Kurtarma Rehberi</span>
+            </button>
+            <MudTooltip Text="Tüm veritabanı, projeler, mail ve Nginx ayarlarını şimdi yedekle" Placement="Placement.Left">
+                <button @onclick="TriggerManualBackup" disabled="@_isProcessing"
+                    class="bg-[#006c49] hover:bg-[#005236] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-md border border-[#006c49]/10">
+                    @if (_isProcessing)
+                    {
+                        <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Yedekleme Başlatılıyor...</span>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Şimdi Manuel Yedekle</span>
+                    }
+                </button>
+            </MudTooltip>
+        </div>
+    </div>
+
+    <!-- Yedek Listesi -->
+    <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-5 shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 text-slate-400">
+                        <th class="pb-3 font-semibold">Tarih / Saat</th>
+                        <th class="pb-3 font-semibold">Toplam Boyut</th>
+                        <th class="pb-3 font-semibold">Veritabanı</th>
+                        <th class="pb-3 font-semibold">Projeler</th>
+                        <th class="pb-3 font-semibold">Nginx Yapılandırmaları</th>
+                        <th class="pb-3 font-semibold">E-Posta / Mail</th>
+                        <th class="pb-3 font-semibold text-right">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-600">
+                    @if (_isLoading)
+                    {
+                        <tr>
+                            <td colspan="7" class="py-8 text-center text-slate-400">
+                                <span class="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin inline-block align-middle mr-2"></span>
+                                Yedek listesi yükleniyor...
+                            </td>
+                        </tr>
+                    }
+                    else if (!_backups.Any())
+                    {
+                        <tr>
+                            <td colspan="7" class="py-6 text-center text-slate-400">Kayıtlı yedekleme dosyası bulunmamaktadır.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var bk in _backups.OrderByDescending(b => b.Timestamp))
+                        {
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="py-3 font-semibold text-[#0b1c30] flex items-center gap-2">
+                                    @if (bk.Status.Equals("success", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Başarılı"></span>
+                                    }
+                                    else if (bk.Status.Equals("processing", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Yedekleme Devam Ediyor..."></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="w-2 h-2 rounded-full bg-rose-500" title="Başarısız/Hatalı"></span>
+                                    }
+                                    @bk.Timestamp.ToLocalTime().ToString("dd MMM yyyy, HH:mm:ss")
+                                </td>
+                                <td class="py-3 font-bold text-indigo-600">@bk.TotalSize</td>
+                                <td class="py-3 text-slate-400">@bk.DatabaseSize</td>
+                                <td class="py-3 text-slate-400">@bk.ProjectsSize</td>
+                                <td class="py-3 text-slate-400">@bk.NginxSize</td>
+                                <td class="py-3 text-slate-400">@bk.MailSize</td>
+                                <td class="py-3 text-right">
+                                    @if (bk.Status.Equals("success", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <div class="flex items-center justify-end gap-2">
+                                            <!-- İndir Dropdown -->
+                                            <MudTooltip Text="Yedek Arşiv Dosyasını İndir">
+                                                <MudMenu Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text" Label="İndir" Class="text-xs">
+                                                    <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "database"))">Veritabanı (.sql.gz)</MudMenuItem>
+                                                    <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "projects"))">Proje Dosyaları (.tar.gz)</MudMenuItem>
+                                                    <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "nginx"))">Nginx Konfigürasyonları (.tar.gz)</MudMenuItem>
+                                                    <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "mail"))">E-Posta Dosyaları (.tar.gz)</MudMenuItem>
+                                                </MudMenu>
+                                            </MudTooltip>
+ 
+                                            <span class="text-slate-200">|</span>
+ 
+                                            <!-- Geri Yükle Dropdown -->
+                                            <MudTooltip Text="Seçilen Yedek Verisini Geri Yükle (Mevcut verileriniz silinir)">
+                                                <MudMenu Icon="@Icons.Material.Filled.SettingsBackupRestore" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text" Label="Geri Yükle">
+                                                    <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "database"))" Class="text-amber-600 font-bold">Veritabanını Geri Yükle</MudMenuItem>
+                                                    <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "projects"))" Class="text-amber-600 font-bold">Projeleri Geri Yükle</MudMenuItem>
+                                                    <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "nginx"))" Class="text-amber-600 font-bold">Nginx Ayarlarını Geri Yükle</MudMenuItem>
+                                                    <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "mail"))" Class="text-amber-600 font-bold">E-Postaları Geri Yükle</MudMenuItem>
+                                                </MudMenu>
+                                            </MudTooltip>
+ 
+                                            <span class="text-slate-200">|</span>
+ 
+                                            <!-- Sil -->
+                                            <MudTooltip Text="Yedeği Sunucudan Kalıcı Olarak Sil">
+                                                <button @onclick="@(() => ConfirmDelete(bk.FolderName))" class="text-rose-500 hover:text-rose-600 font-bold text-xs p-1">
+                                                    <i class="fa-solid fa-trash-can"></i> Sil
+                                                </button>
+                                            </MudTooltip>
+                                        </div>
+                                    }
+                                    else if (bk.Status.Equals("processing", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <div class="flex items-center justify-end gap-1.5 text-amber-600 font-bold text-[10px] uppercase tracking-wider">
+                                            <span class="w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin inline-block align-middle"></span>
+                                            <span>Yedekleniyor...</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="flex items-center justify-between gap-4 w-full">
+                                            <span class="text-rose-500 font-bold text-[10px] uppercase tracking-wider text-left block break-words max-w-[500px]" style="white-space: normal;" title="@bk.ErrorMessage">HATA: @bk.ErrorMessage</span>
+                                            <div class="flex items-center gap-1.5 shrink-0">
+                                                <span class="text-slate-200">|</span>
+                                                <MudTooltip Text="Bu Hatalı Yedeği Sunucudan Kalıcı Olarak Temizle/Sil">
+                                                    <button @onclick="@(() => ConfirmDelete(bk.FolderName))" class="text-rose-500 hover:text-rose-600 font-bold text-xs p-1">
+                                                        <i class="fa-solid fa-trash-can"></i> Sil/Temizle
+                                                    </button>
+                                                </MudTooltip>
+                                            </div>
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+ 
+    <!-- Otomatik Yedek Bilgi Kartı -->
+    <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-5 shadow-sm" style="background-color: #ffffff; border: 1px solid rgba(187, 202, 191, 0.4); border-radius: 12px; color: #0b1c30;">
+        <h3 class="text-sm font-bold mb-2 flex items-center gap-2" style="color: #0b1c30;">
+            <i class="fa-solid fa-clock-rotate-left text-[#006c49]"></i> Otomatik Yedekleme Politikası
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs mt-3">
+            <div class="space-y-1">
+                <span class="block uppercase font-bold text-[10px] tracking-wider" style="color: #64748b; font-size: 10px;">Periyot</span>
+                <span class="font-medium" style="color: #0b1c30; font-size: 12px; font-weight: 600;">Her Gece 03:00'te otomatik yedek alınır.</span>
+            </div>
+            <div class="space-y-1">
+                <span class="block uppercase font-bold text-[10px] tracking-wider" style="color: #64748b; font-size: 10px;">Saklama Kuralı</span>
+                <span class="font-medium" style="color: #0b1c30; font-size: 12px; font-weight: 600;">Son 7 günün yedekleri saklanır, eskiler otomatik temizlenir.</span>
+            </div>
+            <div class="space-y-1">
+                <span class="block uppercase font-bold text-[10px] tracking-wider" style="color: #64748b; font-size: 10px;">Yedekleme Dizini</span>
+                <span class="font-mono font-medium" style="color: #0b1c30; font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace;">/opt/dockerpanel/backups/</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Uzak VDS SSH Yedekleme Ayarları -->
+    <div class="bg-white border border-[#bbcabf]/30 rounded-xl shadow-sm mt-6 text-[#0b1c30] overflow-hidden" style="border-radius: 12px;">
+        <!-- Başlık (Tıklanabilir Accordion Header) -->
+        <div class="flex justify-between items-center px-6 py-4 cursor-pointer select-none hover:bg-slate-50 transition-colors"
+             @onclick="() => _sshSettingsExpanded = !_sshSettingsExpanded">
+            <h3 class="text-sm font-bold flex items-center gap-2" style="color: #0b1c30; margin: 0;">
+                <i class="fa-solid fa-server text-[#006c49]"></i> Uzak VDS SSH Eşitleme Ayarları
+                @if (_settings.Enabled)
+                {
+                    <span class="ml-1 px-2 py-0.5 text-[10px] font-bold rounded-full" style="background:#dcfce7;color:#166534;">AKTİF</span>
+                }
+                else
+                {
+                    <span class="ml-1 px-2 py-0.5 text-[10px] font-bold rounded-full" style="background:#f1f5f9;color:#64748b;">PASİF</span>
+                }
+            </h3>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1.5" @onclick:stopPropagation="true">
+                    <span class="text-xs font-bold" style="color: #64748b;">Otomatik Aktarım:</span>
+                    <MudSwitch T="bool" @bind-Value="_settings.Enabled" Color="Color.Success" />
+                </div>
+                <i class="fa-solid @(_sshSettingsExpanded ? "fa-chevron-up" : "fa-chevron-down") text-slate-400 text-xs transition-transform"></i>
+            </div>
+        </div>
+
+        @if (_sshSettingsExpanded)
+        {
+        <div class="px-6 pb-6 border-t border-slate-100 w-full max-w-full overflow-hidden">
+        <EditForm Model="@_settings" OnValidSubmit="SaveRemoteSettings">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                <div>
+                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">Sunucu IP (Host)</label>
+                    <MudTextField @bind-Value="_settings.Host" Placeholder="örn: 192.168.1.50" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </div>
+                <div>
+                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">SSH Port</label>
+                    <MudTextField @bind-Value="_settings.Port" Placeholder="22" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </div>
+                <div>
+                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">Kullanıcı (User)</label>
+                    <MudTextField @bind-Value="_settings.User" Placeholder="root" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </div>
+                <div>
+                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">Hedef Klasör Yolu</label>
+                    <MudTextField @bind-Value="_settings.RemotePath" Placeholder="/opt/dockerpanel/backups/" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </div>
+            </div>
+
+            <!-- Kimlik Doğrulama Tipi Seçimi -->
+            <div class="mt-5 space-y-2">
+                <label class="block font-bold text-[10px] uppercase tracking-wider text-slate-500">Kimlik Doğrulama Yöntemi</label>
+                <div class="flex items-center gap-4 bg-slate-100 p-1 rounded-lg border border-slate-200/60 w-fit">
+                    <button type="button" @onclick='() => SetAuthType("key")' 
+                        class='@( _settings.AuthType == "key" ? "bg-white text-indigo-600 shadow-sm font-extrabold" : "text-slate-500 hover:text-slate-800" ) text-xs font-bold px-4 py-2 rounded-md transition-all flex items-center gap-1.5 border border-transparent'>
+                        <i class="fa-solid fa-key"></i> SSH Anahtarı
+                    </button>
+                    <button type="button" @onclick='() => SetAuthType("password")' 
+                        class='@( _settings.AuthType == "password" ? "bg-white text-[#006c49] shadow-sm font-extrabold" : "text-slate-500 hover:text-slate-800" ) text-xs font-bold px-4 py-2 rounded-md transition-all flex items-center gap-1.5 border border-transparent'>
+                        <i class="fa-solid fa-lock"></i> Şifre ile Bağlan
+                    </button>
+                </div>
+            </div>
+
+            @if (_settings.AuthType == "password")
+            {
+                <div class="mt-4 max-w-md">
+                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">SSH Şifresi (Password)</label>
+                    <MudTextField @bind-Value="_settings.Password" InputType="@_passwordInput" Adornment="Adornment.End" 
+                        AdornmentIcon="@_passwordInputIcon" OnAdornmentClick="TogglePasswordVisibility" 
+                        Placeholder="Uzak sunucunun root/kullanıcı şifresi" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <p class="text-[10px] text-slate-400 mt-1">Not: Şifre yönteminin çalışabilmesi için panel sunucusunda <code>sshpass</code> paketinin kurulu olması gerekir.</p>
+                </div>
+            }
+            else
+            {
+                <div class="mt-4 space-y-4">
+                    <!-- SSH Anahtar Kaynağı Seçici -->
+                    <div class="flex items-center gap-4 bg-slate-50 p-1.5 rounded-lg border border-slate-200/40 w-fit">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Anahtar Kaynağı:</span>
+                        <button type="button" @onclick="() => SetUseCustomKey(false)" 
+                            class='@( !_useCustomKey ? "bg-white text-indigo-600 shadow-sm border-slate-200 font-extrabold" : "text-slate-500 border-transparent" ) text-[11px] font-bold px-3 py-1 rounded transition-all border'>
+                            Panelin Otomatik Anahtarı
+                        </button>
+                        <button type="button" @onclick="() => SetUseCustomKey(true)" 
+                            class='@( _useCustomKey ? "bg-white text-indigo-600 shadow-sm border-slate-200 font-extrabold" : "text-slate-500 border-transparent" ) text-[11px] font-bold px-3 py-1 rounded transition-all border'>
+                            Özel Özel Anahtar (Private Key) Yapıştır
+                        </button>
+                    </div>
+
+                    @if (_useCustomKey)
+                    {
+                        <div class="space-y-1">
+                            <label class="block font-bold text-[10px] uppercase tracking-wider" style="color: #64748b;">Özel SSH Private Key (PEM veya OpenSSH Formatında)</label>
+                            <MudTextField @bind-Value="_settings.KeyContent" Lines="6" 
+                                Placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" 
+                                Variant="Variant.Outlined" Class="font-mono text-[11px] bg-slate-50" />
+                            <p class="text-[10px] text-slate-400 mt-1">Yapıştırdığınız özel anahtar sunucuda güvenli bir şekilde saklanacak ve otomatik olarak dosya izinleri ayarlanacaktır.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Otomatik Anahtar Durumu ve Public Key Box -->
+                        <div class="p-4 rounded-xl border border-emerald-500/20 bg-emerald-50/10 space-y-3">
+                            <div class="flex justify-between items-center flex-wrap gap-2">
+                                <span class="text-xs font-bold text-[#006c49] flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-info"></i> Panelin SSH Genel Anahtarı (Public Key)
+                                </span>
+                                <button type="button" @onclick="CopyPublicKeyToClipboard" 
+                                    class="bg-[#006c49] hover:bg-[#005236] text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                                    <i class="fa-regular fa-copy"></i> Genel Anahtarı Kopyala
+                                </button>
+                            </div>
+                            <p class="text-[11px] text-slate-500 leading-relaxed m-0">
+                                Bu sunucunun otomatik oluşturulan genel anahtarını kopyalayın ve aşağıdaki rehberi izleyerek karşı sunucuya tanımlayın. Böylece yedekler şifresiz ve güvenli aktarılır.
+                            </p>
+                            <div class="bg-slate-900 text-emerald-400 font-mono text-[10px] p-2.5 rounded border border-slate-950/20 select-all break-all max-h-24 overflow-y-auto w-full max-w-full" style="word-break: break-all; white-space: pre-wrap;">
+                                @_publicKey
+                            </div>
+
+                            <!-- Adım Adım Entegrasyon Rehberi -->
+                            <div class="mt-2 bg-slate-50 border border-slate-200/60 p-3.5 rounded-xl space-y-2 text-[#0b1c30]">
+                                <span class="font-extrabold text-[10px] uppercase tracking-wider text-indigo-600 block flex items-center gap-1">
+                                    <i class="fa-solid fa-graduation-cap"></i> Hedef Sunucuya Anahtar Ekleme Rehberi
+                                </span>
+                                <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-slate-600 leading-normal pl-1">
+                                    <li>Yukarıdaki yeşil <strong>"Genel Anahtarı Kopyala"</strong> butonuna tıklayarak anahtarı panoya kopyalayın.</li>
+                                    <li><strong>Hedef (Yedek) VDS sunucunuza</strong> terminalden (SSH ile) bağlanın.</li>
+                                    <li>Aşağıdaki komutu hedef sunucuda çalıştırarak kopyaladığınız anahtarı yetkilendirilen anahtarlar listesine ekleyin (<code>KOPYALANAN_ANAHTAR</code> yerine az önce kopyaladığınız uzun anahtar metnini yapıştırın):
+                                        <div class="bg-slate-900 text-emerald-400 font-mono text-[9px] p-2 rounded my-1 select-all break-all leading-normal w-full max-w-full" style="word-break: break-all; white-space: pre-wrap;">
+                                            echo "KOPYALANAN_ANAHTAR" >> ~/.ssh/authorized_keys
+                                        </div>
+                                    </li>
+                                    <li>Bağlantının güvenli çalışabilmesi için hedef sunucudaki klasör izinlerini ayarlayın (Bunu yapmak zorunludur, aksi halde Linux anahtarı reddeder):
+                                        <div class="bg-slate-900 text-emerald-400 font-mono text-[9px] p-2 rounded my-1 select-all leading-normal">
+                                            chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="max-w-md">
+                            <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">SSH Anahtar Dosya Yolu</label>
+                            <MudTextField @bind-Value="_settings.KeyPath" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="font-mono text-xs bg-slate-50" />
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Alt Butonlar -->
+            <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-100 flex-wrap gap-3">
+                <div>
+                    <button type="button" @onclick="TestSshConnection" disabled="@_isTestingConnection" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-md">
+                        @if (_isTestingConnection)
+                        {
+                            <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>Bağlantı Test Ediliyor...</span>
+                        }
+                        else
+                        {
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>Bağlantıyı Test Et</span>
+                        }
+                    </button>
+                </div>
+                <div>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Success" Disabled="_isSavingSettings" 
+                        Style="text-transform: none; font-weight: 700; border-radius: 8px; background-color: #006c49 !important;">
+                        @if (_isSavingSettings)
+                        {
+                            <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <span>Kaydediliyor...</span>
+                        }
+                        else
+                        {
+                            <i class="fa-solid fa-floppy-disk mr-1.5"></i>
+                            <span>Bağlantı Bilgilerini Kaydet</span>
+                        }
+                    </MudButton>
+                </div>
+            </div>
+        </EditForm>
+        </div>
+        }
+    </div>
+</div>
+
+<!-- ONAY MODALLARI -->
+@if (_restoreDialogVisible)
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in">
+        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h3 class="text-base font-bold text-rose-600 flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Geri Yükleme Onayı
+                </h3>
+            </div>
+            
+            <div class="space-y-3 text-xs">
+                <p class="font-bold text-slate-700">Seçilen yedeği geri yüklemek üzeresiniz:</p>
+                <div class="bg-slate-100 p-2.5 rounded border border-slate-200 font-mono text-[11px] text-[#0b1c30]">
+                    <div><span class="font-bold text-slate-500">YEDEK KLASÖRÜ:</span> @_targetFolder</div>
+                    <div><span class="font-bold text-slate-500">GERİ YÜKLEME TİPİ:</span> <span class="uppercase font-extrabold text-indigo-600">@_targetType</span></div>
+                </div>
+                <p class="text-rose-600 font-bold">
+                    <i class="fa-solid fa-circle-exclamation"></i> UYARI: Bu işlem geri döndürülemez! Seçilen geri yükleme tipi kapsamındaki tüm güncel verileriniz silinecek ve bu yedekle değiştirilecektir!
+                </p>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <button type="button" @onclick="CloseRestoreDialog"
+                    class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors text-xs font-semibold">İptal</button>
+                <button type="button" @onclick="ExecuteRestore" disabled="@_isRestoring"
+                    class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+                    @if (_isRestoring)
+                    {
+                        <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Geri Yükleniyor...</span>
+                    }
+                    else
+                    {
+                        <span>Evet, Geri Yükle</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- KURTARMA REHBERİ MODALI -->
+@if (_recoveryGuideVisible)
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" style="font-family: inherit;">
+        <div class="bg-white border border-[#bbcabf]/30 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col text-[#0b1c30] shadow-2xl overflow-hidden">
+            <!-- Modal Başlık -->
+            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50">
+                <h3 class="text-sm font-bold text-[#0b1c30] flex items-center gap-2" style="margin: 0;">
+                    <i class="fa-solid fa-book-medical text-[#006c49] text-base"></i> VDS Taşıma & Hızlı Kurtarma Kılavuzu
+                </h3>
+                <button type="button" @onclick="CloseRecoveryGuide" class="text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-0 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal İçerik (Scrollable) -->
+            <div class="p-6 overflow-y-auto space-y-6 text-xs leading-relaxed">
+                <div class="bg-indigo-50 border border-indigo-200/50 p-4 rounded-xl space-y-2">
+                    <h4 class="font-bold text-indigo-900 flex items-center gap-1.5 text-xs m-0">
+                        <i class="fa-solid fa-circle-info"></i> Mimari Kurtarma Yaklaşımı
+                    </h4>
+                    <p class="text-indigo-800 text-[11px] m-0">
+                        DockerPanel yedekleri; <strong>Master Veritabanı</strong>, <strong>Müşteri Projeleri (/projects)</strong>, 
+                        <strong>Nginx Subdomain Yönlendirmeleri (/sites-available)</strong> ve <strong>E-Posta Kutularını (/mail)</strong> içerir. 
+                        Aşağıdaki otomatik kurtarma scripti sayesinde yeni bir VDS sunucusuna taşıma işlemi <strong>sadece 2 dakika</strong> sürer.
+                    </p>
+                </div>
+
+                <!-- Kurtarma Adımları -->
+                <div class="space-y-4">
+                    <h4 class="font-bold text-slate-800 border-b border-slate-100 pb-1.5 flex items-center gap-1.5 m-0">
+                        <i class="fa-solid fa-list-check text-indigo-600"></i> Adım Adım Taşıma & Geri Yükleme
+                    </h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="border border-slate-150 p-3.5 rounded-xl space-y-2 bg-slate-50/50 flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-indigo-100 text-indigo-700 font-extrabold text-[10px] px-2 py-0.5 rounded-md mb-1.5">ADIM 0: SSL SERTİFİKALARI</span>
+                                <p class="text-[11px] text-slate-500 leading-normal m-0 mb-2">
+                                    Nginx'in hata vermeden başlaması için eski sunucudaki SSL sertifikalarını taşıyın:
+                                </p>
+                            </div>
+                            <div class="bg-slate-900 text-emerald-400 font-mono text-[9px] p-2 rounded break-all select-all">
+                                # Eski VDS'te sıkıştır:<br/>
+                                tar -czf letsencrypt.tar.gz /etc/letsencrypt<br/>
+                                # Yeni VDS'te aç:<br/>
+                                tar -xzf letsencrypt.tar.gz -C /
+                            </div>
+                        </div>
+
+                        <div class="border border-slate-150 p-3.5 rounded-xl space-y-2 bg-slate-50/50 flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-indigo-100 text-indigo-700 font-extrabold text-[10px] px-2 py-0.5 rounded-md mb-1.5">ADIM 1: YEDEK AKTARIMI</span>
+                                <p class="text-[11px] text-slate-500 leading-normal m-0 mb-2">
+                                    <strong>Önkoşul:</strong> Yeni sunucunuza sıfırdan panel kurulumunu tamamlayın. Ardından indirdiğiniz son panel yedeğini SFTP ile yeni sunucudaki şu dizine yükleyin:
+                                </p>
+                            </div>
+                            <div class="font-mono text-[9px] bg-slate-100 p-2.5 rounded text-slate-700 font-semibold break-all select-all">
+                                /opt/dockerpanel/backups/[yedek_klasor_adi]
+                            </div>
+                        </div>
+
+                        <div class="border border-slate-150 p-3.5 rounded-xl space-y-2 bg-slate-50/50 flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-indigo-100 text-indigo-700 font-extrabold text-[10px] px-2 py-0.5 rounded-md mb-1.5">ADIM 2: SCRIPTI ÇALIŞTIRIN</span>
+                                <p class="text-[11px] text-slate-500 leading-normal m-0 mb-2">
+                                    Aşağıdaki scripti yeni sunucuda <code>/opt/dockerpanel/restore-all.sh</code> olarak kaydedip çalıştırın:
+                                </p>
+                            </div>
+                            <div class="bg-slate-900 text-emerald-400 font-mono text-[9px] p-2 rounded break-all select-all">
+                                chmod +x restore-all.sh<br/>
+                                sudo ./restore-all.sh [yedek_yolu]
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Script Başlığı ve Terminal Gösterici -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-slate-800 flex items-center gap-1.5 m-0">
+                            <i class="fa-solid fa-code text-[#006c49]"></i> Tek Tıkla Kurtarma Scripti (<code>restore-all.sh</code>)
+                        </h4>
+                        <button type="button" @onclick="CopyRestoreScriptToClipboard" class="bg-[#006c49] hover:bg-[#005236] text-white text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors border-0">
+                            <i class="fa-regular fa-copy"></i> Script Kodunu Kopyala
+                        </button>
+                    </div>
+                    <div class="bg-slate-900 text-slate-200 font-mono text-[10px] p-4 rounded-xl border border-slate-950/20 max-h-64 overflow-y-auto leading-relaxed select-all">
+                        <pre style="margin:0; font-family: monospace; white-space: pre-wrap; word-break: break-all;">@_restoreScriptText</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alt Buton -->
+            <div class="border-t border-slate-200 px-6 py-4 bg-slate-50 flex justify-end">
+                <button type="button" @onclick="CloseRecoveryGuide" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm border-0 cursor-pointer">
+                    Kılavuzu Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private List<BackupInfoDto> _backups = new();
+    private bool _isLoading = false;
+    private bool _isProcessing = false;
+    private HubConnection? _hubConnection;
+
+    // Restore Dialog
+    private bool _restoreDialogVisible = false;
+    private bool _isRestoring = false;
+    private string _targetFolder = "";
+    private string _targetType = "";
+
+    // Uzak VDS SSH Eşitleme Ayarları
+    private RemoteBackupSettingsDto _settings = new();
+    private bool _isSavingSettings = false;
+    private bool _sshSettingsExpanded = false;
+    private string _publicKey = "Yükleniyor...";
+    private bool _useCustomKey = false;
+    private bool _showPassword = false;
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+    private bool _isTestingConnection = false;
+
+    // Kurtarma Kılavuzu
+    private bool _recoveryGuideVisible = false;
+
+    private const string _restoreScriptText = @"#!/bin/bash
+# ==============================================================================
+# DockerPanel - Tek Tıkla VDS Taşıma & Tam Kurtarma Scripti
+# ==============================================================================
+set -e
+
+# --- ÖZELLEŞTİRİLEBİLİR AYARLAR ---
+MAIL_HOSTNAME=""mail.burhansahin.com.tr""
+MAIL_DOMAIN=""burhansahin.com.tr""
+DB_USER=""dp_admin""
+DB_PASSWORD=""dp_admin_password""
+DB_NAME=""dockerpanel_db""
+# ----------------------------------
+
+# Renkli Çıktılar
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Kullanıcı Girişi & Yedek Klasörü Kontrolü
+BACKUP_FOLDER=$1
+if [ -z ""$BACKUP_FOLDER"" ]; then
+    echo -e ""${RED}Hata: Lütfen yedek klasörünün yolunu belirtin!${NC}""
+    echo ""Kullanım: sudo ./restore-all.sh /yol/to/backup_YYYY-MM-DD_HH-mm-ss""
+    exit 1
+fi
+
+if [ ! -d ""$BACKUP_FOLDER"" ]; then
+    echo -e ""${RED}Hata: Belirtilen yedek klasörü bulunamadı: $BACKUP_FOLDER${NC}""
+    exit 1
+fi
+
+echo -e ""${BLUE}[1/6] Bağımlılıklar Kuruluyor (Docker, Nginx, Tar, Gzip)...${NC}""
+sudo apt update
+sudo apt install -y docker.io docker-compose nginx tar gzip pg-client-common
+
+# Docker Panel Dizin Yapısı Kuruluyor
+sudo mkdir -p /opt/dockerpanel/projects
+sudo mkdir -p /opt/dockerpanel/backups
+sudo mkdir -p /opt/dockerpanel/mail
+sudo mkdir -p /var/log/project-manager
+
+# Segmentasyon için Global Docker Ağı Oluşturuluyor
+echo -e ""${BLUE}-> Global Docker ağ köprüsü kuruluyor...${NC}""
+sudo docker network create dockerpanel-global-net || true
+
+echo -e ""${BLUE}[2/6] Dosya Arşivleri Çıkarılıyor...${NC}""
+
+# Proje Dosyaları Geri Yükleniyor
+if [ -f ""$BACKUP_FOLDER/projects.tar.gz"" ]; then
+    echo ""-> Müşteri projeleri geri yükleniyor...""
+    sudo rm -rf /opt/dockerpanel/projects/*
+    sudo tar -xzf ""$BACKUP_FOLDER/projects.tar.gz"" -C /opt/dockerpanel/projects/
+fi
+
+# Nginx Konfigürasyonları Geri Yükleniyor
+if [ -f ""$BACKUP_FOLDER/nginx.tar.gz"" ]; then
+    echo ""-> Nginx yönlendirme ayarları geri yükleniyor...""
+    sudo rm -rf /etc/nginx/sites-available/*
+    sudo tar -xzf ""$BACKUP_FOLDER/nginx.tar.gz"" -C /etc/nginx/sites-available/
+fi
+
+# Mail Sunucusu Verileri Geri Yükleniyor
+if [ -f ""$BACKUP_FOLDER/mail.tar.gz"" ]; then
+    echo ""-> E-posta sunucu verileri ve kutuları geri yükleniyor...""
+    sudo rm -rf /opt/dockerpanel/mail/*
+    sudo tar -xzf ""$BACKUP_FOLDER/mail.tar.gz"" -C /opt/dockerpanel/mail/
+fi
+
+echo -e ""${BLUE}[3/6] Docker Altyapısı Başlatılıyor...${NC}""
+# docker-compose.yml dosyasını oluştur veya kopyala
+cat << EOF > /opt/dockerpanel/docker-compose.yml
+version: '3.9'
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: dockerpanel-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: \${DB_USER}
+      POSTGRES_PASSWORD: \${DB_PASSWORD}
+      POSTGRES_DB: \${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - ""5432:5432""
+    networks:
+      - dockerpanel-net
+
+  mailserver:
+    image: mailserver/docker-mailserver:latest
+    container_name: dockerpanel-mailserver
+    hostname: \${MAIL_HOSTNAME}
+    domainname: \${MAIL_DOMAIN}
+    ports:
+      - ""25:25""
+      - ""143:143""
+      - ""587:587""
+      - ""993:993""
+    volumes:
+      - /opt/dockerpanel/mail/data:/var/mail
+      - /opt/dockerpanel/mail/state:/var/mail-state
+      - /opt/dockerpanel/mail/config:/tmp/docker-mailserver
+    restart: always
+    environment:
+      - ENABLE_SPAMASSASSIN=1
+      - ENABLE_CLAMAV=0
+      - ENABLE_FAIL2BAN=1
+      - ONE_DIR=1
+    networks:
+      - dockerpanel-net
+
+networks:
+  dockerpanel-net:
+    name: dockerpanel-global-net
+    external: true
+
+volumes:
+  pgdata:
+    driver: local
+EOF
+
+cd /opt/dockerpanel
+sudo docker-compose down || true
+sudo docker-compose up -d
+
+echo -e ""${BLUE}[4/6] Veritabanı Yedeği SQL Dump Olarak Geri Yükleniyor...${NC}""
+# Veritabanının hazır olmasını bekle (max 15 sn)
+echo ""PostgreSQL servisinin hazır olması bekleniyor...""
+sleep 10
+
+if [ -f ""$BACKUP_FOLDER/database.sql.gz"" ]; then
+    # SQL dump basılıyor
+    gunzip -c ""$BACKUP_FOLDER/database.sql.gz"" | sudo docker exec -i dockerpanel-db psql -U \${DB_USER} -d \${DB_NAME}
+    echo -e ""${GREEN}Veritabanı başarıyla restore edildi.${NC}""
+else
+    echo -e ""${RED}Uyarı: database.sql.gz bulunamadı!${NC}""
+fi
+
+echo -e ""${BLUE}[5/6] Nginx Gateway Symlink'leri ve SSL Kontrolleri Yapılıyor...${NC}""
+sudo rm -rf /etc/nginx/sites-enabled/*
+for conf in /etc/nginx/sites-available/*.conf; do
+    if [ -f ""$conf"" ]; then
+        sudo ln -sf ""$conf"" ""/etc/nginx/sites-enabled/\$(basename ""\$conf"")""
+    fi
+done
+
+# Nginx Test & Restart
+sudo nginx -t
+sudo systemctl restart nginx
+
+echo -e ""${BLUE}[6/6] Sahiplik İzinleri & API Servisi Yapılandırılıyor...${NC}""
+if id ""dockerpanel_api"" &>/dev/null; then
+    sudo chown -R dockerpanel_api:dockerpanel_api /opt/dockerpanel
+    sudo chown -R dockerpanel_api:dockerpanel_api /var/log/project-manager
+    sudo chmod 755 /var/log/project-manager
+    echo ""-> Dosya sahiplik izinleri başarıyla aktarıldı.""
+else
+    echo ""-> Uyarı: dockerpanel_api kullanıcısı bulunamadı.""
+fi
+
+sudo systemctl restart dockerpanel-api || true
+
+echo -e ""${GREEN}==============================================================================${NC}""
+echo -e ""${GREEN}Tebrikler! DockerPanel Taşıma ve Kurtarma İşlemi Başarıyla Tamamlandı.${NC}""
+echo -e ""${GREEN}==============================================================================${NC}""";
+
+    private void OpenRecoveryGuide()
+    {
+        _recoveryGuideVisible = true;
+        StateHasChanged();
+    }
+
+    private void CloseRecoveryGuide()
+    {
+        _recoveryGuideVisible = false;
+        StateHasChanged();
+    }
+
+    private async Task CopyRestoreScriptToClipboard()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _restoreScriptText);
+            Snackbar.Add("Tek tıkla kurtarma scripti (restore-all.sh) panoya kopyalandı!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Kopyalama başarısız: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBackups();
+        await LoadRemoteSettingsAsync();
+        await LoadSshPublicKeyAsync();
+
+        // SignalR Hub bağlantısını ve canlı dinleyicileri kur
+        try
+        {
+            var baseUri = Http.BaseAddress?.ToString() ?? NavigationManager.BaseUri;
+            var hubUrl = baseUri.TrimEnd('/') + "/hubs/metriclog";
+
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(hubUrl, options =>
+                {
+                    options.Transports =
+                        Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets |
+                        Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                    options.AccessTokenProvider = async () =>
+                        await TokenStore.GetTokenAsync();
+                })
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On("ReceiveBackupUpdated", () =>
+            {
+                InvokeAsync(async () =>
+                {
+                    await LoadBackups();
+                    StateHasChanged();
+                });
+            });
+
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR Hub connection error in backups: {ex.Message}");
+        }
+    }
+
+    private void SetAuthType(string type)
+    {
+        _settings.AuthType = type;
+        StateHasChanged();
+    }
+
+    private void SetUseCustomKey(bool use)
+    {
+        _useCustomKey = use;
+        StateHasChanged();
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        if (_showPassword)
+        {
+            _showPassword = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = InputType.Password;
+        }
+        else
+        {
+            _showPassword = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = InputType.Text;
+        }
+        StateHasChanged();
+    }
+
+    private async Task CopyPublicKeyToClipboard()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _publicKey);
+            Snackbar.Add("SSH Genel Anahtarı panoya kopyalandı!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Kopyalama başarısız: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    private async Task LoadSshPublicKeyAsync()
+    {
+        try
+        {
+            var res = await Http.GetFromJsonAsync<SshPublicKeyResult>("api/backups/ssh-public-key");
+            if (res != null)
+            {
+                _publicKey = res.PublicKey;
+            }
+        }
+        catch (Exception ex)
+        {
+            _publicKey = "SSH anahtarı yüklenemedi.";
+            Console.WriteLine($"SSH public key loading error: {ex.Message}");
+        }
+    }
+
+    private async Task TestSshConnection()
+    {
+        _isTestingConnection = true;
+        StateHasChanged();
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_settings.Host))
+            {
+                Snackbar.Add("Lütfen önce Sunucu IP (Host) adresini girin.", Severity.Warning);
+                return;
+            }
+
+            if (_settings.AuthType == "key" && _useCustomKey && string.IsNullOrWhiteSpace(_settings.KeyContent))
+            {
+                Snackbar.Add("Lütfen test etmeden önce özel anahtarınızı yapıştırın.", Severity.Warning);
+                return;
+            }
+
+            if (_settings.AuthType == "password" && string.IsNullOrWhiteSpace(_settings.Password))
+            {
+                Snackbar.Add("Lütfen test etmeden önce SSH şifrenizi girin.", Severity.Warning);
+                return;
+            }
+
+            var response = await Http.PostAsJsonAsync("api/backups/test-ssh", _settings);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<TestSshResult>();
+                if (result != null && result.Success)
+                {
+                    Snackbar.Add(result.Message, Severity.Success);
+                }
+                else
+                {
+                    var msg = result?.Message ?? "Bağlantı testi başarısız.";
+                    Snackbar.Add(msg, Severity.Error);
+                }
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Bağlantı testi sırasında sunucu hatası oluştu: {err}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bağlantı testi sırasında hata oluştu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isTestingConnection = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadRemoteSettingsAsync()
+    {
+        try
+        {
+            var res = await Http.GetFromJsonAsync<RemoteBackupSettingsDto>("api/backups/remote-settings");
+            if (res != null)
+            {
+                _settings = res;
+                _useCustomKey = !string.IsNullOrWhiteSpace(_settings.KeyContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Uzak yedekleme SSH ayarları yüklenemedi: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    public class SshPublicKeyResult
+    {
+        public string PublicKey { get; set; } = string.Empty;
+    }
+
+    public class TestSshResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
+    private async Task SaveRemoteSettings()
+    {
+        _isSavingSettings = true;
+        StateHasChanged();
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/backups/remote-settings", _settings);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Uzak yedekleme SSH ayarları başarıyla kaydedildi!", Severity.Success);
+                _sshSettingsExpanded = false;
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Ayarlar kaydedilemedi: {err}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingSettings = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadBackups()
+    {
+        _isLoading = true;
+        StateHasChanged();
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<BackupInfoDto>>("api/backups");
+            _backups = result ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Yedek listesi yüklenemedi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task TriggerManualBackup()
+    {
+        _isProcessing = true;
+        StateHasChanged();
+        try
+        {
+            var response = await Http.PostAsync("api/backups/trigger", null);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Yedekleme işlemi arka planda başlatıldı! Kısa bir süre sonra liste güncellenecektir.", Severity.Success);
+                // Wait 3 seconds and reload
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(3500);
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadBackups();
+                    });
+                });
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Yedekleme başlatılamadı: {err}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Yedekleme başlatılamadı: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DownloadFile(string folderName, string type)
+    {
+        try
+        {
+            var token = await TokenStore.GetTokenAsync() ?? "";
+            var downloadUrl = $"{Http.BaseAddress}api/backups/{folderName}/download/{type}?access_token={Uri.EscapeDataString(token)}";
+            await JSRuntime.InvokeVoidAsync("open", downloadUrl, "_blank");
+            Snackbar.Add("Yedek dosyası indirme başlatıldı.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"İndirme başlatılamadı: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ConfirmRestore(string folderName, string type)
+    {
+        _targetFolder = folderName;
+        _targetType = type;
+        _restoreDialogVisible = true;
+    }
+
+    private void CloseRestoreDialog()
+    {
+        _restoreDialogVisible = false;
+    }
+
+    private async Task ExecuteRestore()
+    {
+        _isRestoring = true;
+        StateHasChanged();
+        try
+        {
+            var response = await Http.PostAsync($"api/backups/{_targetFolder}/restore/{_targetType}", null);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"{_targetType.ToUpper()} başarıyla yedekten geri yüklendi!", Severity.Success);
+                CloseRestoreDialog();
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Geri yükleme başarısız: {err}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Geri yükleme hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isRestoring = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmDelete(string folderName)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Seçilen yedek dosyasını ({folderName}) tamamen silmek istediğinize emin misiniz?");
+
+        if (confirmed)
+        {
+            try
+            {
+                var response = await Http.DeleteAsync($"api/backups/{folderName}");
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("Yedek başarıyla silindi.", Severity.Success);
+                    await LoadBackups();
+                }
+                else
+                {
+                    var err = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Yedek silinemedi: {err}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Yedek silme hatası: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

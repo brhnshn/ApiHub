@@ -1,0 +1,1388 @@
+@page "/domains"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Domain & DNS Yönetimi - ApiHub</PageTitle>
+
+<div class="space-y-6">
+    <!-- Üst Başlık -->
+    <div>
+        <h2 class="text-2xl font-extrabold text-[#0b1c30] tracking-tight">Domain & DNS Yönetimi</h2>
+        <p class="text-xs text-slate-500 font-medium mt-1">Nginx Reverse Proxy yönlendirmelerini yapın ve Cloudflare API entegrasyonlu DNS alanlarını tek bir noktadan yönetin.</p>
+    </div>
+
+    <!-- ANA ALAN ADLARI (ROOT DOMAINS) BÖLÜMÜ -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-globe text-xl text-indigo-400"></i>
+                <h3 class="font-bold text-white text-sm">Kayıtlı Ana Alan Adları (Root Domains)</h3>
+            </div>
+            <button @onclick="OpenRootDomainModal"
+                class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md">
+                <i class="fa-solid fa-plus"></i> Yeni Alan Adı Ekle
+            </button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-800 text-slate-400">
+                        <th class="pb-2 font-semibold">Alan Adı</th>
+                        <th class="pb-2 font-semibold">Cloudflare Entegrasyon Durumu</th>
+                        <th class="pb-2 font-semibold">Kayıt Tarihi</th>
+                        <th class="pb-2 font-semibold text-right">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800 text-slate-300">
+                    @if (!_rootDomains.Any())
+                    {
+                        <tr>
+                            <td colspan="4" class="py-4 text-center text-slate-500">Kayıtlı ana alan adı bulunmamaktadır. DNS ve Proxy işlemlerinden önce bir root domain ekleyin.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var rd in _rootDomains)
+                        {
+                            <tr class="hover:bg-slate-950/20 transition-colors">
+                                <td class="py-2.5 font-bold font-mono text-indigo-300">@rd.Name</td>
+                                <td class="py-2.5">
+                                    @if (!string.IsNullOrEmpty(rd.CloudflareToken) && !string.IsNullOrEmpty(rd.CloudflareZoneId))
+                                    {
+                                        <span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2.5 py-1 rounded-full border border-emerald-500/20 font-bold flex items-center gap-1 w-max">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> BULUT ENTEGRASYONU AKTİF
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded-full w-max">Entegrasyon Yok</span>
+                                    }
+                                </td>
+                                <td class="py-2.5 text-slate-400">@rd.CreatedAt.ToString("g")</td>
+                                <td class="py-2.5 text-right">
+                                    <button @onclick="@(() => DeleteRootDomain(rd))" class="text-rose-500 hover:text-rose-400 font-bold text-xs">
+                                        <i class="fa-solid fa-trash-can"></i> Sil
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Nginx Proxy Kuralları -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-200 pb-3">
+            <div>
+                <h3 class="font-bold text-[#0b1c30] text-sm">Nginx Reverse Proxy Konfigürasyonu</h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Alt alan adlarının sunucu üzerindeki konteynerlere yönlendirilmesi</p>
+            </div>
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <button @onclick="TriggerNginxSync" disabled="@_isSyncing"
+                    class="bg-slate-850 hover:bg-slate-800 border border-slate-850 text-slate-100 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md">
+                    @if (_isSyncing)
+                    {
+                        <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Taranıyor...</span>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-arrows-rotate animate-spin-hover"></i>
+                        <span>Nginx Yapılandırmalarını Eşitle</span>
+                    }
+                </button>
+
+                <button @onclick="OpenProxyModal"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md whitespace-nowrap">
+                    <i class="fa-solid fa-plus"></i> Yeni Proxy Kaydı
+                </button>
+            </div>
+        </div>
+
+        <!-- Arama ve Filtreleme Bölümü -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
+            <div class="sm:col-span-2 relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <input type="text" @bind="_searchQuery" @bind:event="oninput" placeholder="Subdomain veya alan adı ara..."
+                    class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+            </div>
+            <div>
+                <select @bind="_sslFilter"
+                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="all">Filtrele: Tümü (SSL / HTTP)</option>
+                    <option value="ssl">Sadece SSL Aktif</option>
+                    <option value="nossl">Sadece HTTP Standart</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-800 text-slate-400">
+                        <th class="pb-3 font-semibold">Subdomain Adresi</th>
+                        <th class="pb-3 font-semibold">Hedef Konteyner (IP:Port)</th>
+                        <th class="pb-3 font-semibold">Proxy Durumu</th>
+                        <th class="pb-3 font-semibold">SSL Sertifikası (Let's Encrypt)</th>
+                        <th class="pb-3 font-semibold text-right">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+                    @if (!FilteredSubdomains.Any())
+                    {
+                        <tr>
+                            <td colspan="5" class="py-6 text-center text-slate-500">
+                                @if (_subdomains.Any())
+                                {
+                                    <span>Arama kriterlerinize uyan reverse proxy kuralı bulunamadı.</span>
+                                }
+                                else
+                                {
+                                    <span>Kayıtlı reverse proxy kuralı bulunmamaktadır.</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var context in FilteredSubdomains)
+                        {
+                            <tr class="text-slate-300 hover:bg-slate-950/20 transition-colors">
+                                <td class="py-3 font-semibold">
+                                    <span class="font-mono text-emerald-400 font-bold">@context.SubdomainName</span>.@context.DomainName
+                                </td>
+                                <td class="py-3">
+                                    @if (context.ProjectId.HasValue && context.ProjectId.Value != Guid.Empty)
+                                    {
+                                        <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-max">
+                                            <i class="fa-solid fa-cube text-[10px]"></i> @context.ContainerName (Port: @context.ContainerPort)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-max">
+                                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Bağımsız / Dış Servis (Port: @context.ContainerPort)
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3">
+                                    <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+                                        AKTİF
+                                    </span>
+                                </td>
+                                <td class="py-3">
+                                    @if (context.SslEnabled)
+                                    {
+                                        <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 w-max font-bold">
+                                            <i class="fa-solid fa-lock text-[10px]"></i> Let's Encrypt SSL
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <div class="flex items-center gap-2">
+                                            <span class="bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full">
+                                                HTTP Standart
+                                            </span>
+                                            <button @onclick="@(() => GenerateSslForSubdomain(context))"
+                                                class="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white px-2 py-0.5 rounded border border-emerald-500/30 text-[10px] font-bold transition-all flex items-center gap-1">
+                                                <i class="fa-solid fa-shield-halved"></i> SSL Kur
+                                            </button>
+                                        </div>
+                                    }
+                                </td>
+                                <td class="py-3 text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button @onclick="@(() => OpenEditModal(context))" class="text-indigo-400 hover:text-indigo-300 font-bold text-xs transition-colors px-1">
+                                            <i class="fa-regular fa-pen-to-square"></i> Düzenle
+                                        </button>
+                                        <span class="text-slate-700">|</span>
+                                        <button @onclick="@(() => DeleteProxyRule(context))" class="text-rose-500 hover:text-rose-400 font-bold text-xs transition-colors px-1">
+                                            <i class="fa-solid fa-trash-can"></i> Sil
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- DNS Zone Kayıtları Tablosu -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+        <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-3">
+            <div>
+                <h3 class="font-bold text-[#0b1c30] text-sm">DNS Bölge (Zone) Kayıtları</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Subdomainlerin dünya genelinde çözümlenmesi için Cloudflare DNS kayıtları</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <select @bind="_selectedDnsFilterDomain"
+                    class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="">Filtrele: Tüm Alan Adları</option>
+                    @foreach (var rd in _rootDomains)
+                    {
+                        <option value="@rd.Name">@rd.Name</option>
+                    }
+                </select>
+                <button @onclick="OpenDnsModal"
+                    class="bg-[#006c49] hover:bg-[#005236] text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-md border border-[#006c49]/10">
+                    <i class="fa-solid fa-plus-square"></i> Yeni DNS Kaydı Ekle
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-800 text-slate-400">
+                        <th class="pb-3 font-semibold">Tip</th>
+                        <th class="pb-3 font-semibold">İsim</th>
+                        <th class="pb-3 font-semibold">Değer (Hedef IP / Host)</th>
+                        <th class="pb-3 font-semibold">TTL</th>
+                        <th class="pb-3 font-semibold">Proxy Durumu</th>
+                        <th class="pb-3 font-semibold text-right">Aksiyonlar</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+                    @if (!FilteredDnsRecords.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="py-6 text-center text-slate-500">
+                                Kayıtlı DNS kaydı bulunmamaktadır.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var context in FilteredDnsRecords)
+                        {
+                            <tr class="text-slate-300 hover:bg-slate-950/20 transition-colors">
+                                <td class="py-3">
+                                    <span class="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2.5 py-0.5 rounded font-bold">
+                                        @context.Type
+                                    </span>
+                                </td>
+                                <td class="py-3 font-mono font-semibold">@context.Name</td>
+                                <td class="py-3 font-mono flex items-center">
+                                    <span>@TruncateDnsValue(context.Value, 30)</span>
+                                    @if (context.Value != null && context.Value.Length > 30)
+                                    {
+                                        <button @onclick="@(() => ShowFullDnsValue(context))" class="ml-2 bg-[#006c49]/10 text-[#006c49] hover:bg-[#006c49] hover:text-white px-1.5 py-0.5 rounded border border-[#006c49]/20 text-[10px] font-bold transition-all flex items-center gap-0.5">
+                                            <i class="fa-solid fa-eye"></i> Gerçeğini Gör
+                                        </button>
+                                    }
+                                </td>
+                                <td class="py-3">@context.Ttl sn</td>
+                                <td class="py-3">
+                                    @if (context.Proxied)
+                                    {
+                                        <span class="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 w-max font-bold">
+                                            <i class="fa-brands fa-cloudflare text-[10px]"></i> Proxied
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1 w-max">
+                                            DNS Only
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3 text-right">
+                                    <button @onclick="@(() => DeleteDnsRecord(context))" class="text-rose-500 hover:text-rose-400 p-1 font-bold text-xs transition-colors">
+                                        <i class="fa-solid fa-trash-can"></i> Sil
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODALLAR ================= -->
+
+<!-- 1. MODAL: YENİ PROXY KAYDI -->
+@if (_proxyModalVisible)
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h3 class="text-lg font-bold text-[#0b1c30]">Yeni Proxy Kuralı Ekle</h3>
+                <button @onclick="CloseProxyModal" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Subdomain Ön Eki</label>
+                        <input type="text" @bind="_proxyModel.SubdomainName" @bind:event="oninput" placeholder="örn: api"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Ana Alan Adı</label>
+                        <select @bind="_proxyModel.DomainName"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                            <option value="">Seçiniz...</option>
+                            @foreach (var rd in _rootDomains)
+                            {
+                                <option value="@rd.Name">@rd.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                @if (_proxyModel.SubdomainName != null && _proxyModel.SubdomainName.Contains("*"))
+                {
+                    <div class="bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-lg p-3 flex gap-2.5 items-start">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 text-sm"></i>
+                        <div>
+                            <span class="font-bold block text-[11px] uppercase tracking-wider mb-0.5">DNS-01 Doğrulama Uyarısı</span>
+                            <span class="text-[10px] leading-relaxed block text-slate-600">
+                                Yaban karakter (*.domain.com) alt alan adları <strong>DNS-01 doğrulaması</strong> gerektirir (örneğin Cloudflare DNS API'leri). Standart HTTP Let's Encrypt doğrulamaları başarısız olacaktır.
+                            </span>
+                        </div>
+                    </div>
+                }
+
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Hedef Konteyner / Servis</label>
+                    <select @bind="_proxyModel.ProjectId"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                        <option value="@Guid.Empty">Bağımsız / Dış Servis (Projesiz)</option>
+                        @foreach (var c in _activeContainers)
+                        {
+                            <option value="@c.Id">@c.Name (Port: @c.InternalPort)</option>
+                        }
+                    </select>
+                </div>
+
+                @if (_proxyModel.ProjectId == Guid.Empty)
+                {
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Harici Bağlantı Portu (Independent Port)</label>
+                        <input type="number" @bind="_proxyModel.ExternalPort" min="1" max="65535"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                    </div>
+                }
+
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="ssl-checkbox" @bind="_proxyModel.SslEnabled" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-800">
+                    <label for="ssl-checkbox" class="text-slate-300 font-medium">Let's Encrypt Wildcard SSL sertifikası üret</label>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                <button type="button" @onclick="CloseProxyModal"
+                    class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors text-xs font-semibold">İptal</button>
+                <button type="button" @onclick="HandleCreateProxyRule"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+                    @if (_isProcessingProxy)
+                    {
+                        <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Ekleniyor...</span>
+                    }
+                    else
+                    {
+                        <span>Yönlendirmeyi Aktif Et</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- 2. MODAL: DÜZENLEME MODALI -->
+@if (_editModalVisible)
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h3 class="text-lg font-bold text-[#0b1c30] flex items-center gap-2">
+                    <i class="fa-regular fa-pen-to-square text-indigo-400"></i> Proxy Yönlendirmesini Düzenle
+                </h3>
+                <button @onclick="CloseEditModal" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4 text-xs">
+                <div class="bg-slate-950 p-3 rounded border border-slate-800/80">
+                    <span class="text-[10px] text-slate-500 block">DÜZENLENEN ALAN ADI</span>
+                    <span class="font-mono text-sm font-bold text-emerald-400">@_editModel.SubdomainName</span><span class="font-mono text-sm font-bold">.@_editModel.DomainName</span>
+                </div>
+
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Hedef Konteyner / Servis</label>
+                    <select @bind="_editModel.ProjectId"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                        <option value="@Guid.Empty">Bağımsız / Dış Servis (Projesiz)</option>
+                        @foreach (var c in _activeContainers)
+                        {
+                            <option value="@c.Id">@c.Name (Port: @c.InternalPort)</option>
+                        }
+                    </select>
+                </div>
+
+                @if (_editModel.ProjectId == Guid.Empty)
+                {
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Harici Bağlantı Portu (Independent Port)</label>
+                        <input type="number" @bind="_editModel.ExternalPort" min="1" max="65535"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                    </div>
+                }
+
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="edit-ssl-checkbox" @bind="_editModel.SslEnabled" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-800">
+                    <label for="edit-ssl-checkbox" class="text-slate-300 font-medium">SSL Sertifikasını Aktifleştir</label>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                <button type="button" @onclick="CloseEditModal"
+                    class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors text-xs font-semibold">İptal</button>
+                <button type="button" @onclick="HandleUpdateProxyRule" disabled="@_isProcessingEdit"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+                    @if (_isProcessingEdit)
+                    {
+                        <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Güncelleniyor...</span>
+                    }
+                    else
+                    {
+                        <span>Değişiklikleri Kaydet</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- 3. MODAL: YENİ DNS KAYDI -->
+@if (_dnsModalVisible)
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h3 class="text-lg font-bold text-[#0b1c30]">Yeni DNS Zone Kaydı Ekle</h3>
+                <button @onclick="CloseDnsModal" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4 text-xs">
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Kayıt Tipi</label>
+                        <select @bind="_dnsModel.Type"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                            <option value="A">A</option>
+                            <option value="CNAME">CNAME</option>
+                            <option value="MX">MX</option>
+                            <option value="TXT">TXT</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Ön Ek (Subdomain)</label>
+                        <input type="text" @bind="_dnsPrefix" placeholder="örn: api veya @@"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Ana Alan Adı</label>
+                        <select @bind="_dnsRootDomainName"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                            <option value="">Seçiniz...</option>
+                            @foreach (var rd in _rootDomains)
+                            {
+                                <option value="@rd.Name">@rd.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Hedef Değer (Value)</label>
+                    <input type="text" @bind="_dnsModel.Value" placeholder="örn: IP Adresi veya Sunucu Alanı"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">TTL (Saniye)</label>
+                        <input type="number" @bind="_dnsModel.Ttl" min="120" max="86400"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="flex items-center gap-2 pt-5">
+                        <input type="checkbox" id="proxied-checkbox" @bind="_dnsModel.Proxied" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-800">
+                        <label for="proxied-checkbox" class="text-slate-300 font-medium">Proxy Koruma (CDN)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                <button type="button" @onclick="CloseDnsModal"
+                    class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors text-xs font-semibold">İptal</button>
+                <button type="button" @onclick="HandleCreateDnsRecord"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+                    @if (_isProcessingDns)
+                    {
+                        <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Zone Güncelleniyor...</span>
+                    }
+                    else
+                    {
+                        <span>Zone Kaydı Ekle</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ================= 4. PREMIUM ONAYLANMA / SSL YÜKLENİYOR EKRANI (VERIFYING / PROGRESS SCREEN) ================= -->
+@if (_sslOverlayVisible)
+{
+    <div class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in">
+        <div class="max-w-md w-full p-8 mx-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl text-center space-y-6">
+            
+            @if (_sslVerificationState == SslState.Processing)
+            {
+                <!-- Yükleniyor / Doğrulanıyor Animasyonu -->
+                <div class="relative w-28 h-28 mx-auto flex items-center justify-center">
+                    <div class="absolute inset-0 border-4 border-emerald-500/10 rounded-full"></div>
+                    <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div class="w-16 h-16 bg-gradient-to-tr from-indigo-500/20 to-emerald-500/20 rounded-full flex items-center justify-center border border-indigo-500/30 text-indigo-400 animate-pulse">
+                        <i class="fa-solid fa-shield-halved text-2xl"></i>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <h3 class="text-lg font-extrabold text-white tracking-tight">Onaylanıyor...</h3>
+                    <p class="text-xs text-indigo-400 font-semibold uppercase tracking-wider">Let's Encrypt SSL Doğrulaması</p>
+                    <p class="text-[11px] text-slate-400">Sunucu Certbot modülü aracılığıyla HTTPS geçiş doğrulamalarını gerçekleştiriyor. Lütfen bekleyin.</p>
+                </div>
+
+                <!-- Süreç Adımları (Verifying Progress Steps) -->
+                <div class="text-left bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 space-y-2.5 text-[11px]">
+                    <div class="flex items-center gap-2">
+                        @if (_sslStep >= 1)
+                        {
+                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                        }
+                        else
+                        {
+                            <i class="fa-regular fa-circle text-slate-600"></i>
+                        }
+                        <span class="@(_sslStep == 1 ? "text-white font-bold" : "text-slate-400")">Adım 1: DNS A kaydı doğrulanıyor...</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        @if (_sslStep >= 2)
+                        {
+                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                        }
+                        else if (_sslStep == 1)
+                        {
+                            <i class="fa-solid fa-spinner animate-spin text-indigo-400"></i>
+                        }
+                        else
+                        {
+                            <i class="fa-regular fa-circle text-slate-600"></i>
+                        }
+                        <span class="@(_sslStep == 2 ? "text-white font-bold" : "text-slate-400")">Adım 2: Let's Encrypt HTTP sorgusu iletiliyor...</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        @if (_sslStep >= 3)
+                        {
+                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                        }
+                        else if (_sslStep == 2)
+                        {
+                            <i class="fa-solid fa-spinner animate-spin text-indigo-400"></i>
+                        }
+                        else
+                        {
+                            <i class="fa-regular fa-circle text-slate-600"></i>
+                        }
+                        <span class="@(_sslStep == 3 ? "text-white font-bold" : "text-slate-400")">Adım 3: Certbot challenge token doğrulandı...</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        @if (_sslStep >= 4)
+                        {
+                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                        }
+                        else if (_sslStep == 3)
+                        {
+                            <i class="fa-solid fa-spinner animate-spin text-indigo-400"></i>
+                        }
+                        else
+                        {
+                            <i class="fa-regular fa-circle text-slate-600"></i>
+                        }
+                        <span class="@(_sslStep == 4 ? "text-white font-bold" : "text-slate-400")">Adım 4: Nginx SSL yönlendirmesi kuruluyor...</span>
+                    </div>
+                </div>
+            }
+            else if (_sslVerificationState == SslState.Success)
+            {
+                <!-- Tamamdır / Başarı Ekranı (Output Completed Success Screen) -->
+                <div class="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-emerald-400 border border-emerald-500/20 shadow-lg shadow-emerald-500/10 animate-bounce">
+                    <i class="fa-solid fa-circle-check text-4xl"></i>
+                </div>
+
+                <div class="space-y-2">
+                    <h3 class="text-xl font-extrabold text-emerald-400 tracking-tight">Tamamdır!</h3>
+                    <p class="text-xs text-slate-300">
+                        Let's Encrypt SSL sertifikası başarıyla üretildi ve Nginx proxy kuralınıza dahil edildi.
+                    </p>
+                    <div class="font-mono text-xs bg-slate-950 p-2.5 rounded border border-slate-800 text-slate-300 break-all">
+                        HTTPS://@_sslTargetDomain
+                    </div>
+                </div>
+
+                <div class="pt-4">
+                    <button @onclick="CloseSslOverlay"
+                        class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 px-4 rounded-lg shadow-md shadow-emerald-600/10 transition-all">
+                        Harika, Devam Et
+                    </button>
+                </div>
+            }
+            else
+            {
+                <!-- Hata Ekranı -->
+                <div class="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto text-rose-500 border border-rose-500/20 shadow-lg animate-pulse">
+                    <i class="fa-solid fa-circle-xmark text-4xl"></i>
+                </div>
+
+                <div class="space-y-2">
+                    <h3 class="text-xl font-extrabold text-rose-400 tracking-tight">İşlem Başarısız</h3>
+                    <p class="text-xs text-slate-300">
+                        Certbot doğrulaması sırasında bir sunucu hatası oluştu. Lütfen A/DNS kayıtlarınızı kontrol edin.
+                    </p>
+                    <div class="text-left font-mono text-[10px] bg-slate-950 p-3 rounded border border-slate-850 text-rose-400 max-h-32 overflow-y-auto webmail-scroll break-all">
+                        @_sslErrorMessage
+                    </div>
+                </div>
+
+                <div class="pt-4">
+                    <button @onclick="CloseSslOverlay"
+                        class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2.5 px-4 rounded-lg border border-slate-700 transition-all">
+                        Pencereli Kapat
+                    </button>
+                </div>
+            }
+
+        </div>
+    </div>
+}
+
+<!-- DNS TAM DEĞER GÖSTERME MODALİ -->
+@if (_dnsValueModalVisible)
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-lg p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h3 class="text-sm font-bold text-[#0b1c30]">Tam DNS Kayıt Değeri</h3>
+                <button @onclick="CloseDnsValueModal" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-[11px] text-[#6c7a71] font-semibold mb-1">KAYIT İSMİ</label>
+                    <div class="font-mono text-xs bg-[#eff4ff] p-2 rounded border border-[#bbcabf]/20 text-[#0b1c30] font-bold">
+                        @_selectedDnsRecordName
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] text-[#6c7a71] font-semibold mb-1">DEĞER (VAL)</label>
+                    <textarea readonly class="w-full bg-[#eff4ff] border border-[#bbcabf]/30 rounded-lg p-3 text-xs font-mono text-[#0b1c30] font-medium h-48 focus:outline-none select-all" style="resize: none;">@_selectedDnsRecordValue</textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-3 border-t border-slate-200">
+                <button type="button" @onclick="CloseDnsValueModal"
+                    class="bg-[#006c49] text-white px-4 py-2 rounded-lg hover:bg-[#005236] transition-colors text-xs font-semibold">Kapat</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL: YENİ ANA ALAN ADI EKLE -->
+@if (_rootDomainModalVisible)
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h3 class="text-lg font-bold text-[#0b1c30]">Yeni Ana Alan Adı Ekle</h3>
+                <button @onclick="CloseRootDomainModal" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="block text-slate-400 font-semibold mb-1">Alan Adı (Root Domain)</label>
+                    <input type="text" @bind="_rootDomainModel.Name" placeholder="örn: site.com"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="border-t border-slate-200 pt-3">
+                    <h4 class="font-bold text-xs text-[#0b1c30] mb-2 flex items-center gap-1.5">
+                        <i class="fa-brands fa-cloudflare text-orange-400 text-sm"></i> Cloudflare DNS Entegrasyonu (İsteğe Bağlı)
+                    </h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-slate-400 font-semibold mb-1">Cloudflare API Token</label>
+                            <input type="password" @bind="_rootDomainModel.CloudflareToken" placeholder="c8b2...a8f2"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 font-semibold mb-1">Zone ID</label>
+                            <input type="text" @bind="_rootDomainModel.CloudflareZoneId" placeholder="89b88...238fc"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <button type="button" @onclick="CloseRootDomainModal"
+                    class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors text-xs font-semibold">İptal</button>
+                <button type="button" @onclick="HandleCreateRootDomain"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+                    @if (_isProcessingRootDomain)
+                    {
+                        <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Ekleniyor...</span>
+                    }
+                    else
+                    {
+                        <span>Kaydet</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<SubdomainDto> _subdomains = new();
+    private List<DnsRecordDto> _dnsRecords = new();
+    private List<ContainerSelectDto> _activeContainers = new();
+    private List<RootDomainDto> _rootDomains = new();
+
+    private bool _rootDomainModalVisible = false;
+    private bool _isProcessingRootDomain = false;
+    private readonly CreateRootDomainModel _rootDomainModel = new();
+
+    private string _dnsPrefix = string.Empty;
+    private string _dnsRootDomainName = string.Empty;
+
+    private string _cfToken = string.Empty;
+    private string _cfZoneId = string.Empty;
+    private bool _cfConnected => _rootDomains.Any(r => !string.IsNullOrEmpty(r.CloudflareToken) && !string.IsNullOrEmpty(r.CloudflareZoneId));
+
+    // Modals & States
+    private bool _dnsValueModalVisible = false;
+    private string _selectedDnsRecordName = string.Empty;
+    private string _selectedDnsRecordValue = string.Empty;
+
+    private string TruncateDnsValue(string? value, int maxChars = 30)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        return value.Length <= maxChars ? value : value.Substring(0, maxChars) + "...";
+    }
+
+    private void ShowFullDnsValue(DnsRecordDto record)
+    {
+        _selectedDnsRecordName = record.Name;
+        _selectedDnsRecordValue = record.Value;
+        _dnsValueModalVisible = true;
+    }
+
+    private void CloseDnsValueModal()
+    {
+        _dnsValueModalVisible = false;
+    }
+
+    private bool _proxyModalVisible = false;
+    private bool _isProcessingProxy = false;
+    private readonly CreateProxyModel _proxyModel = new();
+
+    private bool _editModalVisible = false;
+    private bool _isProcessingEdit = false;
+    private readonly EditProxyModel _editModel = new();
+
+    private bool _dnsModalVisible = false;
+    private bool _isProcessingDns = false;
+    private readonly CreateDnsModel _dnsModel = new();
+
+    private bool _isSyncing = false;
+
+    // Search & Filter
+    private string _searchQuery = string.Empty;
+    private string _sslFilter = "all";
+
+    // SSL Processing Overlay
+    private bool _sslOverlayVisible = false;
+    private SslState _sslVerificationState = SslState.Processing;
+    private int _sslStep = 1;
+    private string _sslTargetDomain = string.Empty;
+    private string _sslErrorMessage = string.Empty;
+
+    private string _selectedDnsFilterDomain = string.Empty;
+
+    private IEnumerable<DnsRecordDto> FilteredDnsRecords => _dnsRecords.Where(d =>
+        string.IsNullOrEmpty(_selectedDnsFilterDomain) || 
+        d.Name.Equals(_selectedDnsFilterDomain, StringComparison.OrdinalIgnoreCase) || 
+        d.Name.EndsWith("." + _selectedDnsFilterDomain, StringComparison.OrdinalIgnoreCase)
+    );
+
+    private IEnumerable<SubdomainDto> FilteredSubdomains => _subdomains.Where(s => 
+        (string.IsNullOrEmpty(_searchQuery) 
+            || s.SubdomainName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) 
+            || s.DomainName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)) 
+        && (_sslFilter == "all" 
+            || (_sslFilter == "ssl" && s.SslEnabled) 
+            || (_sslFilter == "nossl" && !s.SslEnabled))
+    );
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var savedToken = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "cf_token");
+                var savedZoneId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "cf_zone_id");
+
+                bool updated = false;
+                if (!string.IsNullOrEmpty(savedToken)) { _cfToken = savedToken; updated = true; }
+                if (!string.IsNullOrEmpty(savedZoneId)) { _cfZoneId = savedZoneId; updated = true; }
+
+                if (updated)
+                {
+                    StateHasChanged();
+                    await LoadDataAsync();
+                    StateHasChanged();
+                }
+            }
+            catch
+            {
+                // Ignore early JS interop failures
+            }
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            // Ana Alan Adları
+            var rawRoots = await Http.GetFromJsonAsync<List<RootDomainDto>>("api/domains/roots");
+            _rootDomains = rawRoots ?? new List<RootDomainDto>();
+
+            // Reverse Proxy Yönlendirmeleri
+            var rawProxies = await Http.GetFromJsonAsync<List<SubdomainDto>>("api/nginx");
+            _subdomains = rawProxies ?? new List<SubdomainDto>();
+
+            // DNS Kayıtları
+            var rawDns = await Http.GetFromJsonAsync<List<DnsRecordDto>>("api/dns");
+            _dnsRecords = rawDns ?? new List<DnsRecordDto>();
+
+            // Hedef Konteynerler / Projeler (api/projects)
+            var rawProjects = await Http.GetFromJsonAsync<List<ContainerSelectDto>>("api/projects");
+            _activeContainers = rawProjects ?? new List<ContainerSelectDto>();
+        }
+        catch (OperationCanceledException)
+        {
+            // Page navigation can cancel in-flight domain/DNS requests; avoid noisy transient toasts.
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Veriler yüklenirken bir hata oluştu: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void OpenRootDomainModal()
+    {
+        _rootDomainModel.Name = "";
+        _rootDomainModel.CloudflareToken = "";
+        _rootDomainModel.CloudflareZoneId = "";
+        _rootDomainModalVisible = true;
+    }
+
+    private void CloseRootDomainModal()
+    {
+        _rootDomainModalVisible = false;
+    }
+
+    private async Task HandleCreateRootDomain()
+    {
+        if (string.IsNullOrEmpty(_rootDomainModel.Name))
+        {
+            Snackbar.Add("Alan adı zorunludur!", Severity.Warning);
+            return;
+        }
+
+        _isProcessingRootDomain = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/domains/roots", _rootDomainModel);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Ana alan adı başarıyla eklendi!", Severity.Success);
+                _rootDomainModalVisible = false;
+                await LoadDataAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Hata: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bağlantı hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessingRootDomain = false;
+        }
+    }
+
+    private async Task DeleteRootDomain(RootDomainDto rd)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/domains/roots/{rd.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Ana alan adı başarıyla silindi.", Severity.Success);
+                await LoadDataAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Silme hatası: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bağlantı hatası: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // NGINX TARAMA VE EŞİTLEME TETİKLEMESİ
+    private async Task TriggerNginxSync()
+    {
+        _isSyncing = true;
+        try
+        {
+            var response = await Http.PostAsync("api/nginx/sync", null);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Nginx sites-enabled yapılandırmaları taranıp veritabanıyla başarıyla eşitlendi!", Severity.Success);
+                await LoadDataAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Nginx senkronizasyon hatası: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Senkronizasyon sırasında hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSyncing = false;
+        }
+    }
+
+    // MODAL 1: PROXY EKLE
+    private void OpenProxyModal()
+    {
+        _proxyModel.SubdomainName = "";
+        _proxyModel.DomainName = "";
+        _proxyModel.ProjectId = Guid.Empty;
+        _proxyModel.ExternalPort = 80;
+        _proxyModel.SslEnabled = true;
+        _proxyModalVisible = true;
+    }
+
+    private void CloseProxyModal()
+    {
+        _proxyModalVisible = false;
+    }
+
+    private async Task HandleCreateProxyRule()
+    {
+        if (string.IsNullOrEmpty(_proxyModel.SubdomainName) || string.IsNullOrEmpty(_proxyModel.DomainName))
+        {
+            Snackbar.Add("Subdomain ve domain alanları zorunludur!", Severity.Warning);
+            return;
+        }
+
+        _isProcessingProxy = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/nginx", _proxyModel);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Reverse Proxy yönlendirme kuralı başarıyla aktif edildi!", Severity.Success);
+                _proxyModalVisible = false;
+                await LoadDataAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Kural ekleme hatası: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bağlantı hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessingProxy = false;
+        }
+    }
+
+    // MODAL 2: DÜZENLEME MODALI AÇMA / KAYDETME
+    private void OpenEditModal(SubdomainDto item)
+    {
+        _editModel.Id = item.Id;
+        _editModel.SubdomainName = item.SubdomainName;
+        _editModel.DomainName = item.DomainName;
+        _editModel.ProjectId = item.ProjectId ?? Guid.Empty;
+        _editModel.ExternalPort = item.ContainerPort;
+        _editModel.SslEnabled = item.SslEnabled;
+        _editModalVisible = true;
+    }
+
+    private void CloseEditModal()
+    {
+        _editModalVisible = false;
+    }
+
+    private async Task HandleUpdateProxyRule()
+    {
+        _isProcessingEdit = true;
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/nginx/{_editModel.Id}", _editModel);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Proxy yönlendirme kaydı ve Nginx yapılandırması başarıyla güncellendi!", Severity.Success);
+                _editModalVisible = false;
+                await LoadDataAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Güncelleme hatası: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bağlantı hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessingEdit = false;
+        }
+    }
+
+    // SSL CERTBOT UYGULAMASI VE ONAYLANMA EKRANI TETİKLEYİCİ
+    private async Task GenerateSslForSubdomain(SubdomainDto item)
+    {
+        _sslTargetDomain = $"{item.SubdomainName}.{item.DomainName}";
+        _sslErrorMessage = string.Empty;
+        _sslStep = 1;
+        _sslVerificationState = SslState.Processing;
+        _sslOverlayVisible = true;
+
+        StateHasChanged();
+
+        // 1. Aşama Simülasyonu
+        await Task.Delay(1000);
+        _sslStep = 2;
+        StateHasChanged();
+
+        // 2. Aşama Simülasyonu
+        await Task.Delay(1500);
+        _sslStep = 3;
+        StateHasChanged();
+
+        try
+        {
+            // Gerçek API tetiklemesi (30 saniyeye kadar sürebilir)
+            var response = await Http.PostAsync($"api/nginx/{item.Id}/ssl", null);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _sslStep = 4;
+                StateHasChanged();
+                await Task.Delay(1000);
+                
+                _sslVerificationState = SslState.Success;
+                StateHasChanged();
+                
+                await LoadDataAsync();
+            }
+            else
+            {
+                _sslErrorMessage = await response.Content.ReadAsStringAsync();
+                _sslVerificationState = SslState.Error;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            _sslErrorMessage = ex.Message;
+            _sslVerificationState = SslState.Error;
+            StateHasChanged();
+        }
+    }
+
+    private void CloseSslOverlay()
+    {
+        _sslOverlayVisible = false;
+    }
+
+    private async Task DeleteProxyRule(SubdomainDto item)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/nginx/{item.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Reverse Proxy yönlendirme kaydı başarıyla silindi ve Nginx güvenle reload edildi.", Severity.Success);
+                await LoadDataAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Silme hatası: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bağlantı hatası: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // MODAL 3: DNS
+    private void OpenDnsModal()
+    {
+        if (!_rootDomains.Any())
+        {
+            Snackbar.Add("DNS kaydı eklemek için lütfen önce en az bir ana alan adı (Root Domain) ekleyin!", Severity.Warning);
+            return;
+        }
+
+        _dnsModel.Type = "A";
+        _dnsPrefix = "";
+        _dnsRootDomainName = _rootDomains.First().Name;
+        _dnsModel.Value = "";
+        _dnsModel.Ttl = 3600;
+        _dnsModel.Proxied = true;
+        _dnsModalVisible = true;
+    }
+
+    private void CloseDnsModal()
+    {
+        _dnsModalVisible = false;
+    }
+
+    private async Task HandleCreateDnsRecord()
+    {
+        if (string.IsNullOrEmpty(_dnsRootDomainName))
+        {
+            Snackbar.Add("Lütfen bir ana alan adı seçiniz!", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_dnsModel.Value))
+        {
+            Snackbar.Add("Hedef değer alanı zorunludur!", Severity.Warning);
+            return;
+        }
+
+        // Ön ek ve domain adını birleştir
+        string prefix = _dnsPrefix.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(prefix) || prefix == "@")
+        {
+            _dnsModel.Name = _dnsRootDomainName;
+        }
+        else
+        {
+            _dnsModel.Name = $"{prefix}.{_dnsRootDomainName}";
+        }
+
+        _isProcessingDns = true;
+        try
+        {
+            var apiPayload = new
+            {
+                Type = _dnsModel.Type,
+                Name = _dnsModel.Name,
+                Value = _dnsModel.Value,
+                Ttl = _dnsModel.Ttl,
+                Proxied = _dnsModel.Proxied,
+                UseCloudflare = true
+            };
+
+            var response = await Http.PostAsJsonAsync("api/dns", apiPayload);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("DNS kaydı başarıyla oluşturuldu!", Severity.Success);
+                _dnsModalVisible = false;
+                await LoadDataAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"DNS oluşturma hatası: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bağlantı hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessingDns = false;
+        }
+    }
+
+    private async Task DeleteDnsRecord(DnsRecordDto record)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/dns/{record.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("DNS alan kaydı silindi.", Severity.Success);
+                await LoadDataAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"DNS silme hatası: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bağlantı hatası: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // DTO Tanımları
+    public class SubdomainDto
+    {
+        public Guid Id { get; set; }
+        public string SubdomainName { get; set; } = string.Empty;
+        public string DomainName { get; set; } = string.Empty;
+        public bool SslEnabled { get; set; }
+        public Guid? ProjectId { get; set; }
+        public string ContainerName { get; set; } = string.Empty;
+        public int ContainerPort { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class DnsRecordDto
+    {
+        public Guid Id { get; set; }
+        public string Type { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+        public int Ttl { get; set; }
+        public bool Proxied { get; set; }
+        public string? CloudflareRecordId { get; set; }
+    }
+
+    public class ContainerSelectDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int InternalPort { get; set; }
+    }
+
+    // Form Model Tanımları
+    public class CreateProxyModel
+    {
+        public string SubdomainName { get; set; } = string.Empty;
+        public string DomainName { get; set; } = string.Empty;
+        public Guid? ProjectId { get; set; }
+        public int? ExternalPort { get; set; }
+        public bool SslEnabled { get; set; } = true;
+    }
+
+    public class EditProxyModel
+    {
+        public Guid Id { get; set; }
+        public string SubdomainName { get; set; } = string.Empty;
+        public string DomainName { get; set; } = string.Empty;
+        public Guid? ProjectId { get; set; }
+        public int? ExternalPort { get; set; }
+        public bool SslEnabled { get; set; }
+    }
+
+    public class CreateDnsModel
+    {
+        public string Type { get; set; } = "A";
+        public string Name { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+        public int Ttl { get; set; } = 3600;
+        public bool Proxied { get; set; } = true;
+    }
+
+    public class RootDomainDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? CloudflareToken { get; set; }
+        public string? CloudflareZoneId { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class CreateRootDomainModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? CloudflareToken { get; set; }
+        public string? CloudflareZoneId { get; set; }
+    }
+
+    // Enums
+    private enum SslState
+    {
+        Processing,
+        Success,
+        Error
+    }
+}

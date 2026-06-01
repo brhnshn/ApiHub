@@ -1,0 +1,1429 @@
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+@inject JwtAuthenticationStateProvider AuthProvider
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+@inject AppState AppState
+@inject DockerPanel.Client.Services.DeepLinkService DeepLinkService
+@inject PlatformInfo PlatformInfo
+@implements IDisposable
+
+<style>
+    :root {
+        --bg-sub: #ffffff;
+        --border-color: #e2e8f0;
+        --accent-indigo: #006c49;
+        --text-secondary: #64748b;
+    }
+
+    a.active-link {
+        background-color: rgba(0, 108, 73, 0.12) !important;
+        color: var(--accent-indigo) !important;
+        border-left: 4px solid var(--accent-indigo) !important;
+        border-radius: 0 8px 8px 0 !important;
+    }
+
+    /* Siber-Hibrit Sidebar Base */
+    .cyber-sidebar {
+        background-color: var(--bg-sub) !important;
+        border-right: 1px solid var(--border-color) !important;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-right 0.3s ease !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        height: 100vh !important;
+        z-index: 50 !important;
+        position: fixed !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        overflow-x: hidden !important;
+    }
+
+    /* Mobile state */
+    .cyber-sidebar.mobile-open {
+        width: 256px !important;
+        transform: translateX(0) !important;
+    }
+    .cyber-sidebar.mobile-closed {
+        width: 256px !important;
+        transform: translateX(-100%) !important;
+    }
+
+    /* Desktop View Overrides (md: >= 768px) */
+    @@media (min-width: 768px) {
+        .cyber-sidebar {
+            position: relative !important;
+            height: 100% !important;
+        }
+        .cyber-sidebar.desktop-open {
+            width: 256px !important;
+            transform: translateX(0) !important;
+            border-right: 1px solid var(--border-color) !important;
+        }
+        .cyber-sidebar.desktop-closed {
+            width: 0px !important;
+            transform: translateX(0) !important;
+            border-right: 0px solid transparent !important;
+        }
+    }
+
+    /* Logo Container styling */
+    .cyber-logo-container {
+        padding: 1.25rem 1rem !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 0.5rem !important;
+        transition: all 0.3s ease !important;
+    }
+    @@media (min-width: 768px) {
+        .cyber-sidebar.desktop-closed .cyber-logo-container {
+            justify-content: center !important;
+            padding: 1.25rem 0.5rem !important;
+        }
+    }
+
+    /* NavLinks custom stylesheet to prevent dynamic tailwind compilation issues */
+    .cyber-navlink {
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        border-radius: 0.5rem !important;
+        font-size: 0.79rem !important;
+        font-weight: 600 !important;
+        color: var(--text-secondary) !important;
+        transition: all 0.2s ease-in-out !important;
+        border: 1px solid transparent !important;
+        padding: 0.5rem 0.7rem !important;
+        gap: 0.6rem !important;
+        justify-content: flex-start !important;
+        text-decoration: none !important;
+    }
+    .cyber-navlink:hover {
+        background-color: rgba(0, 108, 73, 0.08) !important;
+        color: var(--accent-indigo) !important;
+    }
+    @@media (min-width: 768px) {
+        .cyber-sidebar.desktop-closed .cyber-navlink {
+            padding: 0.65rem !important;
+            justify-content: center !important;
+            gap: 0 !important;
+        }
+    }
+
+    /* Profile / Footer Box */
+    .cyber-profile-box {
+        padding: 1rem !important;
+        border-top: 1px solid var(--border-color) !important;
+        background-color: rgba(0, 108, 73, 0.02) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .signalr-status-banner {
+        position: sticky;
+        top: 0;
+        z-index: 35;
+        padding: 0.55rem 1rem;
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-align: center;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        animation: signalr-slide 0.22s ease-out;
+    }
+
+    .signalr-status-banner.warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .signalr-status-banner.success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    @@keyframes signalr-slide {
+        from { transform: translateY(-100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .cyber-profile-flex {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+    }
+
+    @@media (min-width: 768px) {
+        .cyber-sidebar.desktop-closed .cyber-profile-box {
+            padding: 0.75rem 0.5rem !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .cyber-sidebar.desktop-closed .cyber-profile-flex {
+            justify-content: center !important;
+            width: auto !important;
+            gap: 0 !important;
+        }
+    }
+
+    /* Element visibility control for responsive collapsing */
+    .cyber-logo-text,
+    .cyber-nav-text,
+    .cyber-profile-details,
+    .cyber-ip-details {
+        display: block !important;
+        opacity: 1;
+        transition: opacity 0.2s ease, visibility 0.2s ease !important;
+    }
+
+    .cyber-nav-text {
+        display: inline-block !important;
+    }
+
+    .cyber-close-btn {
+        display: none !important;
+    }
+
+    .cyber-logout-btn-full {
+        display: block !important;
+    }
+
+    .cyber-logout-btn-collapsed {
+        display: none !important;
+    }
+
+    /* Desktop Collapsed View (md: >= 768px and sidebar is .desktop-closed) */
+    @@media (min-width: 768px) {
+        .cyber-sidebar.desktop-closed .cyber-logo-text,
+        .cyber-sidebar.desktop-closed .cyber-nav-text,
+        .cyber-sidebar.desktop-closed .cyber-nav-badge,
+        .cyber-sidebar.desktop-closed .cyber-profile-details,
+        .cyber-sidebar.desktop-closed .cyber-ip-details,
+        .cyber-sidebar.desktop-closed .cyber-logout-btn-full {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+
+        .cyber-sidebar.desktop-closed .cyber-logout-btn-collapsed {
+            display: block !important;
+        }
+    }
+
+    /* Mobile View Overrides */
+    @@media (max-width: 767px) {
+        .cyber-logout-btn-collapsed {
+            display: none !important;
+        }
+        .cyber-close-btn {
+            display: block !important;
+        }
+    }
+</style>
+
+@if (AppState.IsConnectionFailed)
+{
+    <div class="fixed inset-0 bg-[#07090d]/95 backdrop-blur-xl z-[999999] flex items-center justify-center p-4 font-sans text-[#e1e2ec]" style="background-image: radial-gradient(circle at top right, rgba(239, 68, 68, 0.05), transparent 40%), radial-gradient(circle at bottom left, rgba(78, 222, 163, 0.03), transparent 45%);">
+        <div class="glass max-w-md w-full rounded-3xl bg-[#13161f]/85 border border-rose-500/15 p-8 text-center shadow-2xl relative space-y-6" style="border-radius: 24px; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7); backdrop-filter: blur(25px);">
+            <!-- Neon Warning Icon Shield -->
+            <div class="mx-auto w-20 h-20 rounded-2xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-500/5 animate-pulse" style="border-radius: 20px;">
+                <span class="material-symbols-outlined text-4xl" style="font-variation-settings: 'FILL' 1, 'wght' 500;">wifi_off</span>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="text-xl font-black text-white tracking-wide">Sunucu Bağlantı Hatası</h3>
+                <p class="text-xs text-rose-400/90 font-semibold px-2">Sunucuya bağlanamadı veya sunucu bağlantı hatası verdi.</p>
+                <p class="text-[11px] text-gray-400 leading-relaxed px-4">
+                    Uygulama sunucu ile güvenli bir veri alışverişi kuramadı. Lütfen internet bağlantınızı veya yazdığınız sunucu adresini kontrol edin.
+                </p>
+            </div>
+
+            @if (PlatformInfo.IsMobileApp)
+            {
+                <!-- Mobil Özel: Sunucu Adresi Düzenleme Paneli -->
+                <div class="space-y-3 p-4 rounded-2xl bg-white/5 border border-white/5 text-left" style="border-radius: 16px;">
+                    <label class="block text-[10px] uppercase font-bold tracking-wider text-gray-400">Aktif Sunucu Adresi</label>
+                    <div class="relative flex items-center">
+                        <span class="material-symbols-outlined absolute left-3 text-gray-500 text-sm" style="color: #9ba3b8;">dns</span>
+                        <input class="w-full rounded-xl pl-9 pr-4 py-2.5 bg-[#0a0c12]/90 border border-white/10 text-xs text-white outline-none focus:border-[#4edea3] focus:ring-1 focus:ring-[#4edea3]/50 transition-all font-mono"
+                               placeholder="https://api.domain.com"
+                               @bind-value="_editServerUrl"
+                               style="border-radius: 10px;" />
+                    </div>
+                    <button @onclick="HandleSaveAndReconnect"
+                            class="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#006c49] to-[#008f60] hover:brightness-110 active:scale-[0.98] transition-all text-xs font-bold text-white shadow-lg shadow-[#006c49]/20 flex items-center justify-center gap-2"
+                            style="border-radius: 10px;">
+                        <span class="material-symbols-outlined text-sm">save</span>
+                        <span>Adresi Kaydet & Bağlan</span>
+                    </button>
+                </div>
+            }
+            else
+            {
+                <!-- Desktop / PWA Modu Bilgi Şeridi -->
+                <div class="p-3.5 rounded-2xl bg-white/5 border border-white/5 text-xs text-gray-400 font-mono text-center flex items-center justify-center gap-2" style="border-radius: 14px;">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                    <span>Hedef: @Http.BaseAddress</span>
+                </div>
+            }
+
+            <!-- Alt Kontroller / Yeniden Bağlan Butonu -->
+            <div class="pt-2 flex gap-3">
+                @if (PlatformInfo.IsMobileApp)
+                {
+                    <button @onclick="HandleRetryConnection" disabled="@_isRetryingConnection"
+                            class="flex-1 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white transition-all flex items-center justify-center gap-2 active:scale-95"
+                            style="border-radius: 12px;">
+                        @if (_isRetryingConnection)
+                        {
+                            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>Bağlanılıyor...</span>
+                        }
+                        else
+                        {
+                            <span class="material-symbols-outlined text-sm">sync</span>
+                            <span>Yeniden Dene</span>
+                        }
+                    </button>
+                }
+                else
+                {
+                    <button @onclick="HandleRetryConnection" disabled="@_isRetryingConnection"
+                            class="w-full py-3 rounded-2xl bg-[#006c49] hover:bg-[#006c49]/90 text-xs font-bold text-white transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-[#006c49]/20"
+                            style="border-radius: 12px;">
+                        @if (_isRetryingConnection)
+                        {
+                            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>Bağlanılıyor...</span>
+                        }
+                        else
+                        {
+                            <span class="material-symbols-outlined text-sm">sync</span>
+                            <span>Sistemi Yeniden Yükle</span>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <AuthorizeView>
+    <Authorized>
+        @if (PlatformInfo.IsMobileApp)
+        {
+            <!-- STITCH MOBILE VIEW -->
+            <style>
+                .glass-card {
+                    background: rgba(29, 32, 39, 0.6);
+                    backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+                }
+                .material-symbols-outlined {
+                    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+                    display: inline-block;
+                    vertical-align: middle;
+                }
+                ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+                * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+
+                /* Custom bottom sheet transition transitions */
+                .mobile-bottom-sheet {
+                    position: fixed;
+                    bottom: 88px; /* Perfectly aligned above the bottom nav bar */
+                    left: 16px;
+                    right: 16px;
+                    max-width: 448px; /* max-w-md */
+                    margin-left: auto;
+                    margin-right: auto;
+                    border-radius: 24px; /* rounded-3xl */
+                    background-color: rgba(23, 26, 33, 0.96);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    padding: 20px;
+                    z-index: 45;
+                    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+                    max-height: calc(100vh - 160px);
+                    overflow-y: auto;
+                    scrollbar-width: none;
+                    
+                    /* Initial hidden state */
+                    transform: translateY(120%) scale(0.95);
+                    opacity: 0;
+                    pointer-events: none;
+                    
+                    /* Ultra premium smooth cubic bezier transition (same as sidebar drawer) */
+                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                                opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                                scale 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+
+                .mobile-bottom-sheet.sheet-open {
+                    transform: translateY(0) scale(1);
+                    opacity: 1;
+                    pointer-events: auto;
+                }
+
+                .mobile-sheet-backdrop {
+                    position: fixed;
+                    inset: 0;
+                    background-color: rgba(5, 5, 8, 0.4);
+                    backdrop-filter: blur(6px);
+                    z-index: 40;
+                    
+                    /* Initial hidden state */
+                    opacity: 0;
+                    pointer-events: none;
+                    
+                    transition: opacity 0.4s ease-out;
+                }
+
+                .mobile-sheet-backdrop.backdrop-open {
+                    opacity: 1;
+                    pointer-events: auto;
+                }
+
+                /* Mobile custom navigation cut-out glow button styling */
+                .floating-action-container {
+                    position: relative;
+                    top: -24px; /* Raised above the bar */
+                    z-index: 51;
+                }
+
+                .floating-action-button {
+                    width: 56px;
+                    height: 56px;
+                    background: #4edea3;
+                    border-radius: 9999px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #0f172a; /* text-slate-900 */
+                    box-shadow: 0 10px 25px rgba(78, 222, 163, 0.35);
+                    border: 4px solid #0b0e15; /* Seamless notch cut-out */
+                    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+
+                .floating-action-button:active {
+                    transform: scale(0.92);
+                    box-shadow: 0 4px 10px rgba(78, 222, 163, 0.2);
+                }
+
+                .floating-action-button.btn-active {
+                    background: #adc6ff;
+                    color: #0f172a;
+                    box-shadow: 0 10px 25px rgba(173, 198, 255, 0.35);
+                    transform: rotate(45deg);
+                }
+            </style>
+
+            <div class="fixed inset-0 bg-[#0b0e15] overflow-y-auto p-4 z-10 text-[#e1e2ec] font-sans no-scrollbar">
+                <!-- Top Navigation Bar -->
+                <header class="fixed top-0 left-0 right-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-[#10131a]/60 backdrop-blur-xl border-b border-white/10">
+                    <div class="flex items-center">
+                        <div class="font-black text-xl tracking-wider font-sans py-1">
+                            <span class="text-[#4edea3]">API</span><span class="text-[#adc6ff]">HUB</span>
+                        </div>
+                    </div>
+                    <!-- Sağ üst: Bildirim Çanı -->
+                    <div class="flex items-center gap-2">
+                        @if (!AppState.IsFcmConfigured)
+                        {
+                            <span class="px-2 py-0.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[9px] font-black animate-pulse flex items-center gap-1">
+                                <span class="w-1 h-1 rounded-full bg-rose-500 shrink-0"></span>
+                                FCM Simülasyon
+                            </span>
+                        }
+                        <button @onclick='() => NavigateToMobilePage("/notifications")'
+                                style="position:relative; width:40px; height:40px; border-radius:12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s;">
+                            <span class="material-symbols-outlined" style="font-size:22px; color:@(_notifUnreadCount > 0 ? "#4edea3" : "#9ba3b8"); font-variation-settings:'FILL' @(_notifUnreadCount > 0 ? "1" : "0");">notifications</span>
+                            @if (_notifUnreadCount > 0)
+                            {
+                                <span style="position:absolute; top:-4px; right:-4px; background:#ef4444; color:white; border-radius:999px; font-size:9px; font-weight:900; min-width:18px; height:18px; display:flex; align-items:center; justify-content:center; padding:0 4px; border:2px solid #10131a; font-family:sans-serif;">@(_notifUnreadCount > 99 ? "99+" : _notifUnreadCount.ToString())</span>
+                            }
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Mobil Canlı Bağlantı Durum Şeridi -->
+                <div class="fixed top-16 left-4 right-4 z-40 transition-all duration-500 ease-out @(_showSignalRBanner ? "translate-y-0 opacity-100" : "-translate-y-20 opacity-0 pointer-events-none") max-w-md mx-auto">
+                    <div class="px-4 py-2 rounded-xl text-center text-xs font-bold shadow-lg flex items-center justify-center gap-2 @(_signalRBannerSeverity == "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-[#4edea3]" : "bg-amber-500/10 border border-amber-500/20 text-amber-400") backdrop-blur-md">
+                        <span class="w-2 h-2 rounded-full bg-current @(_signalRBannerSeverity == "success" ? "" : "animate-ping") shrink-0"></span>
+                        <span>@_signalRBannerText</span>
+                    </div>
+                </div>
+
+                <main class="pt-20 pb-28">
+                    @Body
+                </main>
+
+                <!-- Bottom Navigation Bar -->
+                <nav class="fixed bottom-4 left-4 right-4 bg-[#0d1016]/95 backdrop-blur-md border border-white/5 h-16 rounded-2xl grid grid-cols-5 items-center justify-items-center z-50 shadow-2xl max-w-md mx-auto" data-purpose="bottom-nav">
+                    <!-- Ana Sayfa -->
+                    <button @onclick='() => NavigateToMobilePage("/")' class="flex flex-col items-center gap-1 transition-colors @(NavigationManager.ToBaseRelativePath(NavigationManager.Uri) == "" ? "text-[#adc6ff]" : "text-gray-500 hover:text-[#adc6ff]")">
+                        <span class="material-symbols-outlined" style="font-variation-settings: 'opsz' 24@(NavigationManager.ToBaseRelativePath(NavigationManager.Uri) == "" ? ", 'FILL' 1" : "")">home</span>
+                        <span class="text-[10px] font-medium">Ana Sayfa</span>
+                    </button>
+                    <!-- Konteyner -->
+                    <button @onclick='() => NavigateToMobilePage("/containers")' class="flex flex-col items-center gap-1 transition-colors @(NavigationManager.ToBaseRelativePath(NavigationManager.Uri).StartsWith("containers") ? "text-[#adc6ff]" : "text-gray-500 hover:text-[#adc6ff]")">
+                        <span class="material-symbols-outlined" style="font-variation-settings: 'opsz' 24@(NavigationManager.ToBaseRelativePath(NavigationManager.Uri).StartsWith("containers") ? ", 'FILL' 1" : "")">view_module</span>
+                        <span class="text-[10px] font-bold">Konteyner</span>
+                    </button>
+                    <!-- Floating Action Button -->
+                    <div class="floating-action-container">
+                        <button @onclick="ToggleMoreMenu" class="floating-action-button @(_showMoreMenu ? "btn-active" : "")">
+                            <span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1">grid_view</span>
+                        </button>
+                    </div>
+                    <!-- E-Posta (Webmail) -->
+                    <button @onclick='() => NavigateToMobilePage("/webmail")' class="flex flex-col items-center gap-1 transition-colors @(NavigationManager.ToBaseRelativePath(NavigationManager.Uri).StartsWith("webmail") ? "text-[#adc6ff]" : "text-gray-500 hover:text-[#adc6ff]")">
+                        <span class="material-symbols-outlined" style="font-variation-settings: 'opsz' 24@(NavigationManager.ToBaseRelativePath(NavigationManager.Uri).StartsWith("webmail") ? ", 'FILL' 1" : "")">mail</span>
+                        <span class="text-[10px] font-medium">E-Posta</span>
+                    </button>
+                    <!-- Ayarlar -->
+                    <button @onclick='() => NavigateToMobilePage("/settings")' class="flex flex-col items-center gap-1 transition-colors @(NavigationManager.ToBaseRelativePath(NavigationManager.Uri).StartsWith("settings") ? "text-[#adc6ff]" : "text-gray-500 hover:text-[#adc6ff]")">
+                        <span class="material-symbols-outlined" style="font-variation-settings: 'opsz' 24@(NavigationManager.ToBaseRelativePath(NavigationManager.Uri).StartsWith("settings") ? ", 'FILL' 1" : "")">settings</span>
+                        <span class="text-[10px] font-medium">Ayarlar</span>
+                    </button>
+                </nav>
+
+                <!-- STITCH PREMIUM GLASSMORPHIC BOTTOM SHEET -->
+                <div class="mobile-sheet-backdrop @(_showMoreMenu ? "backdrop-open" : "")" @onclick="ToggleMoreMenu"></div>
+
+                <div class="mobile-bottom-sheet @(_showMoreMenu ? "sheet-open" : "")" @onclick:stopPropagation>
+                    <!-- Drag handle -->
+                    <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-2"></div>
+                    
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[#adc6ff]">apps</span>
+                                Tüm Yönetim Araçları
+                            </h3>
+                            <p class="text-[10px] text-gray-400">Sistem araçları ve subdomain / veri tabanı yönlendirmeleri</p>
+                        </div>
+                        <button @onclick="ToggleMoreMenu" class="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+
+                    <!-- Bento grid of the remaining sub-pages -->
+                    <div class="grid grid-cols-3 gap-2.5">
+                        <button @onclick='() => NavigateToMobilePage("/domains")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#adc6ff]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#adc6ff]/10 rounded-xl text-[#adc6ff] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">dns</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">Proxy/Domain</span>
+                        </button>
+
+                        <button @onclick='() => NavigateToMobilePage("/databases")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#4edea3]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#4edea3]/10 rounded-xl text-[#4edea3] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">database</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">PostgreSQL</span>
+                        </button>
+
+                        <button @onclick='() => NavigateToMobilePage("/email")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#4edea3]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#4edea3]/10 rounded-xl text-[#4edea3] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">mail_outline</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">E-Posta Yön.</span>
+                        </button>
+
+                        <button @onclick='() => NavigateToMobilePage("/firewall")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#ffb786]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#ffb786]/10 rounded-xl text-[#ffb786] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">security</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">Güvenlik</span>
+                        </button>
+
+                        <button @onclick='() => NavigateToMobilePage("/backups")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#ffb4ab]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#ffb4ab]/10 rounded-xl text-[#ffb4ab] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">backup</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">Yedekler</span>
+                        </button>
+
+                        <button @onclick='() => NavigateToMobilePage("/audit-logs")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#adc6ff]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#adc6ff]/10 rounded-xl text-[#adc6ff] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">history</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">Denetim</span>
+                        </button>
+
+                        <button @onclick='() => NavigateToMobilePage("/devices")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#4edea3]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#4edea3]/10 rounded-xl text-[#4edea3] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">phone_android</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">Cihazlar</span>
+                        </button>
+
+                        <button @onclick='() => NavigateToMobilePage("/deploy-wizard")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#ffb786]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#ffb786]/10 rounded-xl text-[#ffb786] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">auto_awesome</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">Sihirbaz</span>
+                        </button>
+
+                        <button @onclick='() => NavigateToMobilePage("/terminal")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#adc6ff]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#adc6ff]/10 rounded-xl text-[#adc6ff] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">terminal</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">Canlı Log</span>
+                        </button>
+
+                        <button @onclick='() => NavigateToMobilePage("/guide")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#c9e6ff]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#c9e6ff]/10 rounded-xl text-[#c9e6ff] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">menu_book</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">Uyg. Rehberi</span>
+                        </button>
+
+                        <!-- Acil Durdurma spans across all 3 columns at the bottom -->
+                        <button @onclick="PromptPanicStop" class="col-span-3 glass p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 flex items-center justify-center gap-3 transition-all duration-200 active:scale-95 shadow-lg shadow-rose-500/5 mt-1 select-none cursor-pointer">
+                            <div class="p-2 bg-rose-500/20 rounded-xl text-rose-400 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg animate-pulse">warning</span>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-black text-xs text-rose-400 uppercase tracking-wider">Acil Durdurma</p>
+                                <p class="text-[9px] text-rose-400/80 mt-0.5">Tüm Servisleri ve Portları Anında Kilitle</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ACİL SUNUCU KİLİDİ ONAY MODALI -->
+                @if (_showPanicModal)
+                {
+                    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[99999999] flex items-center justify-center p-4 animate-fade-in">
+                        <div class="glass max-w-sm w-full rounded-2xl bg-[#171a21]/95 border border-rose-500/20 p-6 text-[#e1e2ec] shadow-2xl relative space-y-4" style="border-radius: 16px;">
+                            <div class="flex items-center gap-3">
+                                <div class="p-3 bg-rose-500/10 rounded-xl text-rose-400 flex-shrink-0" style="border-radius: 12px;">
+                                    <span class="material-symbols-outlined text-2xl animate-ping">warning</span>
+                                </div>
+                                <div class="text-left">
+                                    <h3 class="text-base font-extrabold text-white" style="margin: 0;">Sistemi Kilitle?</h3>
+                                    <p class="text-[10px] text-rose-400" style="margin: 2px 0 0 0;">Acil Durum Modu Aktifleşecek</p>
+                                </div>
+                            </div>
+
+                            <p class="text-xs text-slate-300 leading-relaxed text-left">
+                                Bu işlem sunucudaki **çalışan tüm Docker konteynerlerini ve yerel projeleri anında durduracaktır.** Sunucu trafiği tamamen kesilecektir. Emin misiniz?
+                            </p>
+
+                            <div class="flex gap-2 pt-2">
+                                <button @onclick='() => _showPanicModal = false' disabled="@_isExecutingPanic"
+                                        class="flex-1 text-xs font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2 rounded-xl transition-all" style="border-radius: 8px;">
+                                    İptal Et
+                                </button>
+                                <button @onclick="ExecutePanicStopAsync" disabled="@_isExecutingPanic"
+                                        class="flex-1 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 py-2 rounded-xl transition-all shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2" style="border-radius: 8px;">
+                                    @if (_isExecutingPanic)
+                                    {
+                                        <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Durduruluyor...</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="material-symbols-outlined text-sm">power_settings_new</span>
+                                        <span>Evet, Durdur!</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="flex flex-1 h-screen overflow-hidden bg-[#f8f9ff]">
+                <!-- MOBILE OVERLAY BACKDROP -->
+                <div class="fixed inset-0 bg-black/40 z-40 md:hidden @(_mobileSidebarOpen ? "block" : "hidden")" @onclick="CloseMobileSidebar"></div>
+
+                <!-- SOL MENÜ (SIDEBAR) -->
+                <aside class="cyber-sidebar @(_desktopSidebarOpen ? "desktop-open" : "desktop-closed") @(_mobileSidebarOpen ? "mobile-open" : "mobile-closed")">
+                    <div>
+                        <div class="cyber-logo-container">
+                            <div class="flex items-center justify-start flex-1 pl-2">
+                                <div class="cyber-logo-text font-black text-2xl tracking-wider font-sans flex items-center justify-start py-1">
+                                    <span class="text-[#006c49]">API</span><span class="text-[#3b82f6]">HUB</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Masaüstü Daraltma ve Mobil Kapatma Aksiyonu -->
+                            <div class="flex items-center gap-1.5">
+                                <!-- Desktop Collapse -->
+                                <button @onclick="ToggleDesktopSidebar" class="hidden md:flex text-[#3c4a42]/60 hover:text-[#006c49] p-1 rounded hover:bg-slate-200/50 transition-all items-center justify-center" title="Menüyü Daralt">
+                                    <i class="fa-solid fa-angles-left text-sm"></i>
+                                </button>
+                                <!-- Mobile Close -->
+                                <button @onclick="CloseMobileSidebar" class="flex md:hidden text-[#3c4a42]/60 hover:text-rose-600 p-1 rounded hover:bg-rose transition-all items-center justify-center" title="Menüyü Kapat">
+                                    <i class="fa-solid fa-xmark text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Menü Elemanları -->
+                        <nav class="p-3 space-y-1" @onclick="CloseMobileSidebar">
+                            <NavLink Href="" Match="NavLinkMatch.All" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Genel Bakış">
+                                <i class="fa-solid fa-chart-line w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Genel Bakış</span>
+                            </NavLink>
+                            
+                            <NavLink Href="containers" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Konteyner Yönetimi">
+                                <i class="fa-solid fa-box w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Konteyner Yönetimi</span>
+                                @if (_containerCount > 0)
+                                {
+                                    <span class="cyber-nav-badge ml-auto bg-[#006c49]/10 text-[#006c49] text-[10px] px-1.5 py-0.5 rounded-full font-bold">@_containerCount</span>
+                                }
+                            </NavLink>
+                            
+                            <NavLink Href="domains" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Domain / DNS / SSL">
+                                <i class="fa-solid fa-globe w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Domain / DNS / SSL</span>
+                            </NavLink>
+
+                            <NavLink Href="deploy-wizard" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Dağıtım Sihirbazı">
+                                <i class="fa-solid fa-wand-magic-sparkles w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Dağıtım Sihirbazı</span>
+                            </NavLink>
+                            
+                            <NavLink Href="firewall" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Güvenlik & Duvar">
+                                <i class="fa-solid fa-shield-halved w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Güvenlik & Duvar</span>
+                            </NavLink>
+                            
+                            <NavLink Href="databases" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Veritabanı">
+                                <i class="fa-solid fa-database w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Veritabanı</span>
+                            </NavLink>
+                            
+                            <NavLink Href="email" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="E-Posta Sunucusu">
+                                <i class="fa-solid fa-envelope w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">E-Posta Sunucusu</span>
+                            </NavLink>
+                            
+                            <NavLink Href="webmail" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Webmail İstemcisi">
+                                <i class="fa-solid fa-inbox w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Webmail İstemcisi</span>
+                                @if (_unreadMailCount > 0)
+                                {
+                                    <span class="cyber-nav-badge ml-auto bg-[#006c49] text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">@_unreadMailCount</span>
+                                }
+                            </NavLink>
+                            
+                            <NavLink Href="terminal" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Canlı Log Akışı">
+                                <i class="fa-solid fa-terminal w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Canlı Log Akışı</span>
+                            </NavLink>
+                            
+                            <NavLink Href="devices" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Mobil Cihazlar">
+                                <i class="fa-solid fa-mobile-screen w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Mobil Cihazlar</span>
+                            </NavLink>
+                            
+                            <NavLink Href="audit-logs" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Denetim Kayıtları">
+                                <i class="fa-solid fa-clipboard-list w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Denetim Kayıtları</span>
+                            </NavLink>
+                            
+                            <NavLink Href="backups" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="Yedekleme Yönetimi">
+                                <i class="fa-solid fa-cloud-arrow-down w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">Yedekleme Yönetimi</span>
+                            </NavLink>
+                        </nav>
+                    </div>
+
+                    <!-- Kullanıcı / Sunucu Durumu -->
+                    <div class="cyber-profile-box">
+                        <div class="cyber-profile-flex">
+                            <div class="flex items-center gap-2.5">
+                                <img class="w-8 h-8 rounded-full border border-[#bbcabf] shadow-sm"
+                                     src="https://api.dicebear.com/7.x/bottts/svg?seed=@(context.User.Identity?.Name ?? "cpanel")" alt="Sunucu"
+                                     title="@context.User.Identity?.Name">
+                                <div class="cyber-profile-details">
+                                    <p class="text-xs font-bold text-[#0b1c30] leading-none mb-1">@context.User.Identity?.Name</p>
+                                    <p class="text-[10px] text-[#006c49] flex items-center gap-1 font-bold">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-[#006c49] animate-pulse"></span> Sunucu Aktif
+                                    </p>
+                                </div>
+                            </div>
+                            <button @onclick="HandleLogout" class="cyber-logout-btn-full text-[#3c4a42]/70 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition-colors p-1.5 rounded bg-white" title="Oturumu Kapat">
+                                <i class="fa-solid fa-sign-out-alt text-xs"></i>
+                            </button>
+                        </div>
+
+                        <button @onclick="HandleLogout" class="cyber-logout-btn-collapsed text-[#3c4a42]/70 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition-colors p-1.5 rounded bg-white mt-1" title="Oturumu Kapat">
+                            <i class="fa-solid fa-sign-out-alt text-xs"></i>
+                        </button>
+
+                        <div class="cyber-ip-details text-[10px] text-slate-500 space-y-1 pt-2 border-t border-slate-200/60 font-medium w-full mt-2">
+                            @if (!AppState.IsFcmConfigured)
+                            {
+                                <div class="p-2 mb-2 rounded-lg border flex items-center gap-2 font-bold text-[9px]" style="background: rgba(239, 68, 68, 0.06); color: #ef4444; border-color: rgba(239, 68, 68, 0.15);">
+                                    <i class="fa-solid fa-triangle-exclamation text-[10px] animate-pulse"></i>
+                                    <span>FCM SİMÜLASYON MODUNDA</span>
+                                </div>
+                            }
+                            <p class="flex items-center gap-2">
+                                <i class="fa-solid fa-server"></i> IP: 
+                                <span class="@(_showIp ? "" : "blur-sm select-none transition-all")">104.239.83.165</span>
+                                <button @onmousedown="() => _showIp = true" 
+                                        @onmouseup="() => _showIp = false" 
+                                        @onmouseleave="() => _showIp = false" 
+                                        @ontouchstart="() => _showIp = true" 
+                                        @ontouchend="() => _showIp = false" 
+                                        class="text-slate-400 hover:text-slate-600 transition-colors ml-auto" title="Göster/Gizle">
+                                    <i class="fa-solid @(_showIp ? "fa-eye-slash" : "fa-eye") text-[10px]"></i>
+                                </button>
+                            </p>
+                            <p><i class="fa-brands fa-linux mr-1"></i> Ubuntu 24.04 LTS</p>
+                            <p class="flex items-center gap-1.5">
+                                <span class="flex items-center gap-1">
+                                    <i class="fa-solid fa-code-branch text-[#006c49]"></i> Sürüm: v2.0
+                                </span>
+                                <button @onclick="CheckForPwaUpdates" class="ml-auto text-[10px] text-[#006c49] hover:text-[#10b981] transition-colors flex items-center gap-1 font-bold" title="Güncellemeleri Denetle">
+                                    <i class="fa-solid fa-rotate-right @(_checkingUpdates ? "animate-spin" : "")"></i>
+                                    <span>Denetle</span>
+                                </button>
+                            </p>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- İÇERİK ALANI -->
+                <main class="flex-grow flex flex-col h-full overflow-hidden bg-[#f8f9ff]" style="min-width: 0;">
+                    @if (_showSignalRBanner)
+                    {
+                        <div class="signalr-status-banner @(_signalRBannerSeverity)">
+                            @_signalRBannerText
+                        </div>
+                    }
+                    
+                    <!-- MASAÜSTÜ YÜZEN HAMBURGER BUTONU -->
+                    @if (!_desktopSidebarOpen)
+                    {
+                        <button @onclick="ToggleDesktopSidebar" 
+                                class="hidden md:flex fixed top-4 left-4 z-40 bg-white border border-[#bbcabf]/30 p-2.5 rounded-xl text-[#006c49] shadow-md hover:scale-[1.05] active:scale-95 transition-all items-center justify-center" 
+                                title="Menüyü Aç">
+                            <i class="fa-solid fa-bars text-sm"></i>
+                        </button>
+                    }
+
+                    <!-- MOBİL YÜZEN HAMBURGER BUTONU -->
+                    @if (!_mobileSidebarOpen)
+                    {
+                        <button @onclick="ToggleMobileSidebar" 
+                                class="flex md:hidden fixed top-4 left-4 z-40 bg-white border border-[#bbcabf]/30 p-2.5 rounded-xl text-[#006c49] shadow-md hover:scale-[1.05] active:scale-95 transition-all items-center justify-center" 
+                                title="Menüyü Aç">
+                            <i class="fa-solid fa-bars text-sm"></i>
+                        </button>
+                    }
+
+                    <!-- SAYFA İÇERİĞİ -->
+                    <div class="flex-grow @(IsWebmailPage ? "overflow-hidden h-full w-full relative" : "overflow-y-auto p-4 md:p-5") @(!_desktopSidebarOpen && !IsWebmailPage ? "pt-16 md:pt-5 md:pl-5 pl-4" : "") @(!_mobileSidebarOpen && !IsWebmailPage ? "pt-16 md:pt-5" : "")" style="min-width: 0;">
+                        @Body
+                    </div>
+                </main>
+            </div>
+        }
+
+        @if (_hasUpdate)
+        {
+            <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[9999999] flex items-center justify-center p-4 animate-fade-in">
+                <div class="glass max-w-sm w-full rounded-2xl bg-[#171a21]/95 border border-white/10 p-6 text-[#e1e2ec] shadow-2xl relative space-y-4" style="border-radius: 16px;">
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-[#006c49]/10 rounded-xl text-[#006c49] flex-shrink-0" style="border-radius: 12px;">
+                            <span class="material-symbols-outlined text-2xl animate-pulse">auto_awesome</span>
+                        </div>
+                        <div class="text-left">
+                            <h3 class="text-base font-extrabold text-white" style="margin: 0;">Yenilikler Hazır!</h3>
+                            <p class="text-[10px] text-gray-400" style="margin: 2px 0 0 0;">Yeni Sürüm Mevcut: v@_serverVersion</p>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-white/5 pt-3">
+                        <p class="text-[10px] font-bold text-gray-400 tracking-wider uppercase mb-1.5" style="text-align: left;">Neler Değişti?</p>
+                        <div class="bg-white/5 border border-white/5 p-3 rounded-lg max-h-32 overflow-y-auto webmail-scroll font-mono text-[10.5px] leading-relaxed text-gray-300 text-left" style="white-space: pre-wrap; word-break: break-all; border-radius: 8px;">
+                            @_changelog
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-2">
+                        <button @onclick='() => _hasUpdate = false' disabled="@_downloadingUpdate"
+                                class="flex-1 text-xs font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2 rounded-xl transition-all" style="border-radius: 8px;">
+                            Sonra Hatırlat
+                        </button>
+                        <button @onclick="StartUpdateAsync" disabled="@_downloadingUpdate"
+                                class="flex-1 text-xs font-bold text-white bg-[#006c49] hover:bg-[#006c49]/90 py-2 rounded-xl transition-all shadow-lg shadow-[#006c49]/20 flex items-center justify-center gap-2" style="border-radius: 8px;">
+                            @if (_downloadingUpdate)
+                            {
+                                <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <span>İndiriliyor...</span>
+                            }
+                            else
+                            {
+                                <span class="material-symbols-outlined text-sm">download</span>
+                                <span>Güncelle</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <div style="background-color: #05030f; min-height: 100vh;">
+            @Body
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+}
+
+@code {
+    private string _editServerUrl = "";
+    private bool _isRetryingConnection = false;
+
+    private async Task HandleRetryConnection()
+    {
+        if (_isRetryingConnection) return;
+        _isRetryingConnection = true;
+        StateHasChanged();
+        
+        try
+        {
+            await AppState.ForceReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Yeniden bağlantı denemesi başarısız oldu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isRetryingConnection = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleSaveAndReconnect()
+    {
+        if (string.IsNullOrWhiteSpace(_editServerUrl))
+        {
+            Snackbar.Add("Sunucu adresi boş olamaz!", Severity.Warning);
+            return;
+        }
+        
+        try
+        {
+            if (PlatformInfo.SaveServerUrlFunc != null)
+            {
+                await PlatformInfo.SaveServerUrlFunc(_editServerUrl.Trim());
+                Snackbar.Add("Sunucu adresi güncellendi! Yeniden bağlanılıyor...", Severity.Success);
+                await Task.Delay(1000);
+                await JSRuntime.InvokeVoidAsync("location.reload");
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Sunucu adresi kaydedilemedi: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private bool _hasUpdate = false;
+    private string _serverVersion = "";
+    private string _changelog = "";
+    private bool _downloadingUpdate = false;
+
+    private class VersionResponse
+    {
+        public string Version { get; set; } = "1.0.0";
+        public bool ApkAvailable { get; set; }
+        public string? Changelog { get; set; }
+    }
+
+    private bool _showMoreMenu = false;
+    private bool _showPanicModal = false;
+    private bool _isExecutingPanic = false;
+    private int _notifUnreadCount => AppState.NotificationUnreadCount;
+    private System.Threading.Timer? _notifRefreshTimer;
+
+    private void ToggleMoreMenu()
+    {
+        _showMoreMenu = !_showMoreMenu;
+        if (_showMoreMenu)
+        {
+            _ = Task.Run(async () => {
+                await Task.Delay(150);
+                try {
+                    await JSRuntime.InvokeVoidAsync("setupBottomSheetSwipe");
+                } catch {}
+            });
+        }
+        StateHasChanged();
+    }
+
+    private void PromptPanicStop()
+    {
+        _showMoreMenu = false;
+        _showPanicModal = true;
+        StateHasChanged();
+    }
+
+    private async Task ExecutePanicStopAsync()
+    {
+        _isExecutingPanic = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsync("api/projects/panic-stop", null);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<PanicResponse>();
+                Snackbar.Add(result?.Message ?? "Tüm sistem başarıyla kilitlendi ve durduruldu!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Acil durdurma tetiklenirken hata oluştu!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isExecutingPanic = false;
+            _showPanicModal = false;
+            StateHasChanged();
+        }
+    }
+
+    private class PanicResponse
+    {
+        public string Message { get; set; } = string.Empty;
+    }
+
+    private void NavigateToMobilePage(string url)
+    {
+        _showMoreMenu = false;
+        NavigationManager.NavigateTo(url);
+    }
+
+    private bool _checkingUpdates = false;
+
+    private async Task CheckForPwaUpdates()
+    {
+        if (_checkingUpdates) return;
+        _checkingUpdates = true;
+        StateHasChanged();
+
+        try
+        {
+            await Task.Delay(800); // Premium micro-interaction feel
+            
+            var result = await JSRuntime.InvokeAsync<string>("checkForPwaUpdates");
+            if (result == "updated")
+            {
+                Snackbar.Add("Yeni güncelleme uygulandı! Sayfa yenileniyor...", Severity.Success);
+                await Task.Delay(800);
+                await JSRuntime.InvokeVoidAsync("location.reload");
+            }
+            else if (result == "installing")
+            {
+                Snackbar.Add("Yeni sürüm indiriliyor... Lütfen bekleyin.", Severity.Info);
+            }
+            else if (result == "up-to-date")
+            {
+                Snackbar.Add("Uygulama zaten en son sürümde (v2.0).", Severity.Success);
+            }
+            else if (result == "no-sw")
+            {
+                Snackbar.Add("Hızlı önbellek aktif değil. Sayfayı yenileyerek deneyebilirsiniz.", Severity.Warning);
+            }
+            else
+            {
+                Snackbar.Add("Güncelleme bu tarayıcıda desteklenmiyor veya sunucuya erişilemiyor.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Güncelleme kontrolü başarısız: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _checkingUpdates = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool IsWebmailPage => NavigationManager.ToBaseRelativePath(NavigationManager.Uri).StartsWith("webmail", StringComparison.OrdinalIgnoreCase);
+    private int _containerCount = 0;
+    private int _unreadMailCount = 0;
+    private double _topCpu = 12.5;
+    private double _topRam = 42.1;
+    private bool _desktopSidebarOpen = true;
+    private bool _mobileSidebarOpen = false;
+    private bool _showIp = false;
+    private System.Threading.Timer? _simTimer;
+    private bool _lastSignalRConnected;
+    private bool _hasConnectedOnce = false;
+    private bool _showSignalRBanner;
+    private string _signalRBannerSeverity = "warning";
+    private string _signalRBannerText = "";
+    private int _signalRBannerVersion;
+
+    private async Task StartUpdateAsync()
+    {
+        if (PlatformInfo.TriggerApkInstallFunc == null) return;
+        _downloadingUpdate = true;
+        StateHasChanged();
+
+        try
+        {
+            var success = await PlatformInfo.TriggerApkInstallFunc(_serverVersion);
+            if (!success)
+            {
+                Snackbar.Add("Güncelleme paketi indirilirken veya başlatılırken hata oluştu.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Güncelleme hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _downloadingUpdate = false;
+            _hasUpdate = false;
+            StateHasChanged();
+        }
+    }
+
+    private string CurrentPageTitle => NavigationManager.ToBaseRelativePath(NavigationManager.Uri) switch
+    {
+        "" => "Genel Bakış",
+        "containers" => "Konteyner Yönetimi",
+        "domains" => "Domain / DNS / SSL",
+        "deploy-wizard" => "Dağıtım Sihirbazı",
+        "firewall" => "Güvenlik & Duvar",
+        "databases" => "Veritabanı",
+        "email" => "E-Posta Sunucusu",
+        "webmail" => "Webmail İstemcisi",
+        "terminal" => "Canlı Log Akışı",
+        _ => "Kontrol Paneli"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _lastSignalRConnected = AppState.IsSignalRConnected;
+        AppState.OnStateChanged += HandleAppStateChanged;
+        DeepLinkService.OnDeepLinkReceived += HandleDeepLinkReceived;
+
+        // Process pending deep link from App Shortcuts (Cold Start fix)
+        if (!string.IsNullOrEmpty(DeepLinkService.PendingDeepLinkPath))
+        {
+            var path = DeepLinkService.PendingDeepLinkPath;
+            DeepLinkService.PendingDeepLinkPath = null;
+            HandleDeepLinkReceived(path);
+        }
+
+        // Cihaz algılaması MAUI Hybrid App tarafından DI ile enjekte edilir. Web panelinde responsive masaüstü görünümü korunur.
+
+        // Mobil uygulamada her durumda sunucu bağlantısını doğrula (ki bağlantı yoksa hata ekranı gelsin)
+        if (PlatformInfo.IsMobileApp)
+        {
+            _ = AppState.InitializeAsync();
+            
+            // Editör URL'sini yükle
+            if (PlatformInfo.GetServerUrlFunc != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    _editServerUrl = await PlatformInfo.GetServerUrlFunc();
+                    await InvokeAsync(StateHasChanged);
+                });
+            }
+        }
+
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            // Eşzamanlı global ön-yüklemeyi (pre-fetching) başlat
+            if (!PlatformInfo.IsMobileApp)
+            {
+                _ = AppState.InitializeAsync();
+            }
+            _ = LoadSidebarStats();
+            // Mobil bildirim sayacını yükle ve her 30sn yenile
+            if (PlatformInfo.IsMobileApp)
+            {
+                _ = LoadNotifUnreadCount();
+                _notifRefreshTimer = new System.Threading.Timer(
+                    async _ => { await LoadNotifUnreadCount(); },
+                    null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+            }
+        }
+        else
+        {
+            // Oturum açılmamışsa, yükleme ekranını derhal kaldır (ki giriş sayfası görünebilsin)
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("window.hideLoader");
+            }
+            catch {}
+        }
+
+        if (PlatformInfo.IsMobileApp)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(3000); // Smooth delay
+                    var response = await Http.GetFromJsonAsync<VersionResponse>("api/downloads/version");
+                    if (response?.ApkAvailable == true &&
+                        Version.TryParse(response.Version, out var serverVer) &&
+                        Version.TryParse(PlatformInfo.LocalVersion, out var localVer))
+                    {
+                        if (serverVer > localVer)
+                        {
+                            _serverVersion = response.Version;
+                            _changelog = response.Changelog ?? "Hata düzeltmeleri ve iyileştirmeler.";
+                            _hasUpdate = true;
+                            await InvokeAsync(StateHasChanged);
+                        }
+                    }
+                }
+                catch {}
+            });
+        }
+
+        // Start metric simulation loop
+        _simTimer = new System.Threading.Timer((state) =>
+        {
+            InvokeAsync(() =>
+            {
+                var rand = new Random();
+                _topCpu = Math.Round(8.0 + rand.NextDouble() * 12.0, 1);
+                _topRam = Math.Round(35.0 + rand.NextDouble() * 8.0, 1);
+                StateHasChanged();
+            });
+        }, null, 0, 3000);
+
+    }
+
+    private void HandleAppStateChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await InvokeAsync(StateHasChanged);
+
+            if (AppState.IsSignalRConnected == _lastSignalRConnected)
+            {
+                return;
+            }
+
+            _lastSignalRConnected = AppState.IsSignalRConnected;
+            var version = ++_signalRBannerVersion;
+
+            if (AppState.IsSignalRConnected)
+            {
+                if (!_hasConnectedOnce)
+                {
+                    _hasConnectedOnce = true;
+                    return;
+                }
+
+                _signalRBannerSeverity = "success";
+                _signalRBannerText = "Baglanti yeniden kuruldu";
+                _showSignalRBanner = true;
+                Snackbar.Add("Baglanti yeniden kuruldu", Severity.Success);
+                StateHasChanged();
+
+                await Task.Delay(2500);
+                if (version == _signalRBannerVersion)
+                {
+                    _showSignalRBanner = false;
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                _signalRBannerSeverity = "warning";
+                _signalRBannerText = "Canli veri baglantisi kesildi, yeniden baglaniliyor...";
+                _showSignalRBanner = true;
+                Snackbar.Add("Canli veri baglantisi kesildi, yeniden baglaniliyor...", Severity.Warning);
+                StateHasChanged();
+            }
+        });
+    }
+
+    private async Task LoadSidebarStats()
+    {
+        try
+        {
+            using var cts = new System.Threading.CancellationTokenSource(3500);
+
+            var containersTask = Http.GetFromJsonAsync<List<ContainerDto>>("api/projects", cts.Token);
+            var mailAccountsTask = Http.GetFromJsonAsync<List<MailAccountDto>>("api/mail", cts.Token);
+
+            await Task.WhenAll(containersTask, mailAccountsTask);
+
+            var containers = await containersTask;
+            _containerCount = containers?.Count ?? 0;
+
+            var mailAccounts = await mailAccountsTask;
+            _unreadMailCount = 0;
+
+            var unreadTasks = (mailAccounts ?? new List<MailAccountDto>())
+                .Take(10)
+                .Select(LoadUnreadCountAsync)
+                .ToList();
+
+            var unreadCounts = await Task.WhenAll(unreadTasks);
+            _unreadMailCount = unreadCounts.Sum();
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            _containerCount = 0;
+            _unreadMailCount = 0;
+        }
+    }
+
+    private async Task<int> LoadUnreadCountAsync(MailAccountDto account)
+    {
+        try
+        {
+            using var ctsMail = new System.Threading.CancellationTokenSource(2500);
+            var mails = await Http.GetFromJsonAsync<List<MailItemDto>>($"api/mail/{Uri.EscapeDataString(account.EmailAddress)}/emails?folder=inbox&take=50", ctsMail.Token);
+            return mails?.Count(m => !m.IsRead) ?? 0;
+        }
+        catch
+        {
+            // Ignore mailbox-level read errors; the email page will show the detailed failure.
+            return 0;
+        }
+    }
+
+    private void ToggleDesktopSidebar()
+    {
+        _desktopSidebarOpen = !_desktopSidebarOpen;
+    }
+
+    private void ToggleMobileSidebar()
+    {
+        _mobileSidebarOpen = !_mobileSidebarOpen;
+    }
+
+    private void CloseMobileSidebar()
+    {
+        _mobileSidebarOpen = false;
+    }
+
+    private async Task HandleLogout()
+    {
+        if (_simTimer != null)
+        {
+            await _simTimer.DisposeAsync();
+        }
+        AppState.Reset();
+        await AuthProvider.LogoutAsync();
+        NavigationManager.NavigateTo("/login", replace: true);
+    }
+
+    private void HandleDeepLinkReceived(string path)
+    {
+        InvokeAsync(() =>
+        {
+            try
+            {
+                NavigationManager.NavigateTo(path);
+                Snackbar.Add($"Sayfaya yönlendiriliyor: {path}", Severity.Info);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Deep link yönlendirme hatası: {ex.Message}", Severity.Error);
+            }
+        });
+    }
+
+    private async Task LoadNotifUnreadCount()
+    {
+        try
+        {
+            using var cts = new System.Threading.CancellationTokenSource(3000);
+            var result = await Http.GetFromJsonAsync<UnreadCountDto>("api/notifications/unread-count", cts.Token);
+            if (result != null && result.Count != AppState.NotificationUnreadCount)
+            {
+                AppState.UpdateNotificationUnreadCount(result.Count);
+            }
+        }
+        catch { /* Sessizce geç — sayaç kritik değil */ }
+    }
+
+    public void Dispose()
+    {
+        AppState.OnStateChanged -= HandleAppStateChanged;
+        DeepLinkService.OnDeepLinkReceived -= HandleDeepLinkReceived;
+        _simTimer?.Dispose();
+        _notifRefreshTimer?.Dispose();
+    }
+
+    // Lightweight inline DTO for container query
+    private class ContainerDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+    }
+
+    private class MailAccountDto
+    {
+        public string EmailAddress { get; set; } = string.Empty;
+    }
+
+    private class MailItemDto
+    {
+        public bool IsRead { get; set; }
+    }
+
+    private class UnreadCountDto
+    {
+        public int Count { get; set; }
+    }
+}

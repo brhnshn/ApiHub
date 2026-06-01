@@ -1,0 +1,115 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+	<PropertyGroup>
+		<TargetFrameworks>net8.0-android</TargetFrameworks>
+		<OutputType>Exe</OutputType>
+		<RootNamespace>DockerPanel.Mobile</RootNamespace>
+		<SingleProject>true</SingleProject>
+		<UseMaui>true</UseMaui>
+		<UseMauiEssentials>true</UseMauiEssentials>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<NullabilityInfoContextSupport>true</NullabilityInfoContextSupport>
+		<EmbedAssembliesIntoApk Condition="'$(Configuration)' == 'Debug'">true</EmbedAssembliesIntoApk>
+
+		<!-- Display name -->
+		<ApplicationTitle>ApiHub</ApplicationTitle>
+
+		<!-- App Identifier -->
+		<ApplicationId>com.burhansahin.apihub</ApplicationId>
+		<ApplicationIdGuid>d3b07384-ad38-4f2b-8a21-9988fc0bb44d</ApplicationIdGuid>
+
+		<!-- Versions -->
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>1</ApplicationVersion>
+
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">26.0</SupportedOSPlatformVersion>
+		<SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
+		<CheckEolWorkloads>false</CheckEolWorkloads>
+		<DockerPanelClientProject>$(MSBuildThisFileDirectory)..\DockerPanel.Client\DockerPanel.Client.csproj</DockerPanelClientProject>
+		<DockerPanelClientOutput>$(MSBuildThisFileDirectory)..\DockerPanel.Client\bin\$(Configuration)\net8.0\DockerPanel.Client.dll</DockerPanelClientOutput>
+		<DockerPanelClientBuildStamp>$(MSBuildProjectDirectory)\obj\$(Configuration)\dockerpanel-client-build.stamp</DockerPanelClientBuildStamp>
+	</PropertyGroup>
+
+	<!-- Release Mode Size & Performance Optimizations -->
+	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
+		<RuntimeIdentifier>android-arm64</RuntimeIdentifier>
+		
+		<!-- 2. Kod Kırpma (Trimming):
+		     Kullanılmayan framework ve .NET sınıflarını temizler. MudBlazor reflection kullandığı için 
+		     'partial' (sadece SDK kütüphaneleri) en güvenli ve etkili yöntemdir. -->
+		<PublishTrimmed>true</PublishTrimmed>
+		<TrimMode>partial</TrimMode>
+		<AndroidLinkMode>SdkOnly</AndroidLinkMode>
+		
+		<!-- 3. LLVM Derleyici Optimizasyonu:
+		     C# kodunu makine diline derlerken LLVM kullanarak hem hızı artırır hem de boyutu optimize eder. -->
+		<AndroidUseLlvm>true</AndroidUseLlvm>
+		
+		<!-- 4. Hızlı Başlangıç & Performans Optimizasyonları -->
+		<AndroidEnableProfileguidedOptimization>true</AndroidEnableProfileguidedOptimization>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- App Icon -->
+		<MauiIcon Include="Resources\AppIcon\appicon.png" />
+
+		<!-- Splash Screen -->
+		<MauiSplashScreen Include="Resources\Splash\splash.png" Color="#05030F" BaseSize="128,128" />
+
+		<!-- Raw Assets (e.g. google-services.json) -->
+		<MauiAsset Include="Resources\Raw\*" />
+
+		<MauiAsset Include="..\DockerPanel.Client\wwwroot\ApiHub.jpg" Link="wwwroot\ApiHub.jpg" />
+		<MauiAsset Include="..\DockerPanel.Client\wwwroot\favicon.ico" Link="wwwroot\favicon.ico" />
+		<MauiAsset Include="..\DockerPanel.Client\wwwroot\favicon.png" Link="wwwroot\favicon.png" />
+		<MauiAsset Include="..\DockerPanel.Client\wwwroot\icon-192.png" Link="wwwroot\icon-192.png" />
+		<MauiAsset Include="..\DockerPanel.Client\wwwroot\icon-512.png" Link="wwwroot\icon-512.png" />
+		<MauiAsset Include="..\DockerPanel.Client\wwwroot\manifest.json" Link="wwwroot\manifest.json" />
+		<MauiAsset Include="..\DockerPanel.Client\wwwroot\css\**\*" Link="wwwroot\css\%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<DockerPanelClientBuildInput Include="$(DockerPanelClientProject)" />
+		<DockerPanelClientBuildInput Include="$(MSBuildThisFileDirectory)..\DockerPanel.Client\**\*.cs" />
+		<DockerPanelClientBuildInput Include="$(MSBuildThisFileDirectory)..\DockerPanel.Client\**\*.razor" />
+		<DockerPanelClientBuildInput Include="$(MSBuildThisFileDirectory)..\DockerPanel.Client\wwwroot\**\*" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="8.0.82" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="8.0.12" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
+		<PackageReference Include="MudBlazor" Version="9.4.0" />
+		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.8" />
+		<PackageReference Include="Xamarin.Firebase.Messaging" Version="124.1.1.1" />
+		<PackageReference Include="Xamarin.AndroidX.Activity.Ktx" Version="1.10.1.1" />
+		<PackageReference Include="Xamarin.AndroidX.Collection.Ktx" Version="1.5.0.1" />
+		<PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData.Core.Ktx" Version="2.8.7.3" />
+		<PackageReference Include="Xamarin.AndroidX.Lifecycle.Runtime.Ktx" Version="2.8.7.3" />
+		<PackageReference Include="Xamarin.AndroidX.Lifecycle.ViewModel.Ktx" Version="2.8.7.3" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="DockerPanel.Client">
+			<HintPath>$(DockerPanelClientOutput)</HintPath>
+		</Reference>
+		<ProjectReference Include="..\DockerPanel.Domain\DockerPanel.Domain.csproj" />
+	</ItemGroup>
+
+	<Target Name="BuildClientForMaui"
+	        BeforeTargets="ResolveAssemblyReferences"
+	        Condition="'$(RuntimeIdentifier)' == ''"
+	        Inputs="@(DockerPanelClientBuildInput)"
+	        Outputs="$(DockerPanelClientOutput);$(DockerPanelClientBuildStamp)">
+		<MakeDir Directories="$(MSBuildProjectDirectory)\obj\$(Configuration)" />
+		<Exec Command="dotnet build &quot;$(DockerPanelClientProject)&quot; -c $(Configuration) -f net8.0 -p:CheckEolWorkloads=false -m:1" />
+		<Touch Files="$(DockerPanelClientBuildStamp)" AlwaysCreate="true" />
+	</Target>
+
+	<!-- Google Firebase Config File Build Action -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<GoogleServicesJson Include="Platforms\Android\google-services.json" />
+	</ItemGroup>
+
+</Project>

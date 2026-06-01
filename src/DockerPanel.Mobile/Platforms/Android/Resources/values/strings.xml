@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="shortcut_containers_short">Konteynerler</string>
+  <string name="shortcut_containers_long">Konteyner Yonetimi</string>
+  <string name="shortcut_terminal_short">Terminal</string>
+  <string name="shortcut_terminal_long">Canli Terminal</string>
+  <string name="shortcut_databases_short">Veritabanlari</string>
+  <string name="shortcut_databases_long">Veritabani Yonetimi</string>
+</resources>

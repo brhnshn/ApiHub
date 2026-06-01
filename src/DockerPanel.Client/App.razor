@@ -1,0 +1,73 @@
+@inject IJSRuntime JSRuntime
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <RedirectToLogin />
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Sayfa Bulunamadı</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <div style="text-align: center; padding: 48px; color: #ef4444;">
+                    <h1 style="font-weight: 700; font-size: 3rem; margin-bottom: 16px;">404</h1>
+                    <p style="color: #64748b; font-size: 1.2rem;">Aradığınız sayfa mevcut değil veya yetkiniz yok.</p>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+
+<MudThemeProvider Theme="_theme" IsDarkMode="false" />
+<MudPopoverProvider />
+<MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.Small" CloseButton="true" BackdropClick="false" />
+<MudSnackbarProvider />
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("hideLoader");
+        }
+        catch
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("window.hideLoader");
+            }
+            catch
+            {
+                // Host pages without a boot loader can ignore this.
+            }
+        }
+    }
+
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#006c49", // Birincil Zümrüt Yeşili
+            Secondary = "#6366f1", // Indigo
+            Success = "#10b981", // Siber Zümrüt (Sağlıklı Servisler)
+            Error = "#be123c", // Asil Yakut (Tehlike/Durdurulan Servisler)
+            Background = "#f8f9ff", // Açık Mavi-Gri Genel Arka Plan
+            Surface = "#ffffff", // Saf Beyaz Kart Arka Planı
+            AppbarBackground = "#ffffff", // Saf Beyaz
+            TextPrimary = "#0b1c30", // Koyu Lacivert Ana Metin
+            TextSecondary = "#3c4a42", // Muted Yeşil-Slate
+            DrawerBackground = "#eff4ff", // Açık Mavi-Gri Alt Arka Plan
+            Divider = "rgba(187, 202, 191, 0.4)", // Yumuşak Yeşil-Gri Çerçeve
+            ActionDefault = "#006c49"
+        }
+    };
+}
