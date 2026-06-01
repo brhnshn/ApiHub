@@ -492,5 +492,5 @@ appsettings.Local.json
 # Environment variable files (contains real secrets)
 .env
 
-# Orphan / temp files
-index.html
+# Orphan / temp files (sadece kok dizindeki index.html)
+/index.html

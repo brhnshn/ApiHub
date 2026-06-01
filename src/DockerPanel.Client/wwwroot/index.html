@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ApiHub - Modern Kontrol Paneli</title>
+    <base href="/" />
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        window.tailwind = window.tailwind || {};
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface-variant": "#bbcabf",
+                        "primary": "#4edea3",
+                        "tertiary": "#89ceff",
+                        "inverse-surface": "#dde4dd",
+                        "surface-container-lowest": "#09100c",
+                        "surface-bright": "#343b36",
+                        "inverse-primary": "#006c49",
+                        "on-background": "#dde4dd",
+                        "surface-variant": "#2f3632",
+                        "inverse-on-surface": "#2b322d",
+                        "on-primary-fixed-variant": "#005236",
+                        "outline-variant": "#3c4a42",
+                        "primary-fixed-dim": "#4edea3",
+                        "on-secondary": "#1000a9",
+                        "error-container": "#93000a",
+                        "secondary-container": "#3131c0",
+                        "background": "#0e1511",
+                        "tertiary-fixed": "#c9e6ff",
+                        "on-tertiary-container": "#003d59",
+                        "secondary": "#c0c1ff",
+                        "surface": "#0e1511",
+                        "tertiary-container": "#23acf1",
+                        "on-secondary-fixed-variant": "#2f2ebe",
+                        "secondary-fixed-dim": "#c0c1ff",
+                        "surface-container": "#1a211d",
+                        "surface-tint": "#4edea3",
+                        "error": "#ffb4ab",
+                        "on-surface": "#dde4dd",
+                        "primary-fixed": "#6ffbbe",
+                        "on-primary": "#003824",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-low": "#161d19",
+                        "surface-dim": "#0e1511",
+                        "on-tertiary": "#00344d",
+                        "on-secondary-fixed": "#07006c",
+                        "outline": "#86948a",
+                        "on-error": "#690005",
+                        "on-primary-container": "#00422b",
+                        "tertiary-fixed-dim": "#89ceff",
+                        "on-tertiary-fixed": "#001e2f",
+                        "surface-container-highest": "#2f3632",
+                        "surface-container-high": "#242c27",
+                        "on-tertiary-fixed-variant": "#004c6e",
+                        "primary-container": "#10b981",
+                        "secondary-fixed": "#e1e0ff",
+                        "on-secondary-container": "#b0b2ff",
+                        "on-primary-fixed": "#002113"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "content_padding": "1.5rem",
+                        "sidebar_width": "260px",
+                        "gutter": "16px",
+                        "list_width": "400px",
+                        "container_gap": "1rem"
+                    },
+                    fontFamily: {
+                        "headline-md": ["Outfit"],
+                        "body-lg": ["Outfit"],
+                        "display-lg": ["Outfit"],
+                        "title-lg": ["Outfit"],
+                        "headline-lg": ["Outfit"],
+                        "body-md": ["Outfit"],
+                        "label-md": ["Outfit"],
+                        "metadata": ["Outfit"]
+                    }
+                }
+            }
+        };
+    </script>
+    
+    <!-- Material Symbols Outlined -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Premium Google Fonts (Outfit, Inter & Fira Code) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+    
+    <!-- MudBlazor Styles -->
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/app.css?v=2.0" />
+    <link rel="icon" type="image/jpeg" href="ApiHub.jpg?v=3.0" />
+    <link href="DockerPanel.Client.styles.css" rel="stylesheet" />
+    <link href="manifest.json?v=4.0" rel="manifest" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png?v=3.0" />
+    
+    <style>
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse-soft {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
+        }
+
+        @keyframes neon-glow {
+          0%, 100% { text-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3); }
+          50% { text-shadow: 0 0 15px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.5); }
+        }
+
+        .animate-spin-slow {
+          animation: spin-slow 3s linear infinite;
+        }
+
+        .animate-pulse-soft {
+          animation: pulse-soft 2s ease-in-out infinite;
+        }
+
+        .neon-text-glow {
+          animation: neon-glow 2s ease-in-out infinite;
+        }
+
+        /* Deep radial gradient and cyber grid pattern */
+        .bg-cyber-blue {
+          background: radial-gradient(circle at center, #0a0f1a 0%, #000000 100%);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .cyber-grid {
+          position: absolute;
+          inset: 0;
+          background-image: 
+            linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+          background-size: 50px 50px;
+          pointer-events: none;
+        }
+        
+        /* Vignette effect for depth */
+        .vignette {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+          pointer-events: none;
+        }
+
+        /* Smooth loader transition classes */
+        #app-loading-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 99999;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          color: #dde4dd;
+          transition: opacity 0.65s ease, transform 0.65s ease;
+        }
+
+        #app-loading-overlay [data-purpose="central-loader-group"] {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+
+        #app-loading-overlay .loader-shell {
+          position: relative;
+          width: 14rem;
+          height: 14rem;
+          margin-bottom: 2rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        #app-loading-overlay .loader-ring-outer,
+        #app-loading-overlay .loader-ring-primary,
+        #app-loading-overlay .loader-ring-secondary,
+        #app-loading-overlay [data-purpose="logo-wrapper"] {
+          position: absolute;
+          border-radius: 9999px;
+        }
+
+        #app-loading-overlay .loader-ring-outer {
+          width: 11rem;
+          height: 11rem;
+          border: 1px solid rgba(59, 130, 246, 0.1);
+          box-shadow: 0 0 50px rgba(59, 130, 246, 0.15);
+        }
+
+        #app-loading-overlay .loader-ring-primary {
+          width: 14rem;
+          height: 14rem;
+          border-top: 2px solid #3b82f6;
+          border-left: 2px solid #3b82f6;
+          box-shadow: 0 0 15px #3b82f6;
+          animation: spin-slow 3s linear infinite;
+        }
+
+        #app-loading-overlay .loader-ring-secondary {
+          width: 12.5rem;
+          height: 12.5rem;
+          border-bottom: 1px solid rgba(59, 130, 246, 0.4);
+          animation: spin-slow 4s linear infinite reverse;
+        }
+
+        #app-loading-overlay [data-purpose="logo-wrapper"] {
+          width: 9rem;
+          height: 9rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          background: #090c15;
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        }
+
+        #app-loading-overlay [data-purpose="logo-wrapper"] img {
+          width: 88%;
+          height: 88%;
+          object-fit: contain;
+          border-radius: 9999px;
+        }
+
+        #app-loading-overlay [data-purpose="text-branding"] {
+          position: relative;
+          z-index: 1;
+          text-align: center;
+        }
+
+        #app-loading-overlay .loader-status {
+          margin: 0;
+          font-size: 0.75rem;
+          font-weight: 600;
+          letter-spacing: 0.42em;
+          text-transform: uppercase;
+          color: rgba(59, 130, 246, 0.78);
+          animation: pulse-soft 2s ease-in-out infinite;
+        }
+
+        .loader-reveal-circle {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 9rem;
+          height: 9rem;
+          border-radius: 9999px;
+          background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, #0a0f1a 42%, #000 100%);
+          transform: translate(-50%, -50%) scale(0);
+          opacity: 0;
+          pointer-events: none;
+          z-index: 2;
+        }
+
+        .loader-hidden {
+          opacity: 0 !important;
+          transform: scale(1.02) !important;
+          pointer-events: none !important;
+        }
+
+        .loader-hidden .loader-reveal-circle {
+          animation: loader-circle-reveal 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        .loader-hidden [data-purpose="central-loader-group"],
+        .loader-hidden .cyber-grid,
+        .loader-hidden .vignette {
+          opacity: 0;
+          transition: opacity 0.35s ease;
+        }
+
+        @keyframes loader-circle-reveal {
+          0% {
+            opacity: 0.95;
+            transform: translate(-50%, -50%) scale(0.35);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(32);
+          }
+        }
+    </style>
+</head>
+
+<body style="font-family: 'Outfit', sans-serif;">
+    <div id="app"></div>
+
+    <!-- BEGIN: LoadingContainer -->
+    <main id="app-loading-overlay" class="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-cyber-blue transition-all duration-[600ms] ease-out" data-purpose="loading-screen-container">
+        <div class="loader-reveal-circle"></div>
+        <!-- Decorative background elements -->
+        <div class="cyber-grid"></div>
+        <div class="vignette"></div>
+        <!-- BEGIN: CentralVisuals -->
+        <div class="relative flex flex-col items-center justify-center" data-purpose="central-loader-group">
+            <!-- Loader Ring Structure -->
+            <div class="loader-shell relative flex items-center justify-center mb-8 w-56 h-56">
+                <!-- Outer Glowing Ring (Static) -->
+                <div class="loader-ring-outer absolute w-44 h-44 rounded-full border border-[#3b82f6]/10 shadow-[0_0_50px_rgba(59,130,246,0.15)]"></div>
+                <!-- Spinning Progress Indicator -->
+                <div class="loader-ring-primary absolute w-56 h-56 rounded-full border-t-2 border-l-2 border-[#3b82f6] shadow-[0_0_15px_#3b82f6] animate-spin-slow"></div>
+                <!-- Secondary Spinning Ring (Opposite) -->
+                <div class="loader-ring-secondary absolute w-50 h-50 rounded-full border-b border-[#3b82f6]/40 animate-[spin_4s_linear_infinite_reverse]"></div>
+                <!-- Central Logo Container -->
+                <div class="absolute w-36 h-36 flex items-center justify-center bg-[#090c15] rounded-full border border-[#3b82f6]/30 overflow-hidden shadow-2xl" data-purpose="logo-wrapper">
+                    <img alt="ApiHub Logo" class="w-[88%] h-[88%] object-contain rounded-full" src="ApiHub.jpg">
+                </div>
+            </div>
+            <!-- Text Elements -->
+            <div class="text-center z-10" data-purpose="text-branding">
+                <!-- Status Text -->
+                <div class="flex flex-col items-center">
+                    <p class="loader-status text-[10px] md:text-xs font-medium tracking-[0.5em] text-[#3b82f6]/70 animate-pulse-soft uppercase">
+                        Sistem Yükleniyor...
+                    </p>
+                    <!-- Technical Detail (Optional flavor text) -->
+                    <div class="mt-8 flex gap-2 items-center opacity-30">
+                        <div class="w-1 h-1 bg-[#3b82f6] rounded-full"></div>
+                        <div class="w-1 h-1 bg-[#3b82f6] rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- END: CentralVisuals -->
+        <!-- Corner Technical Accents -->
+        <div class="absolute top-8 left-8 border-l border-t border-[#3b82f6]/20 w-12 h-12 pointer-events-none"></div>
+        <div class="absolute top-8 right-8 border-r border-t border-[#3b82f6]/20 w-12 h-12 pointer-events-none"></div>
+        <div class="absolute bottom-8 left-8 border-l border-b border-[#3b82f6]/20 w-12 h-12 pointer-events-none"></div>
+        <div class="absolute bottom-8 right-8 border-r border-b border-[#3b82f6]/20 w-12 h-12 pointer-events-none"></div>
+    </main>
+    <!-- END: LoadingContainer -->
+
+    <div id="blazor-error-ui">
+        Beklenmeyen bir hata oluştu.
+        <a href="" class="reload">Yeniden Yükle</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <!-- MudBlazor and Blazor framework scripts -->
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        window.__dockerPanelLoaded = false;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                if (window.__dockerPanelLoaded) {
+                    return;
+                }
+
+                const loader = document.getElementById('app-loading-overlay');
+                const app = document.getElementById('app');
+                if (loader && app && app.childElementCount > 0) {
+                    window.hideLoader();
+                }
+            }, 8000);
+        });
+
+        // Force-clear all cached service worker assets once to load the new assemblies
+        if (localStorage.getItem('pwa_cache_cleared_v5') !== 'true') {
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    for (let name of names) caches.delete(name);
+                }).then(() => {
+                    localStorage.setItem('pwa_cache_cleared_v5', 'true');
+                    console.log("PWA Cache successfully cleared to prevent NullabilityInfoContext issues.");
+                    location.reload();
+                });
+            } else {
+                localStorage.setItem('pwa_cache_cleared_v5', 'true');
+            }
+        }
+
+        window.hideLoader = () => {
+            window.__dockerPanelLoaded = true;
+            const loader = document.getElementById('app-loading-overlay');
+            if (loader) {
+                loader.classList.add('loader-hidden');
+                setTimeout(() => {
+                    loader.remove();
+                }, 650);
+            }
+        };
+
+        window.checkForPwaUpdates = () => {
+            return new Promise(async (resolve) => {
+                if (!('serviceWorker' in navigator)) {
+                    resolve("not-supported");
+                    return;
+                }
+                try {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    if (regs.length === 0) {
+                        resolve("no-sw");
+                        return;
+                    }
+
+                    const reg = regs[0];
+
+                    // Bekleyen bir güncelleme zaten varsa hemen bildir
+                    if (reg.waiting) {
+                        resolve("updated");
+                        return;
+                    }
+
+                    // Yüklenmekte olan güncelleme varsa
+                    if (reg.installing) {
+                        resolve("installing");
+                        return;
+                    }
+
+                    // Sunucuya gidip gerçekten yeni sürüm var mı kontrol et
+                    await reg.update();
+
+                    // update() sonrası tekrar kontrol et
+                    if (reg.waiting) {
+                        resolve("updated");
+                    } else if (reg.installing) {
+                        resolve("installing");
+                    } else {
+                        resolve("up-to-date");
+                    }
+                } catch (e) {
+                    console.error("PWA update check failed:", e);
+                    resolve("error");
+                }
+            });
+        };
+
+        navigator.serviceWorker.register('service-worker.js').then(reg => {
+            // Eğer bekleyen bir güncelleme varsa hemen göster
+            if (reg.waiting) {
+                showUpdateNotification(reg.waiting);
+            }
+
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                if (newWorker) {
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            showUpdateNotification(newWorker);
+                        }
+                    });
+                }
+            });
+
+            // Aktif olarak her açılışta güncelleme denetimi yap
+            reg.update().catch(err => console.log("SW active update check skipped:", err));
+        });
+
+        function showUpdateNotification(worker) {
+            const toast = document.createElement('div');
+            toast.id = 'pwa-update-toast';
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
+                left: 24px;
+                max-width: 400px;
+                margin: 0 auto;
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                color: #0b1c30;
+                padding: 16px;
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                z-index: 10000;
+                font-family: 'Outfit', sans-serif;
+                box-sizing: border-box;
+                animation: slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            `;
+            
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                    <div style="background: rgba(0, 108, 73, 0.1); border: 1px solid rgba(0, 108, 73, 0.2); color: #006c49; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fa-solid fa-arrows-rotate" style="font-size: 17px; animation: spin-update 2s linear infinite;"></i>
+                    </div>
+                    <div style="min-width: 0; text-align: left;">
+                        <h4 style="margin: 0; font-size: 14px; font-weight: 800; color: #0b1c30; letter-spacing: 0.3px;">Güncelleme Hazır</h4>
+                        <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b; font-weight: 500; opacity: 0.9;">Yeni sürüm kullanıma hazır</p>
+                    </div>
+                </div>
+                <button id="pwa-update-btn" style="background: #006c49; color: white; border: none; font-weight: 700; font-size: 12px; padding: 9px 18px; border-radius: 10px; cursor: pointer; transition: all 0.2s; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 108, 73, 0.25); letter-spacing: 0.3px;">
+                    Şimdi Yenile
+                </button>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            document.getElementById('pwa-update-btn').addEventListener('click', () => {
+                worker.postMessage({ action: 'skipWaiting' });
+                location.reload();
+            });
+        }
+
+        window.insertTextAtCursor = (elementId, beforeTag, afterTag) => {
+            const el = document.getElementById(elementId);
+            if (!el) return "";
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            const text = el.value;
+            const selected = text.substring(start, end);
+            const replacement = beforeTag + selected + afterTag;
+            el.value = text.substring(0, start) + replacement + text.substring(end);
+            el.focus();
+            el.selectionStart = start + beforeTag.length;
+            el.selectionEnd = start + beforeTag.length + selected.length;
+            return el.value;
+        };
+
+        window.setupBottomSheetSwipe = () => {
+            const sheet = document.querySelector('.mobile-bottom-sheet');
+            const backdrop = document.querySelector('.mobile-sheet-backdrop');
+            if (!sheet || !backdrop || sheet.dataset.swipeInitialized === 'true') return;
+
+            sheet.dataset.swipeInitialized = 'true';
+            let startY = 0;
+            let currentY = 0;
+            let isDragging = false;
+
+            sheet.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                startY = touch.clientY;
+                currentY = startY;
+                isDragging = true;
+                sheet.style.transition = 'none';
+            }, { passive: true });
+
+            sheet.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                const touch = e.touches[0];
+                currentY = touch.clientY;
+                const diffY = currentY - startY;
+
+                if (diffY > 0) {
+                    sheet.style.transform = `translateY(${diffY}px)`;
+                    const opacity = Math.max(0, 0.4 - (diffY / 500));
+                    backdrop.style.backgroundColor = `rgba(5, 5, 8, ${opacity})`;
+                }
+            }, { passive: true });
+
+            sheet.addEventListener('touchend', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                const diffY = currentY - startY;
+
+                backdrop.style.backgroundColor = '';
+
+                if (diffY > 100) {
+                    // Smoothly animate the sheet completely down out of the viewport
+                    sheet.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                    sheet.style.transform = 'translateY(100%)';
+                    
+                    // Click backdrop after the slide down animation completes
+                    setTimeout(() => {
+                        backdrop.click();
+                        // Reset the transform so it opens fully next time
+                        sheet.style.transform = '';
+                    }, 250);
+                } else {
+                    sheet.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                    sheet.style.transform = '';
+                }
+                startY = 0;
+                currentY = 0;
+            });
+        };
+    </script>
+
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes spin-reverse {
+            to { transform: rotate(-360deg); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(80px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes spin-update {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</body>
+
+</html>
