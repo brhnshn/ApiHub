@@ -152,18 +152,12 @@ jobs:
             rm -rf DockerPanel_V1
             unzip -q DockerPanel.API.zip -d DockerPanel_V1
 
-            # appsettings.Production.json dosyasini secretlardan olustur (degiskenler expand edilir)
-            cat > DockerPanel_V1/appsettings.Production.json << APPSETTINGS_EOF
-            {
-              "ConnectionStrings": {
-                "DefaultConnection": "${DB_CONNECTION_STRING}",
-                "MasterPostgresConnection": "${MASTER_CONNECTION_STRING}"
-              },
-              "JwtSettings": {
-                "SecretKey": "${JWT_SECRET_KEY}"
-              }
-            }
-            APPSETTINGS_EOF
+            # appsettings.Production.json dosyasini secretlardan olustur
+            printf '{\n  "ConnectionStrings": {\n    "DefaultConnection": "%s",\n    "MasterPostgresConnection": "%s"\n  },\n  "JwtSettings": {\n    "SecretKey": "%s"\n  }\n}\n' \
+              "${DB_CONNECTION_STRING}" \
+              "${MASTER_CONNECTION_STRING}" \
+              "${JWT_SECRET_KEY}" \
+              > DockerPanel_V1/appsettings.Production.json
 
             # firebase-service-account.json dosyasini secrettan olustur
             printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" > DockerPanel_V1/firebase-service-account.json
