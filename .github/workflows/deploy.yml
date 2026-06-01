@@ -131,6 +131,11 @@ jobs:
 
       - name: Execute Remote SSH Commands
         uses: appleboy/ssh-action@master
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          MASTER_CONNECTION_STRING: ${{ secrets.MASTER_CONNECTION_STRING }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
@@ -147,21 +152,21 @@ jobs:
             rm -rf DockerPanel_V1
             unzip -q DockerPanel.API.zip -d DockerPanel_V1
 
-            # appsettings.Production.json dosyasini secretlardan olustur
-            cat > DockerPanel_V1/appsettings.Production.json << 'APPSETTINGS_EOF'
+            # appsettings.Production.json dosyasini secretlardan olustur (degiskenler expand edilir)
+            cat > DockerPanel_V1/appsettings.Production.json << APPSETTINGS_EOF
             {
               "ConnectionStrings": {
-                "DefaultConnection": "$DB_CONNECTION_STRING",
-                "MasterPostgresConnection": "$MASTER_CONNECTION_STRING"
+                "DefaultConnection": "${DB_CONNECTION_STRING}",
+                "MasterPostgresConnection": "${MASTER_CONNECTION_STRING}"
               },
               "JwtSettings": {
-                "SecretKey": "$JWT_SECRET_KEY"
+                "SecretKey": "${JWT_SECRET_KEY}"
               }
             }
             APPSETTINGS_EOF
 
             # firebase-service-account.json dosyasini secrettan olustur
-            echo "$FIREBASE_SERVICE_ACCOUNT_JSON" > DockerPanel_V1/firebase-service-account.json
+            printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" > DockerPanel_V1/firebase-service-account.json
 
             sudo systemctl start dockerpanel-api
             sudo systemctl reload nginx
