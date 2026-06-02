@@ -151,7 +151,7 @@ public class ProjectController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var userId = GetUserId();
-        var query = _dbContext.Projects.AsQueryable();
+        var query = _dbContext.Projects.Include(p => p.Subdomains).AsQueryable();
 
         if (!IsAdmin())
         {

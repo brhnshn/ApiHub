@@ -3,6 +3,8 @@
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @inject PlatformInfo PlatformInfo
+@inject DockerPanel.Client.Services.AppState AppState
+@implements IDisposable
 
 <PageTitle>Veritabanı Yönetimi - ApiHub</PageTitle>
 
@@ -20,7 +22,7 @@
         }
         .mud-table-cell {
             color: #e2e8f0 !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.15) !important;
         }
         .mud-th {
             color: #94a3b8 !important;
@@ -44,6 +46,12 @@
         }
     </style>
 }
+
+<style>
+    ::deep .mud-table-cell {
+        border-bottom: 2px solid rgba(0, 108, 73, 0.15) !important;
+    }
+</style>
 
 <div class="mb-6">
     <MudText Typo="Typo.h4" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px;">PostgreSQL Şema Yönetimi</MudText>
@@ -250,6 +258,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        AppState.OnPullToRefresh += LoadDatabasesAsync;
         await LoadDatabasesAsync();
     }
 
@@ -430,5 +439,10 @@
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Veritabanı parolası zorunludur!")]
         [System.ComponentModel.DataAnnotations.MinLength(6, ErrorMessage = "Parola en az 6 karakter olmalıdır.")]
         public string Password { get; set; } = string.Empty;
+    }
+
+    public void Dispose()
+    {
+        AppState.OnPullToRefresh -= LoadDatabasesAsync;
     }
 }

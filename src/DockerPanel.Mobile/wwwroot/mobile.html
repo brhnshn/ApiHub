@@ -214,6 +214,90 @@
                 });
             };
 
+            window.toggleBodyLock = function (lock) {
+                if (lock) {
+                    document.body.style.overflow = 'hidden';
+                    document.body.style.touchAction = 'none';
+                } else {
+                    document.body.style.overflow = '';
+                    document.body.style.touchAction = '';
+                }
+            };
+
+            window.setupPullToRefresh = function (dotNetHelper) {
+                var startY = 0;
+                var currentY = 0;
+                var isPulling = false;
+                var threshold = 80;
+                var indicator = document.getElementById('pull-to-refresh-indicator');
+                var spinner = document.getElementById('pull-to-refresh-spinner');
+
+                if (!indicator || !spinner) return;
+
+                window.addEventListener('touchstart', function (e) {
+                    if (window.scrollY <= 5) {
+                        startY = e.touches[0].clientY;
+                        isPulling = true;
+                    }
+                }, { passive: true });
+
+                window.addEventListener('touchmove', function (e) {
+                    if (!isPulling) return;
+                    currentY = e.touches[0].clientY;
+                    var diff = currentY - startY;
+
+                    if (diff > 0) {
+                        var pullDist = Math.min(diff * 0.4, threshold + 20);
+                        indicator.style.top = (pullDist - 30) + 'px';
+                        indicator.style.opacity = Math.min(pullDist / threshold, 1);
+                        
+                        var rotation = (pullDist / threshold) * 360;
+                        spinner.style.transform = 'rotate(' + rotation + 'deg)';
+                        
+                        if (pullDist >= threshold) {
+                            indicator.style.borderColor = '#adc6ff';
+                            spinner.style.borderColor = '#adc6ff';
+                            spinner.style.borderTopColor = 'transparent';
+                            indicator.style.boxShadow = '0 0 12px rgba(173, 198, 255, 0.5)';
+                        } else {
+                            indicator.style.borderColor = '#4edea3';
+                            spinner.style.borderColor = '#4edea3';
+                            spinner.style.borderTopColor = 'transparent';
+                            indicator.style.boxShadow = '0 0 10px rgba(78, 222, 163, 0.4)';
+                        }
+                    }
+                }, { passive: true });
+
+                window.addEventListener('touchend', function () {
+                    if (!isPulling) return;
+                    isPulling = false;
+                    var diff = currentY - startY;
+                    var pullDist = diff * 0.4;
+
+                    if (pullDist >= threshold) {
+                        indicator.style.top = '20px';
+                        indicator.style.opacity = '1';
+                        spinner.classList.add('animate-spin');
+                        
+                        dotNetHelper.invokeMethodAsync('TriggerPullToRefresh')
+                            .then(function () {
+                                setTimeout(resetIndicator, 600);
+                            })
+                            .catch(function () {
+                                resetIndicator();
+                            });
+                    } else {
+                        resetIndicator();
+                    }
+                });
+
+                function resetIndicator() {
+                    indicator.style.top = '-50px';
+                    indicator.style.opacity = '0';
+                    spinner.classList.remove('animate-spin');
+                }
+            };
+
             window.hideLoader = function () {
                 bootCompleted = true;
                 var fallback = document.getElementById("boot-fallback");
@@ -330,6 +414,11 @@
 </head>
 
 <body>
+    <!-- Pull-to-refresh Indicator circle -->
+    <div id="pull-to-refresh-indicator" style="position: fixed; top: -50px; left: 50%; transform: translateX(-50%); width: 40px; height: 40px; border-radius: 50%; background: #171a21; border: 2px solid #4edea3; box-shadow: 0 0 10px rgba(78, 222, 163, 0.4); display: flex; align-items: center; justify-content: center; z-index: 99999; opacity: 0; transition: opacity 0.2s, top 0.2s ease; pointer-events: none;">
+        <div style="width: 20px; height: 20px; border: 2.5px solid #4edea3; border-top-color: transparent; border-radius: 50%;" id="pull-to-refresh-spinner"></div>
+    </div>
+
     <div id="app">
         <div id="boot-fallback" class="boot-shell">
             <div class="boot-logo">

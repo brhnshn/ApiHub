@@ -52,6 +52,15 @@ namespace DockerPanel.Client.Services
         // Canlı Metrik ve Log Akışı Event'leri (Instant-Resume)
         public event Action<ProjectMetricStateDto>? OnProjectMetricReceived;
         public event Action<ProjectLogsStateDto>? OnProjectLogsReceived;
+        public event Func<Task>? OnPullToRefresh;
+
+        public async Task TriggerPullToRefreshAsync()
+        {
+            if (OnPullToRefresh != null)
+            {
+                await OnPullToRefresh.Invoke();
+            }
+        }
 
         public HubConnection? HubConnection { get; private set; }
         public bool IsInitialized { get; private set; }
@@ -576,9 +585,42 @@ namespace DockerPanel.Client.Services
 
         private void HandleMobileAppStateChanged(bool isActive)
         {
-            // Allow SignalR's native .WithAutomaticReconnect() to manage connection drops
-            // dynamically and smoothly in the background, avoiding forced disconnects on quick app switches.
             Console.WriteLine($"[AppState] Mobile lifecycle state changed: isActive={isActive}");
+            if (!isActive)
+            {
+                // Arka plana geçildiğinde SignalR bağlantısını kes ve kaynakları serbest bırak (Pil/Veri tasarrufu)
+                if (HubConnection != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await HubConnection.StopAsync();
+                            IsSignalRConnected = false;
+                            NotifyStateChanged();
+                        }
+                        catch {}
+                    });
+                }
+                
+                // RAM'i optimize etmek için Garbage Collector'ı zorla tetikle
+                try
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+                catch {}
+            }
+            else
+            {
+                // Ön plana gelindiğinde SignalR bağlantısını yeniden kur (Anlık güncelleme)
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(200); // UI'ın yerleşmesi için kısa gecikme
+                    await SetupSignalRAsync();
+                });
+            }
         }
 
         public void Dispose()

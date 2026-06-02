@@ -3,6 +3,8 @@
 @inject ISnackbar Snackbar
 @inject DockerPanel.Client.Services.AppState AppState
 @inject PlatformInfo PlatformInfo
+@implements IDisposable
+
 
 <PageTitle>Cihaz Yönetimi - ApiHub</PageTitle>
 
@@ -11,6 +13,7 @@
     <style>
         h1, h2, h3, th, td, span, .mud-typography {
             color: #f1f5f9 !important;
+            --text-main: #f1f5f9 !important;
         }
         .mud-button-outlined {
             color: #4edea3 !important;
@@ -23,6 +26,19 @@
             background: rgba(23, 26, 33, 0.6) !important;
             border: 1px solid rgba(255, 255, 255, 0.05) !important;
         }
+        .mud-dialog {
+            background-color: #171a21 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        }
+        .mud-dialog-title .mud-typography {
+            color: #4edea3 !important;
+        }
+        .mud-dialog-content .mud-typography, .mud-dialog-content p, .mud-dialog-content h3 {
+            color: #e1e2ec !important;
+        }
+        .mud-dialog-actions button {
+            color: #ffffff !important;
+        }
     </style>
 }
 
@@ -30,14 +46,14 @@
     <!-- Başlık Alanı -->
     <div class="d-flex align-center justify-space-between mb-6">
         <div>
-            <h1 class="text-slate-100 mb-1" style="font-size: 1.6rem; font-weight: 800; color: #0b1c30 !important;">Mobil Cihaz Yönetimi</h1>
+            <h1 class="text-slate-100 mb-1" style="font-size: 1.6rem; font-weight: 800; color: var(--text-main) !important;">Mobil Cihaz Yönetimi</h1>
             <p style="color: #64748b; font-size: 13px;">ApiHub mobil uygulamasına bağlı cihazları ve aktif durumlarını izleyin.</p>
         </div>
         <MudButton Variant="Variant.Outlined" 
                    StartIcon="@Icons.Material.Filled.Refresh" 
                    OnClick="LoadDevices" 
                    Disabled="_isRefreshing"
-                   Style="text-transform: none; font-weight: 700; border-radius: 8px; border-color: rgba(187, 202, 191, 0.4); color: #0b1c30;">
+                   Style="text-transform: none; font-weight: 700; border-radius: 8px; border-color: rgba(187, 202, 191, 0.4); color: var(--text-main);">
             @if (_isRefreshing)
             {
                 <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -64,7 +80,7 @@
             <div class="glass-panel pa-5 d-flex align-center justify-space-between" style="border-radius: 16px;">
                 <div>
                     <p style="color: #64748b; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Toplam Cihaz</p>
-                    <h2 class="mt-2" style="font-size: 2.2rem; font-weight: 900; color: #0b1c30 !important;">@_totalCount</h2>
+                    <h2 class="mt-2" style="font-size: 2.2rem; font-weight: 900; color: var(--text-main) !important;">@_totalCount</h2>
                 </div>
                 <div class="pa-3" style="background: rgba(99, 102, 241, 0.08); border-radius: 12px;">
                     <MudIcon Icon="@Icons.Material.Filled.PhoneAndroid" Style="color: #6366f1; font-size: 32px;" />
@@ -77,7 +93,7 @@
                 <div>
                     <p style="color: #64748b; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Aktif Cihazlar</p>
                     <div class="d-flex align-center mt-2 gap-3">
-                        <h2 style="font-size: 2.2rem; font-weight: 900; color: #0b1c30 !important;">@_activeCount</h2>
+                        <h2 style="font-size: 2.2rem; font-weight: 900; color: var(--text-main) !important;">@_activeCount</h2>
                         <span class="pulse-green"></span>
                     </div>
                 </div>
@@ -127,19 +143,19 @@
                 <table class="w-full" style="border-collapse: collapse;">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(187, 202, 191, 0.4); text-align: left;">
-                            <th class="py-3" style="color: #0b1c30; font-weight: 700;">Cihaz Adı</th>
-                            <th class="py-3" style="color: #0b1c30; font-weight: 700;">Platform</th>
-                            <th class="py-3" style="color: #0b1c30; font-weight: 700;">Kayıt Tarihi</th>
-                            <th class="py-3" style="color: #0b1c30; font-weight: 700;">Son Görülme</th>
-                            <th class="py-3" style="color: #0b1c30; font-weight: 700;">Durum</th>
-                            <th class="py-3 text-right" style="color: #0b1c30; font-weight: 700; text-align: right;">İşlem</th>
+                            <th class="py-3" style="color: var(--text-main); font-weight: 700;">Cihaz Adı</th>
+                            <th class="py-3" style="color: var(--text-main); font-weight: 700;">Platform</th>
+                            <th class="py-3" style="color: var(--text-main); font-weight: 700;">Kayıt Tarihi</th>
+                            <th class="py-3" style="color: var(--text-main); font-weight: 700;">Son Görülme</th>
+                            <th class="py-3" style="color: var(--text-main); font-weight: 700;">Durum</th>
+                            <th class="py-3 text-right" style="color: var(--text-main); font-weight: 700; text-align: right;">İşlem</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var dev in _devices)
                         {
                             <tr style="border-bottom: 1px solid rgba(187, 202, 191, 0.2); transition: background-color 0.2s;" class="hover:bg-slate-950/20">
-                                <td class="py-4" style="font-weight: 600; color: #0b1c30;">
+                                <td class="py-4" style="font-weight: 600; color: var(--text-main);">
                                     <div class="d-flex align-center gap-2">
                                         <MudIcon Icon="@Icons.Material.Filled.PhoneAndroid" 
                                                  Style="color: #64748b; font-size: 20px;" />
@@ -202,7 +218,7 @@
     <DialogContent>
         <div class="pa-4 text-center">
             <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Style="font-size: 48px;" Class="mb-3" />
-            <h3 style="color: #0b1c30; font-weight: 800; font-size: 15px; margin-bottom: 8px;">Cihaz Bağlantısını Kes</h3>
+            <h3 style="color: var(--text-main); font-weight: 800; font-size: 15px; margin-bottom: 8px;">Cihaz Bağlantısını Kes</h3>
             <p style="color: #64748b; font-size: 13px;">
                 "<strong>@_deviceToDelete?.DeviceName</strong>" cihazının panelle olan bağlantısını kesmek istediğinizden emin misiniz?
             </p>
@@ -212,7 +228,7 @@
         <div class="d-flex justify-end gap-2 w-full pa-4">
             <MudButton OnClick="@(() => _deleteConfirmVisible = false)" 
                        Variant="Variant.Outlined"
-                       Style="text-transform: none; border-radius: 8px; font-weight: 700; border-color: rgba(187, 202, 191, 0.4); color: #0b1c30;">
+                       Style="text-transform: none; border-radius: 8px; font-weight: 700; border-color: rgba(187, 202, 191, 0.4); color: var(--text-main);">
                 Vazgeç
             </MudButton>
             <MudButton OnClick="ConfirmUnregister" 
@@ -238,6 +254,12 @@
     private DeviceResponseDto? _deviceToDelete;
 
     protected override async Task OnInitializedAsync()
+    {
+        AppState.OnPullToRefresh += HandlePullToRefresh;
+        await LoadDevices();
+    }
+
+    private async Task HandlePullToRefresh()
     {
         await LoadDevices();
     }
@@ -355,5 +377,10 @@
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset LastUsedAt { get; set; }
         public bool IsActive { get; set; }
+    }
+
+    public void Dispose()
+    {
+        AppState.OnPullToRefresh -= HandlePullToRefresh;
     }
 }

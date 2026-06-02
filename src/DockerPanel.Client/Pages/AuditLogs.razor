@@ -3,12 +3,14 @@
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @inject PlatformInfo PlatformInfo
+@inject DockerPanel.Client.Services.AppState AppState
+@implements IDisposable
 @using System.Text.Json
 
 @if (PlatformInfo.IsMobileApp)
 {
     <style>
-        h2, h3, h4, th, td, span, p, label, .text-\[\#0b1c30\] {
+        h2, h3, h4, th, td, span:not(.bg-emerald-50):not(.bg-rose-50):not(.bg-indigo-50):not(.bg-slate-100), p:not(.bg-emerald-50):not(.bg-rose-50):not(.bg-indigo-50):not(.bg-slate-100), label, .text-\[\#0b1c30\] {
             color: #f1f5f9 !important;
         }
         .bg-white, .hover\:bg-slate-50\/50 {
@@ -43,6 +45,12 @@
         }
         .bg-slate-900 {
             background-color: #0d1016 !important;
+        }
+        /* Açık renkli kutularda yazı renginin siyah olması kuralı */
+        .bg-slate-100, .bg-emerald-50, .bg-rose-50, .bg-indigo-50, .bg-emerald-100, .bg-rose-100, .bg-indigo-100,
+        .bg-slate-100 *, .bg-emerald-50 *, .bg-rose-50 *, .bg-indigo-50 *, .bg-emerald-100 *, .bg-rose-100 *, .bg-indigo-100 * {
+            color: #000000 !important;
+            background-color: rgba(255, 255, 255, 0.9) !important; /* Açık renkli kutu arka planı da belirginleştirilir */
         }
     </style>
 }
@@ -259,8 +267,19 @@
 
     protected override async Task OnInitializedAsync()
     {
+        AppState.OnPullToRefresh += HandlePullToRefresh;
+        await HandlePullToRefresh();
+    }
+
+    private async Task HandlePullToRefresh()
+    {
         await LoadStats();
         await LoadLogs();
+    }
+
+    public void Dispose()
+    {
+        AppState.OnPullToRefresh -= HandlePullToRefresh;
     }
 
     private async Task LoadStats()

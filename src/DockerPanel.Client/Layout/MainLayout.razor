@@ -992,12 +992,28 @@ else
                 } catch {}
             });
         }
+        if (PlatformInfo.IsMobileApp)
+        {
+            _ = Task.Run(async () => {
+                try {
+                    await JSRuntime.InvokeVoidAsync("window.toggleBodyLock", _showMoreMenu);
+                } catch {}
+            });
+        }
         StateHasChanged();
     }
 
     private void PromptPanicStop()
     {
         _showMoreMenu = false;
+        if (PlatformInfo.IsMobileApp)
+        {
+            _ = Task.Run(async () => {
+                try {
+                    await JSRuntime.InvokeVoidAsync("window.toggleBodyLock", false);
+                } catch {}
+            });
+        }
         _showPanicModal = true;
         StateHasChanged();
     }
@@ -1145,6 +1161,29 @@ else
         "terminal" => "Canlı Log Akışı",
         _ => "Kontrol Paneli"
     };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && PlatformInfo.IsMobileApp)
+        {
+            try
+            {
+                var dotNetHelper = DotNetObjectReference.Create(this);
+                await JSRuntime.InvokeVoidAsync("window.setupPullToRefresh", dotNetHelper);
+            }
+            catch {}
+        }
+    }
+
+    [JSInvokable]
+    public async Task TriggerPullToRefresh()
+    {
+        try
+        {
+            await AppState.TriggerPullToRefreshAsync();
+        }
+        catch {}
+    }
 
     protected override async Task OnInitializedAsync()
     {

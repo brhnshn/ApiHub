@@ -422,7 +422,7 @@
 
                 <!-- Klasör Listesi -->
                 <nav class="flex flex-col gap-1.5">
-                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "inbox" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "inbox" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
                             @onclick='() => SetFolder("inbox")'>
                         <span class="material-symbols-outlined text-base">inbox</span>
                         <span class="flex-grow text-left">Gelen Kutusu</span>
@@ -432,34 +432,34 @@
                         }
                     </button>
 
-                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "sent" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "sent" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
                             @onclick='() => SetFolder("sent")'>
                         <span class="material-symbols-outlined text-base">send</span>
-                        <span class="text-left">Gönderilenler</span>
+                        <span class="flex-grow text-left">Gönderilenler</span>
                     </button>
 
-                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "draft" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "draft" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
                             @onclick='() => SetFolder("draft")'>
                         <span class="material-symbols-outlined text-base">drafts</span>
-                        <span class="text-left">Taslaklar</span>
+                        <span class="flex-grow text-left">Taslaklar</span>
                     </button>
 
-                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "spam" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "spam" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
                             @onclick='() => SetFolder("spam")'>
                         <span class="material-symbols-outlined text-base">report</span>
-                        <span class="text-left">Spam</span>
+                        <span class="flex-grow text-left">Spam</span>
                     </button>
 
-                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "trash" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "trash" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
                             @onclick='() => SetFolder("trash")'>
                         <span class="material-symbols-outlined text-base">delete</span>
-                        <span class="text-left">Çöp Kutusu</span>
+                        <span class="flex-grow text-left">Çöp Kutusu</span>
                     </button>
 
-                    <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "archive" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
+                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "archive" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
                             @onclick='() => SetFolder("archive")'>
                         <span class="material-symbols-outlined text-base">archive</span>
-                        <span class="text-left">Arşiv</span>
+                        <span class="flex-grow text-left">Arşiv</span>
                     </button>
                 </nav>
 
