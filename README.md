@@ -220,7 +220,7 @@ Yerel geliştirme için:
 
 Linux production için:
 
-- Ubuntu 20.04/22.04/24.04 LTS
+- Ubuntu (20.04/22.04/24.04 LTS) veya Debian (11/12)
 - Docker ve Docker Compose
 - Nginx
 - .NET 8 Runtime veya SDK
