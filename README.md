@@ -1,6 +1,6 @@
 # DockerPanel / ApiHub
 
-DockerPanel, tek bir Linux sunucusu üzerinde Docker container'larını, native web projelerini, domain/DNS yönlendirmelerini, PostgreSQL veritabanlarını, e-posta hesaplarını, yedekleri ve canlı metrikleri yönetmek için geliştirilmiş bir ASP.NET Core + Blazor WebAssembly kontrol panelidir.
+DockerPanel, tek bir Linux (Ubuntu/Debian) sunucusu üzerinde Docker container'larını, native web projelerini, domain/DNS yönlendirmelerini, PostgreSQL veritabanlarını, e-posta hesaplarını, yedekleri ve canlı metrikleri yönetmek için geliştirilmiş bir ASP.NET Core + Blazor WebAssembly kontrol panelidir.
 
 Uygulama web tarafında **DockerPanel**, mobil paketlemede ise **ApiHub** adını kullanır.
 
