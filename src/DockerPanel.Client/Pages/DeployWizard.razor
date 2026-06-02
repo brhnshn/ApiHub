@@ -1041,7 +1041,8 @@
             if (_sslEnabled)
             {
                 var sslResponse = await Http.PostAsync($"api/nginx/{subdomainId}/ssl", null);
-                if (sslResponse.IsSuccessStatusCode) LogConsole("SUCCESS: Let's Encrypt SSL aktif edildi.");
+                if (!sslResponse.IsSuccessStatusCode) throw new Exception(await ParseErrorAsync(sslResponse));
+                LogConsole("SUCCESS: Let's Encrypt SSL aktif edildi.");
             }
 
             _activePipelineStep = 7;

@@ -259,9 +259,10 @@ public class ProjectContainerService : IProjectContainerService
     public async Task<bool> IsContainerRunningAsync(string dockerContainerId)
     {
         if (string.IsNullOrWhiteSpace(dockerContainerId)) return false;
+        using var cts = new CancellationTokenSource(2000);
         try
         {
-            var inspect = await _dockerClient.Containers.InspectContainerAsync(dockerContainerId);
+            var inspect = await _dockerClient.Containers.InspectContainerAsync(dockerContainerId, cts.Token);
             return inspect?.State?.Running ?? false;
         }
         catch
