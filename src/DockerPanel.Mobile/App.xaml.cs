@@ -28,6 +28,32 @@ public partial class App : Application
                 platformInfo.TriggerAppStateChanged(isActive);
             };
         }
+
+        // Listen to connectivity changes to trigger immediate AppState reload/reconnect
+        Microsoft.Maui.Networking.Connectivity.Current.ConnectivityChanged += (sender, e) =>
+        {
+            if (e.NetworkAccess == Microsoft.Maui.Networking.NetworkAccess.Internet)
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Wait briefly for network interface stabilization
+                        await Task.Delay(500);
+                        var appState = _serviceProvider.GetService<DockerPanel.Client.Services.AppState>();
+                        if (appState != null)
+                        {
+                            Console.WriteLine("[Connectivity] Internet restored! Triggering AppState re-initialization...");
+                            await appState.InitializeAsync();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Connectivity] Re-initialization failed: {ex.Message}");
+                    }
+                });
+            }
+        };
     }
 
     protected override void OnStart()

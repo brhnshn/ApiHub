@@ -32,6 +32,21 @@ public static partial class InputValidator
         }
     }
 
+    public static bool IsSafePathOrFile(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        if (value.Contains("..") || value.Contains("\\") || value.Contains("//")) return false;
+        return SafePathRegex().IsMatch(value);
+    }
+
+    public static void ThrowIfUnsafePath(string? value, string message)
+    {
+        if (!string.IsNullOrEmpty(value) && !IsSafePathOrFile(value))
+        {
+            throw new ArgumentException(message);
+        }
+    }
+
     [GeneratedRegex("^[a-z0-9_-]+$", RegexOptions.CultureInvariant)]
     private static partial Regex ProjectNameRegex();
 
@@ -43,4 +58,7 @@ public static partial class InputValidator
 
     [GeneratedRegex("^[a-z0-9_.-]+$", RegexOptions.CultureInvariant)]
     private static partial Regex DomainNameRegex();
+
+    [GeneratedRegex("^[a-zA-Z0-9_/.-]+$", RegexOptions.CultureInvariant)]
+    private static partial Regex SafePathRegex();
 }

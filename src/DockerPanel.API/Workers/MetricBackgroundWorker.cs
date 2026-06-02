@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -30,6 +31,7 @@ public class MetricBackgroundWorker : BackgroundService
     private long _lastSyslogPosition = -1;
     // static: her iterasyonda new Random() üretilmesi önleniyor (seed sorunu + performans)
     private static readonly Random _rand = new();
+    private int _watchdogCounter = 0;
 
     public MetricBackgroundWorker(
         IServiceScopeFactory scopeFactory,
@@ -88,6 +90,9 @@ public class MetricBackgroundWorker : BackgroundService
                 }, stoppingToken);
 
                 // 2. Her bir aktif proje için donanım metriklerini al ve ilgili gruba yay
+                _watchdogCounter = (_watchdogCounter + 1) % 5;
+                bool runWatchdog = (_watchdogCounter == 0);
+
                 using (var scope = _scopeFactory.CreateScope())
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
@@ -96,6 +101,7 @@ public class MetricBackgroundWorker : BackgroundService
                     var pushService = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
 
                     var activeProjects = dbContext.Projects
+                        .AsNoTracking()
                         .Where(p => p.Status == ProjectStatus.Running)
                         .ToList();
 
@@ -112,29 +118,33 @@ public class MetricBackgroundWorker : BackgroundService
 
                             if (project.Type == ProjectType.DockerContainer && !string.IsNullOrEmpty(project.DockerContainerId))
                             {
-                                // Watchdog: Check if the Docker container is actually running
-                                bool isRunning = await containerService.IsContainerRunningAsync(project.DockerContainerId);
-                                if (!isRunning)
+                                // Watchdog: Check if the Docker container is actually running (every 15s)
+                                bool isRunning = true;
+                                if (runWatchdog)
                                 {
-                                    _logger.LogWarning("[Watchdog] Docker container for project {ProjectName} ({ProjectId}) is not running! Attempting auto-restart...", project.Name, project.Id);
-                                    SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Docker projesi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...");
-                                    
-                                    // Send push notification to user
-                                    await pushService.SendNotificationToUserAsync(
-                                        project.UserId,
-                                        "🔴 Servis Durdu (Docker)",
-                                        $"'{project.Name}' Docker konteyner servisi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
-                                        $"apihub://navigate?path=/containers&projectId={project.Id}");
+                                    isRunning = await containerService.IsContainerRunningAsync(project.DockerContainerId);
+                                    if (!isRunning)
+                                    {
+                                        _logger.LogWarning("[Watchdog] Docker container for project {ProjectName} ({ProjectId}) is not running! Attempting auto-restart...", project.Name, project.Id);
+                                        SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Docker projesi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...");
+                                        
+                                        // Send push notification to user
+                                        await pushService.SendNotificationToUserAsync(
+                                            project.UserId,
+                                            "🔴 Servis Durdu (Docker)",
+                                            $"'{project.Name}' Docker konteyner servisi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
+                                            $"apihub://navigate?path=/containers&projectId={project.Id}");
 
-                                    try
-                                    {
-                                        await containerService.StartContainerAsync(project.DockerContainerId);
-                                        project.StartedAt = DateTimeOffset.UtcNow;
-                                        projectStateChanged = true;
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        _logger.LogError(ex, "[Watchdog] Failed to restart Docker container for project {ProjectName}", project.Name);
+                                        try
+                                        {
+                                            await containerService.StartContainerAsync(project.DockerContainerId);
+                                            project.StartedAt = DateTimeOffset.UtcNow;
+                                            projectStateChanged = true;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            _logger.LogError(ex, "[Watchdog] Failed to restart Docker container for project {ProjectName}", project.Name);
+                                        }
                                     }
                                 }
 
@@ -148,29 +158,33 @@ public class MetricBackgroundWorker : BackgroundService
                             }
                             else if (project.Type == ProjectType.NativeProject)
                             {
-                                // Watchdog: Check if the Native process is actually running
-                                bool isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
-                                if (!isRunning)
+                                // Watchdog: Check if the Native process is actually running (every 15s)
+                                bool isRunning = true;
+                                if (runWatchdog)
                                 {
-                                    _logger.LogWarning("[Watchdog] Native process for project {ProjectName} ({ProjectId}) is not running! Attempting auto-restart...", project.Name, project.Id);
-                                    SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Native projesi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...");
-                                    
-                                    // Send push notification to user
-                                    await pushService.SendNotificationToUserAsync(
-                                        project.UserId,
-                                        "🔴 Servis Durdu (Native)",
-                                        $"'{project.Name}' native süreci durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
-                                        $"apihub://navigate?path=/containers&projectId={project.Id}");
+                                    isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
+                                    if (!isRunning)
+                                    {
+                                        _logger.LogWarning("[Watchdog] Native process for project {ProjectName} ({ProjectId}) is not running! Attempting auto-restart...", project.Name, project.Id);
+                                        SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Native projesi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...");
+                                        
+                                        // Send push notification to user
+                                        await pushService.SendNotificationToUserAsync(
+                                            project.UserId,
+                                            "🔴 Servis Durdu (Native)",
+                                            $"'{project.Name}' native süreci durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
+                                            $"apihub://navigate?path=/containers&projectId={project.Id}");
 
-                                    try
-                                    {
-                                        await processManagerService.StartProcessAsync(project.Name);
-                                        project.StartedAt = DateTimeOffset.UtcNow;
-                                        projectStateChanged = true;
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        _logger.LogError(ex, "[Watchdog] Failed to restart native process for project {ProjectName}", project.Name);
+                                        try
+                                        {
+                                            await processManagerService.StartProcessAsync(project.Name);
+                                            project.StartedAt = DateTimeOffset.UtcNow;
+                                            projectStateChanged = true;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            _logger.LogError(ex, "[Watchdog] Failed to restart native process for project {ProjectName}", project.Name);
+                                        }
                                     }
                                 }
 
@@ -202,6 +216,7 @@ public class MetricBackgroundWorker : BackgroundService
 
                             if (projectStateChanged)
                             {
+                                dbContext.Entry(project).State = EntityState.Modified;
                                 await dbContext.SaveChangesAsync(stoppingToken);
                             }
 

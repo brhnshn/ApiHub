@@ -202,6 +202,7 @@ public class ProcessManagerService : IProcessManagerService
     public async Task AddOrUpdateProcessConfigAsync(string name, int port, string? runtimeType = null, string? entryFile = null, string? customCommand = null)
     {
         InputValidator.ThrowIfInvalidProjectName(name, "Geçersiz proje ismi formatı!");
+        InputValidator.ThrowIfUnsafePath(entryFile, "Geçersiz veya güvensiz giriş dosyası yolu!");
 
         SystemLogQueue.Log("info", $"[ProcessManager] projects.conf yapılandırma dosyası güncelleniyor: Proje={name}");
         

@@ -34,6 +34,7 @@
 	<!-- Release Mode Size & Performance Optimizations -->
 	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
 		<RuntimeIdentifier>android-arm64</RuntimeIdentifier>
+		<RunAOTCompilation>true</RunAOTCompilation>
 		
 		<!-- 2. Kod Kırpma (Trimming):
 		     Kullanılmayan framework ve .NET sınıflarını temizler. MudBlazor reflection kullandığı için 
