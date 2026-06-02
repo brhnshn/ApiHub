@@ -1,5 +1,6 @@
 @page "/containers"
 @attribute [Authorize]
+@using System.Text.Json
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
@@ -131,9 +132,17 @@
                                     @(project.Type == ProjectType.DockerContainer ? project.ImageOrPath : (project.Type == ProjectType.StaticSite ? (project.EnablePhp ? "Statik Web (PHP)" : "Statik Web Dizini") : "Native Deploy Dizini"))
                                 </p>
                             </div>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider shrink-0 @(project.Type == ProjectType.DockerContainer ? "bg-[#adc6ff]/20 text-[#adc6ff]" : project.Type == ProjectType.StaticSite ? "bg-indigo-500/20 text-indigo-400" : "bg-[#4edea3]/20 text-[#4edea3]")">
-                                @project.Type.ToString().ToUpper()
-                            </span>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                @if (project.Type != ProjectType.DockerContainer)
+                                {
+                                    <button @onclick="@(() => OpenZipUploadModal(project))" class="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-[#adc6ff]" title="ZIP Yükle">
+                                        <span class="material-symbols-outlined text-[16px]">cloud_upload</span>
+                                    </button>
+                                }
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider @(project.Type == ProjectType.DockerContainer ? "bg-[#adc6ff]/20 text-[#adc6ff]" : project.Type == ProjectType.StaticSite ? "bg-indigo-500/20 text-indigo-400" : "bg-[#4edea3]/20 text-[#4edea3]")">
+                                    @project.Type.ToString().ToUpper()
+                                </span>
+                            </div>
                         </div>
 
                         <div class="space-y-3">
@@ -300,7 +309,16 @@ else
                 <MudItem xs="12" sm="6" md="4">
                     <div class="glass-panel pa-6 zoom-hover d-flex flex-column h-100" style="border-radius: 12px !important; position: relative; border: 1px solid rgba(255,255,255,0.06);">
                         <!-- Tip Etiketi (Docker vs Native) -->
-                        <div style="position: absolute; top: 12px; right: 12px;">
+                        <div style="position: absolute; top: 12px; right: 12px;" class="d-flex align-center gap-1">
+                            @if (project.Type != ProjectType.DockerContainer)
+                            {
+                                <MudTooltip Text="Yeni ZIP Sürümü Yükle">
+                                    <MudIconButton Icon="@Icons.Material.Filled.CloudUpload" 
+                                                   Size="Size.Small" 
+                                                   OnClick="@(() => OpenZipUploadModal(project))" 
+                                                   Style="color: #adc6ff; padding: 2px;" />
+                                </MudTooltip>
+                            }
                             @if (project.Type == ProjectType.DockerContainer)
                             {
                                 <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="font-weight: 700; font-size: 9px; height: 18px; margin: 0;">DOCKER</MudChip>
@@ -754,6 +772,90 @@ else
     </DialogContent>
 </MudDialog>
 
+<!-- ZIP Sürüm Güncelleme / Yükleme Modalı -->
+<MudDialog @bind-Visible="_zipUploadModalVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">ZIP Sürüm Yükle</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+            <strong>@_activeZipProject?.Name</strong> projesine yeni ZIP paketi yükleyin.
+        </MudText>
+
+        <div style="border: 2px dashed @(_zipValidationError != null ? "#ef4444" : (_zipValidationSuccess ? "#10b981" : "var(--border-color)")); border-radius: 8px; padding: 20px; text-align: center; background: var(--bg-sub); cursor: pointer; position: relative;" class="mb-4">
+            <InputFile id="zip-upload-input" OnChange="OnZipUploadSelected" accept=".zip" style="position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" />
+            
+            @if (_uploadedZipFile == null)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="Color.Primary" Style="font-size: 32px;" Class="mb-2" />
+                <div style="font-size: 12px; color: var(--text-main); font-weight: 700;">Tıklayın veya ZIP dosyasını buraya sürükleyin</div>
+                <div style="font-size: 10px; color: #64748b;">(Maksimum dosya boyutu: 200 MB)</div>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.FolderZip" Color="@(_zipValidationError != null ? Color.Error : Color.Success)" Style="font-size: 32px;" Class="mb-2" />
+                <div style="font-size: 12px; color: @(_zipValidationError != null ? "#ef4444" : "#10b981"); font-weight: 700;">@_uploadedZipFile.Name</div>
+                <div style="font-size: 10px; color: #64748b;">(@GetReadableBytes(_uploadedZipFile.Size))</div>
+            }
+        </div>
+
+        @if (_isValidatingZip)
+        {
+            <div class="d-flex align-center justify-center py-2 gap-2 mb-4">
+                <MudProgressCircular Size="Size.Small" Color="Color.Primary" Indeterminate="true" />
+                <MudText Typo="Typo.body2" Style="color: var(--text-main);">ZIP içeriği analiz ediliyor...</MudText>
+            </div>
+        }
+
+        @if (_zipValidationError != null)
+        {
+            <div class="pa-3 rounded-lg mb-4" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #ef4444; font-size: 12px;">
+                <div class="d-flex align-center gap-2 font-bold mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" />
+                    <span>Hata: Doğrulama Başarısız</span>
+                </div>
+                <div>@_zipValidationError</div>
+            </div>
+        }
+
+        @if (_zipWarningMessage != null)
+        {
+            <div class="pa-3 rounded-lg mb-4" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); color: #f59e0b; font-size: 12px;">
+                <div class="d-flex align-center gap-2 font-bold mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" />
+                    <span>Uyuşmazlık Uyarısı</span>
+                </div>
+                <div>@_zipWarningMessage</div>
+            </div>
+        }
+
+        @if (_zipValidationSuccess && _zipValidationError == null)
+        {
+            <div class="pa-3 rounded-lg mb-4" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #10b981; font-size: 12px;">
+                <div class="d-flex align-center gap-2 font-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                    <span>ZIP Doğrulandı: @_detectedRuntime.ToUpper() projesi</span>
+                </div>
+            </div>
+        }
+
+        <div class="d-flex justify-end gap-2">
+            <MudButton OnClick="CloseZipUploadModal" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none;">İptal</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="HandleZipDeploy" Disabled="@(_uploadedZipFile == null || _isValidatingZip || _zipValidationError != null || _isDeployingZip)" Style="text-transform: none; font-weight: 700;">
+                @if (_isDeployingZip)
+                {
+                    <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Deploy Ediliyor...</span>
+                }
+                else
+                {
+                    <span>Dağıtımı Başlat</span>
+                }
+            </MudButton>
+        </div>
+    </DialogContent>
+</MudDialog>
+
 @code {
     private const long MaxZipUploadBytes = 200L * 1024 * 1024;
 
@@ -779,6 +881,17 @@ else
     
     // Native ZIP Dosya Referansı
     private IBrowserFile? _selectedFile;
+
+    // ZIP Upload & Verification Değişkenleri
+    private bool _zipUploadModalVisible = false;
+    private ProjectCardDto? _activeZipProject = null;
+    private IBrowserFile? _uploadedZipFile = null;
+    private bool _isValidatingZip = false;
+    private bool _zipValidationSuccess = false;
+    private string? _zipValidationError = null;
+    private string? _zipWarningMessage = null;
+    private string _detectedRuntime = string.Empty;
+    private bool _isDeployingZip = false;
 
     // Log Drawer
     private bool _logsDrawerOpen = false;
@@ -1411,6 +1524,165 @@ else
     {
         var uptime = DateTimeOffset.UtcNow - startedAt.ToUniversalTime();
         return uptime.TotalDays < 7 ? "#10b981" : "#f59e0b";
+    }
+
+    private void OpenZipUploadModal(ProjectCardDto project)
+    {
+        _activeZipProject = project;
+        _uploadedZipFile = null;
+        _isValidatingZip = false;
+        _zipValidationSuccess = false;
+        _zipValidationError = null;
+        _zipWarningMessage = null;
+        _detectedRuntime = string.Empty;
+        _isDeployingZip = false;
+        _zipUploadModalVisible = true;
+    }
+
+    private void CloseZipUploadModal()
+    {
+        _zipUploadModalVisible = false;
+        _activeZipProject = null;
+        _uploadedZipFile = null;
+    }
+
+    private async Task OnZipUploadSelected(InputFileChangeEventArgs e)
+    {
+        _uploadedZipFile = e.File;
+        _isValidatingZip = true;
+        _zipValidationSuccess = false;
+        _zipValidationError = null;
+        _zipWarningMessage = null;
+        _detectedRuntime = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await JSRuntime.InvokeAsync<ZipAnalysisResult>("eval", "window.analyzeZipFile(document.getElementById('zip-upload-input'))");
+            
+            if (result == null || !result.Success)
+            {
+                _zipValidationError = result?.Error ?? "ZIP dosyası analiz edilemedi.";
+            }
+            else
+            {
+                _detectedRuntime = result.DetectedRuntime;
+                
+                // Validate Runtime Match
+                if (_activeZipProject != null && _activeZipProject.Type == ProjectType.StaticSite && result.DetectedRuntime != "static" && result.DetectedRuntime != "unknown")
+                {
+                    _zipWarningMessage = $"Bu proje Statik Site olarak yapılandırılmış ancak yüklenen ZIP'te {result.DetectedRuntime.ToUpper()} dosyaları tespit edildi.";
+                }
+                else if (_activeZipProject != null && _activeZipProject.Type == ProjectType.NativeProject && result.DetectedRuntime == "static")
+                {
+                    _zipWarningMessage = "Bu proje Native (Süreç Yönetimli) olarak yapılandırılmış ancak yüklenen ZIP bir Statik Site (HTML/PHP) gibi görünüyor.";
+                }
+
+                // Name Match Check
+                if (!string.IsNullOrEmpty(result.DetectedName) && _activeZipProject != null)
+                {
+                    string targetNameClean = _activeZipProject.Name.Replace("-", "").Replace("_", "").ToLowerInvariant();
+                    string detectedNameClean = result.DetectedName.Replace("-", "").Replace("_", "").ToLowerInvariant();
+                    
+                    if (!targetNameClean.Contains(detectedNameClean) && !detectedNameClean.Contains(targetNameClean))
+                    {
+                        var warning = $"Proje isimleri uyuşmuyor! Hedef Proje: '{_activeZipProject.Name}', ZIP İçeriği: '{result.DetectedName}'. Yanlış projeyi güncelliyor olabilirsiniz.";
+                        if (_zipWarningMessage != null)
+                        {
+                            _zipWarningMessage += " " + warning;
+                        }
+                        else
+                        {
+                            _zipWarningMessage = warning;
+                        }
+                    }
+                }
+
+                _zipValidationSuccess = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            _zipValidationError = $"Doğrulama hatası: {ex.Message}";
+        }
+        finally
+        {
+            _isValidatingZip = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleZipDeploy()
+    {
+        if (_uploadedZipFile == null || _activeZipProject == null) return;
+
+        _isDeployingZip = true;
+        StateHasChanged();
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            var fileContent = new StreamContent(_uploadedZipFile.OpenReadStream(MaxZipUploadBytes));
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+            
+            content.Add(fileContent, "ZipFile", _uploadedZipFile.Name);
+            content.Add(new StringContent(_activeZipProject.Name), "Name");
+
+            HttpResponseMessage response;
+            if (_activeZipProject.Type == ProjectType.StaticSite)
+            {
+                content.Add(new StringContent(_activeZipProject.EnablePhp.ToString().ToLower()), "EnablePhp");
+                response = await Http.PostAsync("api/projects/static-deploy", content);
+            }
+            else
+            {
+                content.Add(new StringContent(_activeZipProject.InternalPort.ToString()), "InternalPort");
+                content.Add(new StringContent(_activeZipProject.MemoryLimitBytes.ToString()), "MemoryLimitBytes");
+                content.Add(new StringContent(_activeZipProject.CpuCount.ToString(System.Globalization.CultureInfo.InvariantCulture)), "CpuCount");
+                response = await Http.PostAsync("api/projects/native-deploy", content);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Proje başarıyla yüklendi ve yeniden dağıtıldı!", Severity.Success);
+                CloseZipUploadModal();
+                await LoadProjectsAsync();
+            }
+            else
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                var errorMsg = "Dağıtım başarısız oldu.";
+                try
+                {
+                    var doc = JsonDocument.Parse(errorText);
+                    if (doc.RootElement.TryGetProperty("Message", out var msgProp))
+                    {
+                        errorMsg = msgProp.GetString() ?? errorMsg;
+                    }
+                }
+                catch {}
+                Snackbar.Add(errorMsg, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata oluştu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isDeployingZip = false;
+            StateHasChanged();
+        }
+    }
+
+    public class ZipAnalysisResult
+    {
+        public bool Success { get; set; }
+        public string Error { get; set; } = string.Empty;
+        public string DetectedRuntime { get; set; } = string.Empty;
+        public string DetectedName { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public long FileSize { get; set; }
     }
 
     public ValueTask DisposeAsync()

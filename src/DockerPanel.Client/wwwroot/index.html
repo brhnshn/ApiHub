@@ -597,6 +597,80 @@
                 currentY = 0;
             });
         };
+
+        window.analyzeZipFile = async (inputFileElement) => {
+            if (!inputFileElement || !inputFileElement.files || inputFileElement.files.length === 0) {
+                return { success: false, error: "Dosya seçilmedi." };
+            }
+            const file = inputFileElement.files[0];
+            
+            // Dynamically load JSZip from CDN if not loaded
+            if (typeof window.JSZip === 'undefined') {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const zip = await window.JSZip.loadAsync(arrayBuffer);
+                const files = Object.keys(zip.files);
+                
+                let detectedRuntime = "unknown";
+                let detectedName = "";
+                
+                // 1. Detect runtime and project name
+                // Node: package.json
+                const packageJsonFile = files.find(f => f === "package.json" || f.endsWith("/package.json"));
+                if (packageJsonFile) {
+                    detectedRuntime = "node";
+                    try {
+                        const content = await zip.files[packageJsonFile].async("string");
+                        const pkg = JSON.parse(content);
+                        detectedName = pkg.name || "";
+                    } catch (e) {}
+                }
+                // Dotnet: csproj or dll / runtimeconfig.json
+                else if (files.some(f => f.endsWith(".csproj") || f.endsWith(".sln") || f.endsWith(".runtimeconfig.json"))) {
+                    detectedRuntime = "dotnet";
+                    const csprojFile = files.find(f => f.endsWith(".csproj"));
+                    if (csprojFile) {
+                        detectedName = csprojFile.split('/').pop().replace(".csproj", "");
+                    } else {
+                        const runtimeConfigFile = files.find(f => f.endsWith(".runtimeconfig.json"));
+                        if (runtimeConfigFile) {
+                            detectedName = runtimeConfigFile.split('/').pop().replace(".runtimeconfig.json", "");
+                        }
+                    }
+                }
+                // Python: requirements.txt, manage.py, app.py, main.py
+                else if (files.some(f => f === "requirements.txt" || f.endsWith("/requirements.txt") || f.endsWith("manage.py") || f.endsWith("app.py") || f.endsWith("main.py"))) {
+                    detectedRuntime = "python";
+                    const mainPy = files.find(f => f.endsWith("app.py") || f.endsWith("main.py") || f.endsWith("manage.py"));
+                    if (mainPy) {
+                        detectedName = mainPy.split('/').pop().replace(".py", "");
+                    }
+                }
+                // Static: index.html, index.htm, index.php
+                else if (files.some(f => f.endsWith("index.html") || f.endsWith("index.htm") || f.endsWith("index.php"))) {
+                    detectedRuntime = "static";
+                }
+                
+                return {
+                    success: true,
+                    detectedRuntime: detectedRuntime,
+                    detectedName: detectedName,
+                    fileName: file.name,
+                    fileSize: file.size
+                };
+            } catch (err) {
+                return { success: false, error: err.message };
+            }
+        };
     </script>
 
     <style>
