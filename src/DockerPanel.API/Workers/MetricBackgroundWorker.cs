@@ -32,6 +32,7 @@ public class MetricBackgroundWorker : BackgroundService
     // static: her iterasyonda new Random() üretilmesi önleniyor (seed sorunu + performans)
     private static readonly Random _rand = new();
     private int _watchdogCounter = 0;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, int> _watchdogFailures = new();
 
     public MetricBackgroundWorker(
         IServiceScopeFactory scopeFactory,
@@ -123,28 +124,65 @@ public class MetricBackgroundWorker : BackgroundService
                                 if (runWatchdog)
                                 {
                                     isRunning = await containerService.IsContainerRunningAsync(project.DockerContainerId);
+                                    
+                                    // Transient check verification: wait 2s and verify again to prevent false alarms
                                     if (!isRunning)
                                     {
-                                        _logger.LogWarning("[Watchdog] Docker container for project {ProjectName} ({ProjectId}) is not running! Attempting auto-restart...", project.Name, project.Id);
-                                        SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Docker projesi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...");
-                                        
-                                        // Send push notification to user
-                                        await pushService.SendNotificationToUserAsync(
-                                            project.UserId,
-                                            "🔴 Servis Durdu (Docker)",
-                                            $"'{project.Name}' Docker konteyner servisi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
-                                            $"apihub://navigate?path=/containers&projectId={project.Id}");
+                                        await Task.Delay(2000, stoppingToken);
+                                        isRunning = await containerService.IsContainerRunningAsync(project.DockerContainerId);
+                                    }
 
-                                        try
+                                    if (!isRunning)
+                                    {
+                                        int failures = _watchdogFailures.AddOrUpdate(project.Id, 1, (key, val) => val + 1);
+                                        _logger.LogWarning("[Watchdog] Docker container for project {ProjectName} ({ProjectId}) is not running! Failure count: {Failures}", project.Name, project.Id, failures);
+
+                                        if (failures >= 3)
                                         {
-                                            await containerService.StartContainerAsync(project.DockerContainerId);
-                                            project.StartedAt = DateTimeOffset.UtcNow;
+                                            _logger.LogError("[Watchdog] Docker container for project {ProjectName} ({ProjectId}) failed to start after {Failures} attempts. Halted.", project.Name, project.Id, failures);
+                                            SystemLogQueue.Log("error", $"[Watchdog] '{project.Name}' Docker projesi üst üste {failures} kez başlatılamadı. Otomatik kurtarma durduruldu, proje durumu 'Hata' olarak güncellendi.");
+
+                                            await pushService.SendNotificationToUserAsync(
+                                                project.UserId,
+                                                "⚠️ Otomatik Kurtarma Başarısız",
+                                                $"'{project.Name}' Docker konteyner servisi sürekli çöküyor ve otomatik başlatılamadı. Servis durduruldu. Lütfen logları inceleyin.",
+                                                $"apihub://navigate?path=/containers&projectId={project.Id}");
+
+                                            project.Status = ProjectStatus.Error;
+                                            project.StartedAt = null;
                                             projectStateChanged = true;
+                                            _watchdogFailures.TryRemove(project.Id, out _);
                                         }
-                                        catch (Exception ex)
+                                        else
                                         {
-                                            _logger.LogError(ex, "[Watchdog] Failed to restart Docker container for project {ProjectName}", project.Name);
+                                            SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Docker projesi durmuş durumda tespit edildi (Kurtarma Denemesi {failures}/3), otomatik yeniden başlatılıyor...");
+                                            
+                                            // Send alert only on first detection to avoid spam
+                                            if (failures == 1)
+                                            {
+                                                await pushService.SendNotificationToUserAsync(
+                                                    project.UserId,
+                                                    "🔴 Servis Durdu (Docker)",
+                                                    $"'{project.Name}' Docker konteyner servisi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
+                                                    $"apihub://navigate?path=/containers&projectId={project.Id}");
+                                            }
+
+                                            try
+                                            {
+                                                await containerService.StartContainerAsync(project.DockerContainerId);
+                                                project.StartedAt = DateTimeOffset.UtcNow;
+                                                projectStateChanged = true;
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                _logger.LogError(ex, "[Watchdog] Failed to restart Docker container for project {ProjectName}", project.Name);
+                                            }
                                         }
+                                    }
+                                    else
+                                    {
+                                        // Reset tracker if check passes
+                                        _watchdogFailures.TryRemove(project.Id, out _);
                                     }
                                 }
 
@@ -163,28 +201,65 @@ public class MetricBackgroundWorker : BackgroundService
                                 if (runWatchdog)
                                 {
                                     isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
+                                    
+                                    // Transient check verification: wait 2s and verify again to prevent false alarms
                                     if (!isRunning)
                                     {
-                                        _logger.LogWarning("[Watchdog] Native process for project {ProjectName} ({ProjectId}) is not running! Attempting auto-restart...", project.Name, project.Id);
-                                        SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Native projesi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...");
-                                        
-                                        // Send push notification to user
-                                        await pushService.SendNotificationToUserAsync(
-                                            project.UserId,
-                                            "🔴 Servis Durdu (Native)",
-                                            $"'{project.Name}' native süreci durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
-                                            $"apihub://navigate?path=/containers&projectId={project.Id}");
+                                        await Task.Delay(2000, stoppingToken);
+                                        isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
+                                    }
 
-                                        try
+                                    if (!isRunning)
+                                    {
+                                        int failures = _watchdogFailures.AddOrUpdate(project.Id, 1, (key, val) => val + 1);
+                                        _logger.LogWarning("[Watchdog] Native process for project {ProjectName} ({ProjectId}) is not running! Failure count: {Failures}", project.Name, project.Id, failures);
+
+                                        if (failures >= 3)
                                         {
-                                            await processManagerService.StartProcessAsync(project.Name);
-                                            project.StartedAt = DateTimeOffset.UtcNow;
+                                            _logger.LogError("[Watchdog] Native process for project {ProjectName} ({ProjectId}) failed to start after {Failures} attempts. Halted.", project.Name, project.Id, failures);
+                                            SystemLogQueue.Log("error", $"[Watchdog] '{project.Name}' Native projesi üst üste {failures} kez başlatılamadı. Otomatik kurtarma durduruldu, proje durumu 'Hata' olarak güncellendi.");
+
+                                            await pushService.SendNotificationToUserAsync(
+                                                project.UserId,
+                                                "⚠️ Otomatik Kurtarma Başarısız",
+                                                $"'{project.Name}' native süreci sürekli çöküyor ve otomatik başlatılamadı. Süreç durduruldu. Lütfen logları inceleyin.",
+                                                $"apihub://navigate?path=/containers&projectId={project.Id}");
+
+                                            project.Status = ProjectStatus.Error;
+                                            project.StartedAt = null;
                                             projectStateChanged = true;
+                                            _watchdogFailures.TryRemove(project.Id, out _);
                                         }
-                                        catch (Exception ex)
+                                        else
                                         {
-                                            _logger.LogError(ex, "[Watchdog] Failed to restart native process for project {ProjectName}", project.Name);
+                                            SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Native projesi durmuş durumda tespit edildi (Kurtarma Denemesi {failures}/3), otomatik yeniden başlatılıyor...");
+                                            
+                                            // Send alert only on first detection to avoid spam
+                                            if (failures == 1)
+                                            {
+                                                await pushService.SendNotificationToUserAsync(
+                                                    project.UserId,
+                                                    "🔴 Servis Durdu (Native)",
+                                                    $"'{project.Name}' native süreci durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
+                                                    $"apihub://navigate?path=/containers&projectId={project.Id}");
+                                            }
+
+                                            try
+                                            {
+                                                await processManagerService.StartProcessAsync(project.Name);
+                                                project.StartedAt = DateTimeOffset.UtcNow;
+                                                projectStateChanged = true;
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                _logger.LogError(ex, "[Watchdog] Failed to restart native process for project {ProjectName}", project.Name);
+                                            }
                                         }
+                                    }
+                                    else
+                                    {
+                                        // Reset tracker if check passes
+                                        _watchdogFailures.TryRemove(project.Id, out _);
                                     }
                                 }
 
