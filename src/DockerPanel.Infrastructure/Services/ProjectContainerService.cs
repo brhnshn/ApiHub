@@ -214,10 +214,18 @@ public class ProjectContainerService : IProjectContainerService
                         cpuPercent = (cpuDelta / systemDelta) * stats.CPUStats.OnlineCPUs * 100.0;
                     }
 
+                    ulong cache = 0;
+                    if (stats.MemoryStats.Stats != null)
+                    {
+                        if (stats.MemoryStats.Stats.TryGetValue("cache", out var c)) cache = c;
+                        else if (stats.MemoryStats.Stats.TryGetValue("inactive_file", out var inf)) cache = inf;
+                    }
+                    ulong usedMemory = stats.MemoryStats.Usage > cache ? stats.MemoryStats.Usage - cache : stats.MemoryStats.Usage;
+
                     statsDto.CpuPercentage = Math.Round(cpuPercent, 2);
-                    statsDto.MemoryUsageBytes = stats.MemoryStats.Usage;
+                    statsDto.MemoryUsageBytes = usedMemory;
                     statsDto.MemoryLimitBytes = stats.MemoryStats.Limit;
-                    statsDto.MemoryPercentage = Math.Round((stats.MemoryStats.Usage / (double)stats.MemoryStats.Limit) * 100.0, 2);
+                    statsDto.MemoryPercentage = Math.Round((usedMemory / (double)stats.MemoryStats.Limit) * 100.0, 2);
                 }), cts.Token);
         }
         catch
