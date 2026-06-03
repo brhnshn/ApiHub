@@ -427,7 +427,7 @@ namespace DockerPanel.Client.Services
             }
         }
 
-        public class CachedDashboardData
+        private class CachedDashboardData
         {
             public List<ContainerStateDto>? Containers { get; set; }
             public List<SubdomainStateDto>? Subdomains { get; set; }
