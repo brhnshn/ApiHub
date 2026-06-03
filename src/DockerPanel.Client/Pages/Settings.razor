@@ -216,6 +216,59 @@
 
         @if (PlatformInfo.IsMobileApp)
         {
+            <!-- Section: PIN & Biometrics (Bento 12-cols) -->
+            <section class="md:col-span-12 bento-card-custom rounded-xl p-6 border shadow-xl bg-[#171a21]/80 border-white/5 text-white">
+                <span class="font-label-caps text-label-caps block mb-4 uppercase text-gray-400 font-bold tracking-wider text-[10px]">GÜVENLİK VE GİRİŞ KİLİDİ</span>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+                    <div class="flex items-center justify-between py-4 border-b border-slate-100/10">
+                        <div>
+                            <p class="font-semibold text-xs text-white">PIN Kodu Kilidi</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Uygulama açılışında 4 haneli PIN kodu sor</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            @if (_pinEnabled)
+                            {
+                                <button @onclick="ChangePinAsync" class="text-[10px] font-bold text-[#4edea3] hover:underline bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/5">PIN Değiştir</button>
+                            }
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input type="checkbox" @checked="_pinEnabled" @onchange="TogglePinAsync" class="ios-toggle-custom ios-toggle-custom-mobile" />
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between py-4 border-b border-slate-100/10">
+                        <div>
+                            <p class="font-semibold text-xs text-white">Biyometrik Giriş (FaceID / Parmak İzi)</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">PIN yerine telefonun biyometrik doğrulamasını kullan</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input type="checkbox" @bind="_biometricEnabled" @bind:after="SaveBiometricSettings" disabled="@(!_pinEnabled)" class="ios-toggle-custom ios-toggle-custom-mobile disabled:opacity-40" />
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between py-4 border-b border-slate-100/10">
+                        <div>
+                            <p class="font-semibold text-xs text-white">Otomatik Kilitleme Süresi</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Uygulama arka plana geçtiğinde kilitlenme süresi</p>
+                        </div>
+                        <select @bind="_lockTimeoutMinutes" @bind:after="SaveLockTimeoutSettings" disabled="@(!_pinEnabled)" class="bg-[#10131a] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-[#4edea3] transition-all disabled:opacity-40">
+                            <option value="0">Hemen</option>
+                            <option value="1">1 Dakika</option>
+                            <option value="5">5 Dakika</option>
+                            <option value="15">15 Dakika</option>
+                            <option value="-1">Hiçbir zaman</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center justify-between py-4 border-b border-slate-100/10">
+                        <div>
+                            <p class="font-semibold text-xs text-white">Titreşim / Haptic Geri Bildirim</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Butonlara ve yenileme hareketine titreşim ekle</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input type="checkbox" @checked="PlatformInfo.IsHapticEnabled" @onchange="ToggleHapticAsync" class="ios-toggle-custom ios-toggle-custom-mobile" />
+                        </label>
+                    </div>
+                </div>
+            </section>
+
             <!-- Section: Storage & Cache (Bento 12-cols) -->
             <section class="md:col-span-12 bento-card-custom rounded-xl p-6 border shadow-xl bg-[#171a21]/80 border-white/5 text-white">
                 <span class="font-label-caps text-label-caps block mb-4 uppercase text-gray-400 font-bold tracking-wider text-[10px]">CİHAZ DEPOLAMA VE ÖNBELLEK YÖNETİMİ</span>
@@ -304,8 +357,27 @@
     private string _cacheSizeText = "Hesaplanıyor...";
     private bool _isClearingCache = false;
 
+    private bool _pinEnabled = false;
+    private bool _biometricEnabled = false;
+    private int _lockTimeoutMinutes = 0;
+
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            var pinVal = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "app_pin_enabled");
+            _pinEnabled = pinVal == "true";
+            var bioVal = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "app_biometric_enabled");
+            _biometricEnabled = bioVal == "true";
+
+            var hapticVal = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "app_haptics_enabled");
+            PlatformInfo.IsHapticEnabled = hapticVal != "false";
+
+            var timeoutVal = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "app_lock_timeout_minutes");
+            _lockTimeoutMinutes = string.IsNullOrEmpty(timeoutVal) ? 0 : int.Parse(timeoutVal);
+        }
+        catch {}
+
         var authState = await AuthProvider.GetAuthenticationStateAsync();
         if (authState.User.Identity?.IsAuthenticated == true)
         {
@@ -313,6 +385,93 @@
             _role = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Customer";
         }
         await LoadCacheSize();
+    }
+
+    private async Task ToggleHapticAsync(ChangeEventArgs e)
+    {
+        var enabled = (bool)(e.Value ?? false);
+        PlatformInfo.IsHapticEnabled = enabled;
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "app_haptics_enabled", enabled.ToString().ToLower());
+        if (enabled)
+        {
+            PlatformInfo.TriggerHaptic();
+            Snackbar.Add("Titreşim geri bildirimi aktif edildi!", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Titreşim geri bildirimi kapatıldı.", Severity.Info);
+        }
+    }
+
+    private async Task SaveLockTimeoutSettings()
+    {
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "app_lock_timeout_minutes", _lockTimeoutMinutes.ToString());
+        Snackbar.Add("Otomatik kilitleme süresi güncellendi!", Severity.Success);
+    }
+
+    private async Task TogglePinAsync(ChangeEventArgs e)
+    {
+        var enabled = (bool)(e.Value ?? false);
+        if (enabled)
+        {
+            var newPin = await JSRuntime.InvokeAsync<string?>("prompt", "Uygulama kilidi için 4 haneli yeni PIN girin:");
+            if (!string.IsNullOrWhiteSpace(newPin) && newPin.Length == 4 && int.TryParse(newPin, out _))
+            {
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "app_pin_code", newPin);
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "app_pin_enabled", "true");
+                _pinEnabled = true;
+                Snackbar.Add("PIN Kilidi aktif edildi!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Geçersiz PIN! Lütfen 4 haneli sayısal bir kod girin.", Severity.Error);
+                _pinEnabled = false;
+            }
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "app_pin_enabled", "false");
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "app_biometric_enabled", "false");
+            _pinEnabled = false;
+            _biometricEnabled = false;
+            Snackbar.Add("PIN Kilidi ve Biyometrik Giriş devre dışı bırakıldı.", Severity.Info);
+        }
+        StateHasChanged();
+    }
+
+    private async Task ChangePinAsync()
+    {
+        var currentPin = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "app_pin_code");
+        var verify = await JSRuntime.InvokeAsync<string?>("prompt", "Mevcut PIN kodunu girin:");
+        if (verify != currentPin)
+        {
+            Snackbar.Add("Hatalı mevcut PIN!", Severity.Error);
+            return;
+        }
+
+        var newPin = await JSRuntime.InvokeAsync<string?>("prompt", "4 haneli yeni PIN girin:");
+        if (!string.IsNullOrWhiteSpace(newPin) && newPin.Length == 4 && int.TryParse(newPin, out _))
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "app_pin_code", newPin);
+            Snackbar.Add("PIN kodunuz güncellendi!", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Geçersiz PIN! Değişiklik iptal edildi.", Severity.Error);
+        }
+    }
+
+    private async Task SaveBiometricSettings()
+    {
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "app_biometric_enabled", _biometricEnabled.ToString().ToLower());
+        if (_biometricEnabled)
+        {
+            Snackbar.Add("Biyometrik Giriş aktif edildi!", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Biyometrik Giriş devre dışı bırakıldı.", Severity.Info);
+        }
     }
 
     private async Task LoadCacheSize()

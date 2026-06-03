@@ -15,6 +15,17 @@ public class PlatformInfo
     public Func<Task<(bool HasUpdate, string ServerVersion, string Changelog)>>? CheckForUpdatesFunc { get; set; }
     public Func<Task<long>>? GetCacheSizeFunc { get; set; }
     public Func<Task>? ClearCacheFunc { get; set; }
+    public Func<string, Task<bool>>? AuthenticateBiometricFunc { get; set; }
+    public Action? TriggerHapticFeedbackFunc { get; set; }
+
+    public bool IsHapticEnabled { get; set; }
+    public void TriggerHaptic()
+    {
+        if (IsHapticEnabled && TriggerHapticFeedbackFunc != null)
+        {
+            TriggerHapticFeedbackFunc.Invoke();
+        }
+    }
 
     // Bridge for mobile application background lifecycle events
     public event Action<bool>? OnAppStateChanged;

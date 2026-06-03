@@ -227,6 +227,101 @@
     }
 </style>
 
+@if (_showSpotlightSearch)
+{
+    <div class="fixed inset-0 bg-[#07090d]/80 backdrop-blur-md z-[9999999] transition-opacity animate-fade-in" @onclick="CloseSpotlightSearch"></div>
+    <div class="fixed top-16 left-4 right-4 max-w-md mx-auto bg-[#10131a]/95 border border-white/10 rounded-2xl p-4 z-[9999999] flex flex-col shadow-2xl space-y-4 text-white" @onclick:stopPropagation>
+        <div class="relative flex items-center">
+            <span class="material-symbols-outlined absolute left-3 text-slate-400">search</span>
+            <input @ref="_searchInput"
+                   class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white focus:outline-none focus:border-[#4edea3] focus:ring-1 focus:ring-[#4edea3]/30 transition-all font-medium outline-none"
+                   placeholder="Ara: konteyner, sayfa, veri tabanı..."
+                   @bind="_spotlightQuery"
+                   @bind:event="oninput" />
+            <button @onclick="CloseSpotlightSearch" class="absolute right-3 text-slate-400 hover:text-white transition-colors flex items-center justify-center">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        </div>
+
+        <div class="flex-grow overflow-y-auto max-h-[300px] space-y-1.5 pr-1.5 webmail-scroll">
+            @if (GetSpotlightResults().Any())
+            {
+                @foreach (var result in GetSpotlightResults())
+                {
+                    <button @onclick="() => NavigateToSearchResult(result.Url)" class="w-full text-left p-2.5 hover:bg-[#4edea3]/10 hover:text-[#4edea3] rounded-xl flex items-center gap-3 transition-colors border border-transparent hover:border-[#4edea3]/20">
+                        <div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400">
+                            <span class="material-symbols-outlined text-sm">@result.Icon</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-xs font-bold leading-tight">@result.Title</p>
+                            <p class="text-[9px] text-slate-500 font-medium">@result.Category</p>
+                        </div>
+                        <span class="material-symbols-outlined text-xs text-slate-600">chevron_right</span>
+                    </button>
+                }
+            }
+            else
+            {
+                <div class="text-center py-6 text-slate-500 text-xs font-semibold">
+                    <span class="material-symbols-outlined text-2xl mb-1 block">search_off</span>
+                    Arama sonucu bulunamadı
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@if (_showPasscodeScreen)
+{
+    <div class="fixed inset-0 bg-[#07090d]/98 backdrop-blur-2xl z-[9999999] flex flex-col items-center justify-center p-4 font-sans select-none" style="background-image: radial-gradient(circle at center, #10141f 0%, #05070a 100%);">
+        <!-- Shield Lock Icon -->
+        <div class="mb-6 flex flex-col items-center">
+            <div class="w-16 h-16 rounded-full bg-[#006c49]/15 border border-[#006c49]/30 flex items-center justify-center text-[#4edea3] mb-4 shadow-lg shadow-[#006c49]/10">
+                <span class="material-symbols-outlined text-3xl">security</span>
+            </div>
+            <h3 class="text-lg font-black text-white tracking-wide">ApiHub Güvenlik Kilidi</h3>
+            <p class="text-[11px] text-slate-400 mt-1 font-medium">Uygulamaya erişmek için PIN kodunu girin</p>
+        </div>
+
+        <!-- Dot Indicators -->
+        <div class="flex gap-4 mb-10">
+            @for (int i = 0; i < 4; i++)
+            {
+                <div class='@($"w-3.5 h-3.5 rounded-full border-2 transition-all duration-150 {(i < _enteredPin.Length ? "bg-[#4edea3] border-[#4edea3] scale-110 shadow-[0_0_8px_#4edea3]" : "border-slate-600 bg-transparent")}")'></div>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(_passcodeError))
+        {
+            <p class="text-rose-400 text-xs font-bold mb-6 animate-pulse">@_passcodeError</p>
+        }
+
+        <!-- Virtual Keypad Grid (3x4) -->
+        <div class="grid grid-cols-3 gap-y-4 gap-x-8 max-w-[280px] w-full">
+            @for (int i = 1; i <= 9; i++)
+            {
+                var num = i.ToString();
+                <button @onclick="() => AppendDigit(num)" class="w-16 h-16 rounded-full bg-white/5 border border-white/5 text-xl font-bold text-white hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center">@num</button>
+            }
+            <!-- Row 4: Biometrics, 0, Backspace -->
+            @if (PlatformInfo.IsMobileApp && _biometricEnabled)
+            {
+                <button @onclick="TriggerBiometricAuthAsync" class="w-16 h-16 rounded-full bg-[#006c49]/20 border border-[#006c49]/30 text-[#4edea3] hover:bg-[#006c49]/30 active:scale-95 transition-all flex items-center justify-center">
+                    <span class="material-symbols-outlined text-2xl">fingerprint</span>
+                </button>
+            }
+            else
+            {
+                <div></div>
+            }
+            <button @onclick='() => AppendDigit("0")' class="w-16 h-16 rounded-full bg-white/5 border border-white/5 text-xl font-bold text-white hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center">0</button>
+            <button @onclick="RemoveLastDigit" class="w-16 h-16 rounded-full bg-white/5 border border-white/5 text-white hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center">
+                <span class="material-symbols-outlined text-xl">backspace</span>
+            </button>
+        </div>
+    </div>
+}
+
 @if (AppState.IsConnectionFailed)
 {
     <div class="fixed inset-0 bg-[#07090d]/95 backdrop-blur-xl z-[999999] flex items-center justify-center p-4 font-sans text-[#e1e2ec]" style="background-image: radial-gradient(circle at top right, rgba(239, 68, 68, 0.05), transparent 40%), radial-gradient(circle at bottom left, rgba(78, 222, 163, 0.03), transparent 45%);">
@@ -441,6 +536,11 @@ else
                                 FCM Simülasyon
                             </span>
                         }
+                        <button @onclick="OpenSpotlightSearch"
+                                style="width:40px; height:40px; border-radius:12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s;"
+                                title="Hızlı Arama">
+                            <span class="material-symbols-outlined" style="font-size:22px; color:#9ba3b8;">search</span>
+                        </button>
                         <button @onclick='() => NavigateToMobilePage("/notifications")'
                                 style="position:relative; width:40px; height:40px; border-radius:12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s;">
                             <span class="material-symbols-outlined" style="font-size:22px; color:@(_notifUnreadCount > 0 ? "#4edea3" : "#9ba3b8"); font-variation-settings:'FILL' @(_notifUnreadCount > 0 ? "1" : "0");">notifications</span>
@@ -832,6 +932,13 @@ else
                             @_signalRBannerText
                         </div>
                     }
+                    @if (AppState.IsOfflineMode)
+                    {
+                        <div class="bg-amber-500/10 border-b border-amber-500/20 text-amber-500 text-[11px] font-bold text-center py-2 px-4 flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-sm animate-pulse">cloud_off</span>
+                            <span>Çevrimdışı Mod — Son Senkronizasyon: @(AppState.LastOfflineSyncTime?.ToString("dd.MM.yyyy HH:mm") ?? "Bilinmiyor")</span>
+                        </div>
+                    }
                     
                     <!-- MASAÜSTÜ YÜZEN HAMBURGER BUTONU -->
                     @if (!_desktopSidebarOpen)
@@ -1162,16 +1269,175 @@ else
         _ => "Kontrol Paneli"
     };
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private bool _showSpotlightSearch = false;
+    private string _spotlightQuery = "";
+    private ElementReference _searchInput;
+
+    private class SpotlightItem
     {
-        if (firstRender && PlatformInfo.IsMobileApp)
+        public string Title { get; set; } = "";
+        public string Category { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public string Url { get; set; } = "";
+    }
+
+    private void OpenSpotlightSearch()
+    {
+        _spotlightQuery = "";
+        _showSpotlightSearch = true;
+        _ = Task.Run(async () =>
         {
+            await Task.Delay(100);
             try
             {
-                var dotNetHelper = DotNetObjectReference.Create(this);
-                await JSRuntime.InvokeVoidAsync("window.setupPullToRefresh", dotNetHelper);
+                await _searchInput.FocusAsync();
             }
             catch {}
+        });
+    }
+
+    private void CloseSpotlightSearch()
+    {
+        _showSpotlightSearch = false;
+    }
+
+    private void NavigateToSearchResult(string url)
+    {
+        CloseSpotlightSearch();
+        NavigateToMobilePage(url);
+    }
+
+    private IEnumerable<SpotlightItem> GetSpotlightResults()
+    {
+        var items = new List<SpotlightItem>
+        {
+            new() { Title = "Genel Bakış", Category = "Sistem Sayfası", Icon = "home", Url = "/" },
+            new() { Title = "Konteyner Yönetimi", Category = "Sistem Sayfası", Icon = "view_module", Url = "/containers" },
+            new() { Title = "Domain / DNS / SSL", Category = "Sistem Sayfası", Icon = "dns", Url = "/domains" },
+            new() { Title = "Dağıtım Sihirbazı", Category = "Sistem Sayfası", Icon = "wand_magic", Url = "/deploy-wizard" },
+            new() { Title = "Güvenlik & Duvar", Category = "Sistem Sayfası", Icon = "security", Url = "/firewall" },
+            new() { Title = "Veritabanı", Category = "Sistem Sayfası", Icon = "database", Url = "/databases" },
+            new() { Title = "E-Posta Sunucusu", Category = "Sistem Sayfası", Icon = "mail", Url = "/email" },
+            new() { Title = "Webmail İstemcisi", Category = "Sistem Sayfası", Icon = "inbox", Url = "/webmail" },
+            new() { Title = "Canlı Log Akışı", Category = "Sistem Sayfası", Icon = "terminal", Url = "/terminal" },
+            new() { Title = "Mobil Cihazlar", Category = "Sistem Sayfası", Icon = "devices", Url = "/devices" },
+            new() { Title = "Denetim Kayıtları", Category = "Sistem Sayfası", Icon = "history", Url = "/audit-logs" },
+            new() { Title = "Yedekleme Yönetimi", Category = "Sistem Sayfası", Icon = "backup", Url = "/backups" },
+            new() { Title = "Uygulama Ayarları", Category = "Sistem Sayfası", Icon = "settings", Url = "/settings" }
+        };
+
+        if (string.IsNullOrWhiteSpace(_spotlightQuery))
+        {
+            return items;
+        }
+
+        return items.Where(i => i.Title.Contains(_spotlightQuery, StringComparison.OrdinalIgnoreCase) ||
+                                i.Category.Contains(_spotlightQuery, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool _showPasscodeScreen = false;
+    private string _appPinCode = "";
+    private string _enteredPin = "";
+    private string _passcodeError = "";
+    private bool _biometricEnabled = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (PlatformInfo.IsMobileApp)
+            {
+                try
+                {
+                    var dotNetHelper = DotNetObjectReference.Create(this);
+                    await JSRuntime.InvokeVoidAsync("window.setupPullToRefresh", dotNetHelper);
+                }
+                catch {}
+            }
+
+            // Check passcode lock status
+            try
+            {
+                var pinEnabledVal = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "app_pin_enabled");
+                if (pinEnabledVal == "true")
+                {
+                    var pinCode = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "app_pin_code");
+                    if (!string.IsNullOrEmpty(pinCode))
+                    {
+                        _appPinCode = pinCode;
+                        _showPasscodeScreen = true;
+                        
+                        var bioEnabledVal = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "app_biometric_enabled");
+                        _biometricEnabled = bioEnabledVal == "true";
+                        
+                        StateHasChanged();
+                        
+                        if (_biometricEnabled)
+                        {
+                            _ = TriggerBiometricAuthAsync();
+                        }
+                    }
+                }
+            }
+            catch {}
+        }
+    }
+
+    private async Task AppendDigit(string digit)
+    {
+        if (_enteredPin.Length < 4)
+        {
+            _enteredPin += digit;
+            _passcodeError = "";
+            StateHasChanged();
+
+            if (_enteredPin.Length == 4)
+            {
+                await Task.Delay(150); // Small delay to let user see dot fill
+                if (_enteredPin == _appPinCode)
+                {
+                    _showPasscodeScreen = false;
+                    _enteredPin = "";
+                    Snackbar.Add("Giriş Başarılı!", Severity.Success);
+                }
+                else
+                {
+                    _enteredPin = "";
+                    _passcodeError = "Hatalı PIN Kodu! Tekrar Deneyin.";
+                }
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void RemoveLastDigit()
+    {
+        if (_enteredPin.Length > 0)
+        {
+            _enteredPin = _enteredPin.Substring(0, _enteredPin.Length - 1);
+            _passcodeError = "";
+            StateHasChanged();
+        }
+    }
+
+    private async Task TriggerBiometricAuthAsync()
+    {
+        if (PlatformInfo.AuthenticateBiometricFunc != null)
+        {
+            var success = await PlatformInfo.AuthenticateBiometricFunc.Invoke("Girişinizi onaylamak için biyometrik doğrulama kullanın.");
+            if (success)
+            {
+                _showPasscodeScreen = false;
+                _enteredPin = "";
+                _passcodeError = "";
+                await InvokeAsync(StateHasChanged);
+                Snackbar.Add("Biyometrik Doğrulama Başarılı!", Severity.Success);
+            }
+            else
+            {
+                _passcodeError = "Biyometrik doğrulama başarısız veya iptal edildi.";
+                await InvokeAsync(StateHasChanged);
+            }
         }
     }
 

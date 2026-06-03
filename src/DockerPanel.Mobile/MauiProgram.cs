@@ -128,6 +128,34 @@ public static class MauiProgram
 				{
 				}
 				return Task.CompletedTask;
+			},
+			AuthenticateBiometricFunc = async (title) =>
+			{
+				try
+				{
+					var isAvailable = await Plugin.Fingerprint.CrossFingerprint.Current.IsAvailableAsync(true);
+					if (!isAvailable) return false;
+
+					var request = new Plugin.Fingerprint.Abstractions.AuthenticationRequestConfiguration("Güvenlik Doğrulaması", title)
+					{
+						AllowAlternativeAuthentication = true
+					};
+
+					var result = await Plugin.Fingerprint.CrossFingerprint.Current.AuthenticateAsync(request);
+					return result.Authenticated;
+				}
+				catch
+				{
+					return false;
+				}
+			},
+			TriggerHapticFeedbackFunc = () =>
+			{
+				try
+				{
+					Microsoft.Maui.Devices.HapticFeedback.Default.Perform(Microsoft.Maui.Devices.HapticFeedbackType.Click);
+				}
+				catch {}
 			}
 		});
 

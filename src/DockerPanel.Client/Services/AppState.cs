@@ -68,6 +68,8 @@ namespace DockerPanel.Client.Services
         public bool IsSignalRConnected { get; private set; }
         public bool IsConnectionFailed { get; private set; }
         public string? ConnectionErrorMessage { get; private set; }
+        public bool IsOfflineMode { get; private set; }
+        public DateTime? LastOfflineSyncTime { get; private set; }
 
         public AppState(HttpClient http, NavigationManager navigationManager, IJSRuntime jsRuntime, IAuthTokenStore tokenStore, PlatformInfo platformInfo)
         {
@@ -160,7 +162,7 @@ namespace DockerPanel.Client.Services
             try
             {
                 // Eşzamanlı Ön-Yükleme ve Zaman Aşımı Yarışı (Maksimum 700ms)
-                var loadTask = LoadAllDataAsync();
+                var loadTask = LoadAllDataWithRetryAsync();
                 var timeoutTask = Task.Delay(700);
 
                 var completedTask = await Task.WhenAny(loadTask, timeoutTask);
@@ -195,8 +197,18 @@ namespace DockerPanel.Client.Services
                 }
                 else
                 {
-                    IsConnectionFailed = true;
-                    ConnectionErrorMessage = "Sunucuya bağlanılamadı. Lütfen sunucu adresinizi veya internet bağlantınızı kontrol edin.";
+                    var loadedFromCache = await TryLoadFromOfflineCacheAsync();
+                    if (loadedFromCache)
+                    {
+                        IsOfflineMode = true;
+                        IsInitialized = true;
+                        IsConnectionFailed = false;
+                    }
+                    else
+                    {
+                        IsConnectionFailed = true;
+                        ConnectionErrorMessage = "Sunucuya bağlanılamadı. Lütfen sunucu adresinizi veya internet bağlantınızı kontrol edin.";
+                    }
                 }
                 NotifyStateChanged();
             }
@@ -211,6 +223,32 @@ namespace DockerPanel.Client.Services
             catch
             {
                 // Fallback in case JS is not ready yet
+            }
+        }
+
+        private async Task LoadAllDataWithRetryAsync()
+        {
+            int maxRetries = 3;
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    await LoadAllDataAsync();
+                    return;
+                }
+                catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AppState] LoadAllDataAsync attempt {i + 1} failed: {ex.Message}");
+                    if (i == maxRetries - 1)
+                    {
+                        throw;
+                    }
+                    await Task.Delay(1000);
+                }
             }
         }
 
@@ -304,6 +342,26 @@ namespace DockerPanel.Client.Services
                         IsFcmConfigured = systemStatus.IsFcmConfigured;
                     }
                 }
+
+                // Save to local storage for offline view
+                try
+                {
+                    var cacheData = new CachedDashboardData
+                    {
+                        Containers = containers,
+                        Subdomains = subdomains,
+                        SystemStatus = systemStatus,
+                        LastSyncTime = DateTime.Now
+                    };
+                    var json = System.Text.Json.JsonSerializer.Serialize(cacheData);
+                    await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "cached_dashboard_data", json);
+                }
+                catch {}
+
+                lock (_lock)
+                {
+                    IsOfflineMode = false;
+                }
             }
             catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
@@ -348,14 +406,68 @@ namespace DockerPanel.Client.Services
                 }
                 else
                 {
-                    IsConnectionFailed = true;
-                    ConnectionErrorMessage = "Sunucuya bağlanılamadı. Lütfen sunucu adresinizi veya internet bağlantınızı kontrol edin.";
+                    var loadedFromCache = await TryLoadFromOfflineCacheAsync();
+                    if (loadedFromCache)
+                    {
+                        IsOfflineMode = true;
+                        IsInitialized = true;
+                        IsConnectionFailed = false;
+                    }
+                    else
+                    {
+                        IsConnectionFailed = true;
+                        ConnectionErrorMessage = "Sunucuya bağlanılamadı. Lütfen sunucu adresinizi veya internet bağlantınızı kontrol edin.";
+                    }
                 }
             }
             finally
             {
                 IsLoading = false;
                 NotifyStateChanged();
+            }
+        }
+
+        public class CachedDashboardData
+        {
+            public List<ContainerStateDto>? Containers { get; set; }
+            public List<SubdomainStateDto>? Subdomains { get; set; }
+            public SystemStatusStateDto? SystemStatus { get; set; }
+            public DateTime LastSyncTime { get; set; }
+        }
+
+        private async Task<bool> TryLoadFromOfflineCacheAsync()
+        {
+            try
+            {
+                var json = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", "cached_dashboard_data");
+                if (string.IsNullOrWhiteSpace(json)) return false;
+
+                var data = System.Text.Json.JsonSerializer.Deserialize<CachedDashboardData>(json);
+                if (data == null) return false;
+
+                lock (_lock)
+                {
+                    RunningContainerCount = data.Containers?.Count(c => c.Status == 0) ?? 0;
+                    SubdomainCount = data.Subdomains?.Count ?? 0;
+                    if (data.SystemStatus != null)
+                    {
+                        DockerActive = data.SystemStatus.DockerActive;
+                        DockerVersion = data.SystemStatus.DockerVersion;
+                        DockerApiVersion = data.SystemStatus.DockerApiVersion;
+                        NginxActive = data.SystemStatus.NginxActive;
+                        MailServerActive = data.SystemStatus.MailServerActive;
+                        CpuCount = data.SystemStatus.CpuCount;
+                        CpuModel = data.SystemStatus.CpuModel;
+                        IsFcmConfigured = data.SystemStatus.IsFcmConfigured;
+                    }
+                    LastOfflineSyncTime = data.LastSyncTime;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AppState] Failed to load offline cache: {ex.Message}");
+                return false;
             }
         }
 

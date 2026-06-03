@@ -226,6 +226,7 @@
 
             window.setupPullToRefresh = function (dotNetHelper) {
                 var startY = 0;
+                var startX = 0;
                 var currentY = 0;
                 var isPulling = false;
                 var threshold = 80;
@@ -234,9 +235,18 @@
 
                 if (!indicator || !spinner) return;
 
+                function isAnyParentScrolled(el) {
+                    while (el && el !== document.body && el !== document.documentElement) {
+                        if (el.scrollTop > 5) return true;
+                        el = el.parentElement;
+                    }
+                    return false;
+                }
+
                 window.addEventListener('touchstart', function (e) {
-                    if (window.scrollY <= 5) {
+                    if (window.scrollY <= 5 && !isAnyParentScrolled(e.target)) {
                         startY = e.touches[0].clientY;
+                        startX = e.touches[0].clientX;
                         isPulling = true;
                     }
                 }, { passive: true });
@@ -244,10 +254,21 @@
                 window.addEventListener('touchmove', function (e) {
                     if (!isPulling) return;
                     currentY = e.touches[0].clientY;
-                    var diff = currentY - startY;
+                    var currentX = e.touches[0].clientX;
+                    var diffY = currentY - startY;
+                    var diffX = currentX - startX;
 
-                    if (diff > 0) {
-                        var pullDist = Math.min(diff * 0.4, threshold + 20);
+                    // If horizontal swipe or scrolling up, cancel pull-to-refresh
+                    if (Math.abs(diffX) > Math.abs(diffY) || diffY <= 0) {
+                        if (Math.abs(diffX) > 10 || diffY < 0) {
+                            isPulling = false;
+                            resetIndicator();
+                        }
+                        return;
+                    }
+
+                    if (diffY > 0) {
+                        var pullDist = Math.min(diffY * 0.4, threshold + 20);
                         indicator.style.top = (pullDist - 30) + 'px';
                         indicator.style.opacity = Math.min(pullDist / threshold, 1);
                         

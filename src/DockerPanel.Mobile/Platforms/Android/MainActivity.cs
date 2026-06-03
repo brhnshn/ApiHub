@@ -25,6 +25,9 @@ public class MainActivity : MauiAppCompatActivity
 	{
 		base.OnCreate(savedInstanceState);
 		
+		// Biyometrik doğrulama penceresi için aktif activity'i ata
+		Plugin.Fingerprint.CrossFingerprint.SetCurrentActivityResolver(() => this);
+		
 		if (Build.VERSION.SdkInt >= BuildVersionCodes.Lollipop)
 		{
 			Window.SetStatusBarColor(Android.Graphics.Color.ParseColor("#10131a"));
