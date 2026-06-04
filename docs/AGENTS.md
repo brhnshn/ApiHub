@@ -69,6 +69,8 @@ Panel PostgreSQL veritabanında (`dockerpanel_db`) bulunması gereken tablolar v
 *   **CpuCount** (DOUBLE PRECISION, Not Null) - Çekirdek kısıtlama adedi (Örn: 0.5).
 *   **InternalPort** (INTEGER, Not Null) - Projenin konteyner/süreç içinde dinlediği port (Örn: 3000).
 *   **Status** (VARCHAR 20, Not Null) - Proje durumu (`Provisioning`, `Running`, `Stopped`, `Error`).
+*   **StartedAt** (TIMESTAMP WITH TIME ZONE, Nullable) - Projenin son başlatılma zamanı.
+*   **EnablePhp** (BOOLEAN, Default False) - PHP desteğinin aktif olup olmadığı.
 *   **CreatedAt** (TIMESTAMP WITH TIME ZONE) - Oluşturulma tarihi.
 
 ### C. Tablo: Subdomains (Nginx Proxy Yönlendirmeleri)
@@ -279,4 +281,9 @@ Ajan, sunucu kurulum aşamasında güvenlik seviyesini maksimumda tutmak için �
 *   **Mobil Tarayıcı Algılama (User-Agent Detection):** Web paneline mobil tarayıcılar (Android/iOS) üzerinden giriş yapıldığında, kullanıcıya premium `.NET MAUI Blazor Hybrid` mobil uygulamasının indirilmesini öneren modern, dinamik bir mobil banner gösterilir.
 *   **Banner Kapatma ve Çerez Saklama (LocalStorage Persistence):** Kullanıcı banner'ı kapattığında `localStorage` üzerinde 7 günlük bir engelleyici kayıt oluşturulmalı ve bu süre boyunca banner kullanıcıya tekrar gösterilmemelidir.
 *   **Güvenli APK İndirme Akışı (Secure APK Download Flow):** Banner'daki "Hemen İndir" butonu, JWT doğrulamalı kullanıcı oturumuna veya QR kod ile oluşturulmuş 15 dakikalık geçici tek kullanımlık token'lara dayanarak güvenli `/api/downloads/apk` uç noktasından indirmeyi başlatır.
+*   **Tamamlanan Mobil Özellikler (Completed Mobile Features):**
+    *   **FCM Push Bildirimleri (FCM Push Notifications):** Konteyner ve native süreç çökmelerinde Firebase Cloud Messaging üzerinden anlık bildirim sistemi tam olarak entegre edilmiştir.
+    *   **Güvenli APK İndirme ve Dağıtım (Secure APK Downloads):** Kullanıcıların web paneli üzerinden güvenli `/api/downloads/apk` uç noktası veya tek kullanımlık QR token'lar ile güncel APK dosyasını indirebilmesi sağlanmıştır.
+    *   **Derin Bağlantı (Deep Linking):** Mobil bildirimlere tıklandığında uygulamanın doğrudan ilgili projenin log veya detay sayfasına yönlendirilmesi sağlanmıştır.
+
 

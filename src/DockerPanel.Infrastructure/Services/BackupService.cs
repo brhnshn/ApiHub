@@ -301,7 +301,7 @@ public class BackupService : IBackupService
                     var psi = new ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = $"tar -czf {projectsFile} -C {projectsPath} .",
+                        Arguments = $"nice -n 19 tar -czf {projectsFile} -C {projectsPath} .",
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
@@ -348,7 +348,7 @@ public class BackupService : IBackupService
                     var psi = new ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = $"tar -czf {nginxFile} -C {nginxPath} .",
+                        Arguments = $"nice -n 19 tar -czf {nginxFile} -C {nginxPath} .",
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
@@ -395,7 +395,7 @@ public class BackupService : IBackupService
                     var psi = new ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = $"tar -czf {mailFile} -C {mailPath} .",
+                        Arguments = $"nice -n 19 tar -czf {mailFile} -C {mailPath} .",
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true

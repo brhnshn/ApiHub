@@ -30,7 +30,7 @@ Veritabanı ilişkileri ve kısıtlamaları [DockerPanelDbContext.cs](file:///c:
 
 ### Tablolar ve İlişkiler (Entity Mappings)
 - **Users**: Panel yöneticileri ve müşteriler. UUID Primary Key. `Username` üzerinde Unique Index mevcuttur. Role bilgisi String olarak saklanır.
-- **Projects**: Hibrit proje tablosudur (`DockerContainer` veya `NativeProject`). `UserId` ile `Users` tablosuna bağlıdır (Cascade Delete). Proje `Name` alanı benzersizdir (Unique Index).
+- **Projects**: Hibrit proje tablosudur (`DockerContainer` veya `NativeProject`). `UserId` ile `Users` tablosuna bağlıdır (Cascade Delete). Proje `Name` alanı benzersizdir (Unique Index). Projenin son başlatılma zamanını saklayan `StartedAt` (DateTimeOffset?) ve yerel PHP desteğini belirten `EnablePhp` (bool) kolonlarını barındırır.
 - **Subdomains**: Nginx Reverse Proxy kurallarını temsil eder. `SubdomainName` ve `DomainName` alanları birlikte **Unique Index** (`HasIndex(e => new { e.SubdomainName, e.DomainName }).IsUnique()`) oluşturur. Hem `UserId` hem de opsiyonel `ProjectId` ile ilişkili olup Cascade Delete uygulanır.
 - **DnsRecords**: Dinamik Cloudflare veya yerel DNS kayıtları. `ZoneID` ve Cloudflare ID (`CloudflareRecordId`) alanlarını barındırır.
 - **DatabaseSchemas**: PostgreSQL üzerinde müşteriler için ayrılan izole şemalar. `DbName` ve `DbUser` alanları üzerinde Unique Index mevcuttur.

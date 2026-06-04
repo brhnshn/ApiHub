@@ -6,11 +6,13 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace DockerPanel.API.Controllers;
 
 [ApiController]
 [Route("api/downloads")]
+[EnableRateLimiting("resource-heavy")]
 public class DownloadsController : ControllerBase
 {
     private const string FallbackAppVersion = "1.0.0";
