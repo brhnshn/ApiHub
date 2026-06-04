@@ -3,6 +3,7 @@ version: '3.9'
 services:
   db:
     image: postgres:16-alpine
+    container_name: dockerpanel-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-dp_admin}
@@ -12,28 +13,29 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-
-  api:
-    build:
-      context: ./src/DockerPanel.API
-      dockerfile: Dockerfile
-    depends_on:
-      - db
-    environment:
-      ConnectionStrings__DockerPanelDb: "Host=db;Port=5432;Username=${POSTGRES_USER:-dp_admin};Password=${POSTGRES_PASSWORD};Database=${POSTGRES_DB:-dockerpanel_db}"
-    ports:
-      - "5000:80"
     networks:
       - dockerpanel-net
 
-  nginx:
-    image: nginx:alpine
-    depends_on:
-      - api
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  mailserver:
+    image: mailserver/docker-mailserver:latest
+    container_name: dockerpanel-mailserver
+    hostname: ${MAIL_HOSTNAME:-mail.burhansahin.com.tr}
+    domainname: ${MAIL_DOMAIN:-burhansahin.com.tr}
     ports:
-      - "80:80"
+      - "25:25"
+      - "143:143"
+      - "587:587"
+      - "993:993"
+    volumes:
+      - /opt/dockerpanel/mail/data:/var/mail
+      - /opt/dockerpanel/mail/state:/var/mail-state
+      - /opt/dockerpanel/mail/config:/tmp/docker-mailserver
+    restart: always
+    environment:
+      - ENABLE_SPAMASSASSIN=1
+      - ENABLE_CLAMAV=0
+      - ENABLE_FAIL2BAN=1
+      - ONE_DIR=1
     networks:
       - dockerpanel-net
 
@@ -43,4 +45,5 @@ volumes:
 
 networks:
   dockerpanel-net:
-    driver: bridge
+    name: dockerpanel-global-net
+    external: true
