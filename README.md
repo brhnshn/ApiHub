@@ -4,6 +4,23 @@ DockerPanel, tek bir Linux (Ubuntu/Debian) sunucusu üzerinde Docker container'l
 
 Uygulama web tarafında **DockerPanel**, mobil paketlemede ise **ApiHub** adını kullanır.
 
+## Projenin Amacı
+
+Bu projenin amacı, küçük ve orta ölçekli bir VDS/VPS sunucusunu cPanel benzeri tek bir yönetim panelinden kontrol edilebilir hale getirmektir. Hedef; Docker container'ları, native web uygulamaları, domain/DNS kayıtları, Nginx proxy kuralları, SSL sertifikaları, PostgreSQL veritabanları, e-posta hesapları, yedekler ve sunucu loglarını ayrı ayrı terminalden yönetmek yerine güvenli bir web arayüzü ve mobil uygulama üzerinden merkezi olarak yönetmektir.
+
+Panel özellikle tek sunucuda birden fazla web projesi barındırmak, bu projeleri hızlı deploy etmek, kaynak limitlerini izlemek, domainleri yayına almak, e-posta ve veritabanı ihtiyaçlarını aynı sistemden çözmek ve VDS taşıma/kurtarma sürecini otomatikleştirmek için tasarlanmıştır.
+
+## Ne İşe Yarar?
+
+- Docker container projeleri oluşturur, başlatır, durdurur, yeniden başlatır ve limitlerini günceller.
+- ZIP ile yüklenen native .NET/Node/static projeleri host üzerinde çalıştırır.
+- Nginx reverse proxy konfigürasyonlarını ve Let's Encrypt SSL işlemlerini yönetir.
+- Cloudflare veya yerel DNS kayıtlarını panelden kontrol eder.
+- PostgreSQL veritabanı ve kullanıcı oluşturma/silme işlemlerini yapar.
+- docker-mailserver e-posta hesaplarını ve entegre webmail ekranını sağlar.
+- Sistem durumu, container/native proje metrikleri ve loglarını SignalR ile canlı gösterir.
+- Audit log, backup/restore, uzak VDS yedek eşitleme, firewall ve mobil bildirim modüllerini içerir.
+
 ## Hızlı Sunucu Kurulumu (Production)
 
 Yeni bir Linux sunucusunda (Ubuntu/Debian) tüm sistemi (bağımlılıklar, kullanıcılar, izinler, Docker ağları, DB ve API servisi) tek bir komutla ayağa kaldırmak için projenin kök dizinindeki otomatik kurulum scriptini kullanabilirsiniz:
@@ -117,23 +134,6 @@ ApiHub mobil uygulamasının (Android) cihazlara anlık push bildirim gönderebi
    sudo systemctl restart dockerpanel-api
    ```
 *(Bu dosya bulunmadığında panel "Firebase FCM Simülasyon Modu"nda çalışır ve loglarda uyarı verir.)*
-
-## Projenin Amacı
-
-Bu projenin amacı, küçük ve orta ölçekli bir VDS/VPS sunucusunu cPanel benzeri tek bir yönetim panelinden kontrol edilebilir hale getirmektir. Hedef; Docker container'ları, native web uygulamaları, domain/DNS kayıtları, Nginx proxy kuralları, SSL sertifikaları, PostgreSQL veritabanları, e-posta hesapları, yedekler ve sunucu loglarını ayrı ayrı terminalden yönetmek yerine güvenli bir web arayüzü ve mobil uygulama üzerinden merkezi olarak yönetmektir.
-
-Panel özellikle tek sunucuda birden fazla web projesi barındırmak, bu projeleri hızlı deploy etmek, kaynak limitlerini izlemek, domainleri yayına almak, e-posta ve veritabanı ihtiyaçlarını aynı sistemden çözmek ve VDS taşıma/kurtarma sürecini otomatikleştirmek için tasarlanmıştır.
-
-## Ne İşe Yarar?
-
-- Docker container projeleri oluşturur, başlatır, durdurur, yeniden başlatır ve limitlerini günceller.
-- ZIP ile yüklenen native .NET/Node/static projeleri host üzerinde çalıştırır.
-- Nginx reverse proxy konfigürasyonlarını ve Let's Encrypt SSL işlemlerini yönetir.
-- Cloudflare veya yerel DNS kayıtlarını panelden kontrol eder.
-- PostgreSQL veritabanı ve kullanıcı oluşturma/silme işlemlerini yapar.
-- docker-mailserver e-posta hesaplarını ve entegre webmail ekranını sağlar.
-- Sistem durumu, container/native proje metrikleri ve loglarını SignalR ile canlı gösterir.
-- Audit log, backup/restore, uzak VDS yedek eşitleme, firewall ve mobil bildirim modüllerini içerir.
 
 ## Mimari
 
