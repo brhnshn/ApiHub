@@ -138,7 +138,7 @@ public static class MauiProgram
 
 					var request = new Plugin.Fingerprint.Abstractions.AuthenticationRequestConfiguration("Güvenlik Doğrulaması", title)
 					{
-						AllowAlternativeAuthentication = true
+						AllowAlternativeAuthentication = false
 					};
 
 					var result = await Plugin.Fingerprint.CrossFingerprint.Current.AuthenticateAsync(request);
