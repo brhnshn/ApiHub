@@ -4,6 +4,120 @@ DockerPanel, tek bir Linux (Ubuntu/Debian) sunucusu üzerinde Docker container'l
 
 Uygulama web tarafında **DockerPanel**, mobil paketlemede ise **ApiHub** adını kullanır.
 
+## Hızlı Sunucu Kurulumu (Production)
+
+Yeni bir Linux sunucusunda (Ubuntu/Debian) tüm sistemi (bağımlılıklar, kullanıcılar, izinler, Docker ağları, DB ve API servisi) tek bir komutla ayağa kaldırmak için projenin kök dizinindeki otomatik kurulum scriptini kullanabilirsiniz:
+
+```bash
+# Projeyi Github'dan indirin ve klasöre girin
+git clone https://github.com/brhnshn/ApiHub.git
+cd ApiHub
+
+# Kurulum scriptine çalıştırma yetkisi verip başlatın (root yetkisi gereklidir)
+sudo chmod +x scripts/install.sh
+sudo ./scripts/install.sh
+```
+
+Bu script PostgreSQL ve JWT için güçlü şifreleri otomatik üretecek, API'yi bir `systemd` servisi (`dockerpanel-api.service`) olarak kuracak ve veritabanı ile mail sunucusu konteynerlerini başlatacaktır.
+
+## Kurulum Sonrası İlk Adımlar
+
+Kurulum bittikten sonra panelinizi güvene almak ve kullanmaya başlamak için şu adımları takip edin:
+
+### 1. İlk Yönetici (Admin) Hesabının Oluşturulması
+- Tarayıcınızdan `http://SUNUCU_IP:5000` adresine gidin.
+- **Kayıt Ol (Register)** ekranına giderek yeni bir kullanıcı oluşturun.
+- *Sistem mimarisi gereği veritabanına kayıt olan ilk kullanıcı otomatik olarak en üst yetkili **Yönetici (Administrator)** rolünü kazanır.* Bu adımdan sonra kayıt sayfasını kapatabilirsiniz.
+
+### 2. Paneli Kendi Subdomain'inize Bağlama (Reverse Proxy & SSL)
+Paneli IP adresi yerine `panel.alanadiniz.com` gibi şık bir domain üzerinden çalıştırmak ve HTTPS (SSL) ile şifrelemek için Nginx yapılandırmasını yapın:
+
+1. Sunucu üzerinde Nginx vhost dosyası oluşturun:
+   ```bash
+   sudo nano /etc/nginx/sites-available/dockerpanel.conf
+   ```
+2. İçerisine aşağıdaki proxy kurallarını yapıştırın:
+   ```nginx
+   server {
+       listen 80;
+       server_name panel.alanadiniz.com; # Kendi domaininizi yazın
+
+       location / {
+           proxy_pass http://127.0.0.1:5000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+
+           # WebSockets desteği (SignalR Akışı için)
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection "upgrade";
+       }
+   }
+   ```
+3. Sembolik bağ (symlink) oluşturun ve Nginx'i yeniden başlatın:
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/dockerpanel.conf /etc/nginx/sites-enabled/
+   sudo nginx -t
+   sudo systemctl restart nginx
+   ```
+4. Certbot ile SSL (HTTPS) sertifikasını aktif edin:
+   ```bash
+   sudo certbot --nginx -d panel.alanadiniz.com
+   ```
+
+### 3. E-Posta Sunucusu Yapılandırması (Opsiyonel)
+Kurulumla birlikte gelen kurumsal mail sunucusunun (`docker-mailserver`) alan adını kendi sitenize göre ayarlamak için:
+- `/opt/dockerpanel/.env` dosyasını düzenleyin:
+  ```bash
+  sudo nano /opt/dockerpanel/.env
+  ```
+- Dosyanın sonuna mail host ve domain ayarlarınızı ekleyin:
+  ```env
+  MAIL_HOSTNAME=mail.alanadiniz.com
+  MAIL_DOMAIN=alanadiniz.com
+  ```
+- Değişiklikleri uygulamak için altyapı servislerini yeniden başlatın:
+  ```bash
+  cd /opt/dockerpanel
+  sudo docker-compose down
+  sudo docker-compose up -d
+  ```
+
+### 4. Güvenlik Duvarı (UFW) Yapılandırması
+Panelin ve servislerin dış dünya ile sorunsuz konuşabilmesi için sunucuda UFW aktifse gerekli portlara izin vermelisiniz:
+```bash
+# SSH portunuza izin verin (Varsayılan 22 veya özel portunuz, örn: 25017)
+sudo ufw allow 22/tcp
+
+# Nginx Web trafiği (HTTP & HTTPS)
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# E-Posta Servisleri (SMTP & IMAP)
+sudo ufw allow 25/tcp
+sudo ufw allow 587/tcp
+sudo ufw allow 143/tcp
+sudo ufw allow 993/tcp
+
+# Güvenlik duvarını aktif edin
+sudo ufw enable
+```
+
+### 5. Mobil Uygulama Bildirim Altyapısı (Firebase FCM)
+ApiHub mobil uygulamasının (Android) cihazlara anlık push bildirim gönderebilmesi için Firebase Cloud Messaging (FCM) v1 altyapısını aktif etmeniz gerekir:
+1. **Firebase Console**'dan (`console.firebase.google.com`) projenize gidin.
+2. **Proje Ayarları > Hizmet Hesapları (Service Accounts)** sekmesine geçin.
+3. **Yeni Özel Anahtar Oluştur (Generate New Private Key)** butonuna basarak JSON biçimindeki yetkilendirme anahtarını indirin.
+4. İndirdiğiniz bu dosyanın adını `firebase-service-account.json` olarak değiştirin.
+5. Dosyayı sunucu üzerinde tam olarak `/opt/dockerpanel/api/firebase-service-account.json` konumuna yükleyin.
+6. API servisini yeniden başlatarak anahtarın okunmasını sağlayın:
+   ```bash
+   sudo systemctl restart dockerpanel-api
+   ```
+*(Bu dosya bulunmadığında panel "Firebase FCM Simülasyon Modu"nda çalışır ve loglarda uyarı verir.)*
+
 ## Projenin Amacı
 
 Bu projenin amacı, küçük ve orta ölçekli bir VDS/VPS sunucusunu cPanel benzeri tek bir yönetim panelinden kontrol edilebilir hale getirmektir. Hedef; Docker container'ları, native web uygulamaları, domain/DNS kayıtları, Nginx proxy kuralları, SSL sertifikaları, PostgreSQL veritabanları, e-posta hesapları, yedekler ve sunucu loglarını ayrı ayrı terminalden yönetmek yerine güvenli bir web arayüzü ve mobil uygulama üzerinden merkezi olarak yönetmektir.
@@ -273,107 +387,6 @@ Linux production için:
    - Swagger sadece Development ortamında: `/swagger`
 
 > Development ortamında `MetricBackgroundWorker` ve `BackupWorker` kapalı tutulur. Bu, yerel Windows ortamında Docker/Linux servislerine bağlanmaya çalışırken gereksiz timeout hatalarını azaltır.
-
-## Hızlı Sunucu Kurulumu (Production)
-
-Yeni bir Linux sunucusunda (Ubuntu/Debian) tüm sistemi (bağımlılıklar, kullanıcılar, izinler, Docker ağları, DB ve API servisi) tek bir komutla ayağa kaldırmak için projenin kök dizinindeki otomatik kurulum scriptini kullanabilirsiniz:
-
-```bash
-# Projeyi Github'dan indirin ve klasöre girin
-git clone https://github.com/brhnshn/ApiHub.git
-cd ApiHub
-
-# Kurulum scriptine çalıştırma yetkisi verip başlatın (root yetkisi gereklidir)
-sudo chmod +x scripts/install.sh
-sudo ./scripts/install.sh
-```
-
-Bu script PostgreSQL ve JWT için güçlü şifreleri otomatik üretecek, API'yi bir `systemd` servisi (`dockerpanel-api.service`) olarak kuracak ve veritabanı ile mail sunucusu konteynerlerini başlatacaktır.
-
-## Kurulum Sonrası İlk Adımlar
-
-Kurulum bittikten sonra panelinizi güvene almak ve kullanmaya başlamak için şu adımları takip edin:
-
-### 1. İlk Yönetici (Admin) Hesabının Oluşturulması
-- Tarayıcınızdan `http://SUNUCU_IP:5000` adresine gidin.
-- **Kayıt Ol (Register)** ekranına giderek yeni bir kullanıcı oluşturun.
-- *Sistem mimarisi gereği veritabanına kayıt olan ilk kullanıcı otomatik olarak en üst yetkili **Yönetici (Administrator)** rolünü kazanır.* Bu adımdan sonra kayıt sayfasını kapatabilirsiniz.
-
-### 2. Paneli Kendi Subdomain'inize Bağlama (Reverse Proxy & SSL)
-Paneli IP adresi yerine `panel.alanadiniz.com` gibi şık bir domain üzerinden çalıştırmak ve HTTPS (SSL) ile şifrelemek için Nginx yapılandırmasını yapın:
-
-1. Sunucu üzerinde Nginx vhost dosyası oluşturun:
-   ```bash
-   sudo nano /etc/nginx/sites-available/dockerpanel.conf
-   ```
-2. İçerisine aşağıdaki proxy kurallarını yapıştırın:
-   ```nginx
-   server {
-       listen 80;
-       server_name panel.alanadiniz.com; # Kendi domaininizi yazın
-
-       location / {
-           proxy_pass http://127.0.0.1:5000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-
-           # WebSockets desteği (SignalR Akışı için)
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection "upgrade";
-       }
-   }
-   ```
-3. Sembolik bağ (symlink) oluşturun ve Nginx'i yeniden başlatın:
-   ```bash
-   sudo ln -s /etc/nginx/sites-available/dockerpanel.conf /etc/nginx/sites-enabled/
-   sudo nginx -t
-   sudo systemctl restart nginx
-   ```
-4. Certbot ile SSL (HTTPS) sertifikasını aktif edin:
-   ```bash
-   sudo certbot --nginx -d panel.alanadiniz.com
-   ```
-
-### 3. E-Posta Sunucusu Yapılandırması (Opsiyonel)
-Kurulumla birlikte gelen kurumsal mail sunucusunun (`docker-mailserver`) alan adını kendi sitenize göre ayarlamak için:
-- `/opt/dockerpanel/.env` dosyasını düzenleyin:
-  ```bash
-  sudo nano /opt/dockerpanel/.env
-  ```
-- Dosyanın sonuna mail host ve domain ayarlarınızı ekleyin:
-  ```env
-  MAIL_HOSTNAME=mail.alanadiniz.com
-  MAIL_DOMAIN=alanadiniz.com
-  ```
-- Değişiklikleri uygulamak için altyapı servislerini yeniden başlatın:
-  ```bash
-  cd /opt/dockerpanel
-  sudo docker-compose down
-  sudo docker-compose up -d
-  ```
-
-### 4. Güvenlik Duvarı (UFW) Yapılandırması
-Panelin ve servislerin dış dünya ile sorunsuz konuşabilmesi için sunucuda UFW aktifse gerekli portlara izin vermelisiniz:
-```bash
-# SSH portunuza izin verin (Varsayılan 22 veya özel portunuz, örn: 25017)
-sudo ufw allow 22/tcp
-
-# Nginx Web trafiği (HTTP & HTTPS)
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-
-# E-Posta Servisleri (SMTP & IMAP)
-sudo ufw allow 25/tcp
-sudo ufw allow 587/tcp
-sudo ufw allow 143/tcp
-sudo ufw allow 993/tcp
-
-# Güvenlik duvarını aktif edin
-sudo ufw enable
-```
 
 ## Migration ve Veritabanı
 
