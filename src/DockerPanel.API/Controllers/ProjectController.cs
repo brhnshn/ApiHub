@@ -893,7 +893,7 @@ public class ProjectController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid id, [FromQuery] bool deleteDb = true)
     {
         var project = await _dbContext.Projects.FindAsync(id);
         if (project == null) return NotFound();
@@ -934,8 +934,16 @@ public class ProjectController : ControllerBase
 
             foreach (var database in linkedDatabases)
             {
-                await _databaseService.DeleteDatabaseAsync(database.DbName, database.DbUser);
-                _dbContext.DatabaseSchemas.Remove(database);
+                if (deleteDb)
+                {
+                    await _databaseService.DeleteDatabaseAsync(database.DbName, database.DbUser);
+                    _dbContext.DatabaseSchemas.Remove(database);
+                }
+                else
+                {
+                    database.ProjectId = null;
+                    _dbContext.Entry(database).State = EntityState.Modified;
+                }
             }
 
             if (project.Type == ProjectType.DockerContainer)

@@ -4,6 +4,7 @@ using System.IO.Compression;
 using System.Threading.Tasks;
 using DockerPanel.Domain.Interfaces;
 using DockerPanel.Domain.Security;
+using DockerPanel.Domain.Entities;
 
 namespace DockerPanel.Infrastructure.Services;
 
@@ -38,9 +39,15 @@ public class ProjectZipDeployService : IProjectZipDeployService
             catch { }
         }
 
-        // Hedef dizini temizle/oluştur
-        SafeDeleteDirectory(targetDir);
-        Directory.CreateDirectory(targetDir);
+        // Hedef dizini temizle/oluştur (dizinin kendisini silmeyerek izinlerin korunmasını sağlıyoruz)
+        if (!Directory.Exists(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+        else
+        {
+            CleanDirectoryContents(targetDir);
+        }
 
         // ZIP çıkarma işlemini güvenli (Zip Slip korumalı) gerçekleştir
         using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true))
@@ -88,6 +95,46 @@ public class ProjectZipDeployService : IProjectZipDeployService
             }
         }
 
+        // ZIP iç içe klasör unwrap/flattening mantığı
+        try
+        {
+            var files = Directory.GetFiles(targetDir);
+            var subdirs = Directory.GetDirectories(targetDir);
+            
+            var rootFiles = files.Where(f => !Path.GetFileName(f).Equals(".env", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (rootFiles.Count == 0 && subdirs.Length == 1)
+            {
+                var singleSubdir = subdirs[0];
+                foreach (var dir in Directory.GetDirectories(singleSubdir))
+                {
+                    var destDir = Path.Combine(targetDir, Path.GetFileName(dir));
+                    if (Directory.Exists(destDir))
+                    {
+                        Directory.Delete(destDir, true);
+                    }
+                    Directory.Move(dir, destDir);
+                }
+                foreach (var file in Directory.GetFiles(singleSubdir))
+                {
+                    var destFile = Path.Combine(targetDir, Path.GetFileName(file));
+                    if (File.Exists(destFile))
+                    {
+                        File.Delete(destFile);
+                    }
+                    File.Move(file, destFile);
+                }
+                Directory.Delete(singleSubdir, true);
+            }
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                SystemLogQueue.Log("warning", $"[Zip Deploy] İç içe klasör ayıklama hatası: {ex.Message}");
+            }
+            catch {}
+        }
+
         // Restore .env file if it was backed up
         if (envContent != null)
         {
@@ -99,6 +146,77 @@ public class ProjectZipDeployService : IProjectZipDeployService
         }
 
         return targetDir;
+    }
+
+    private void CleanDirectoryContents(string path)
+    {
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return;
+
+        try
+        {
+            var directory = new DirectoryInfo(path);
+            
+            // Clear Read-Only attribute recursively
+            foreach (var file in directory.GetFiles("*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    if (file.IsReadOnly)
+                    {
+                        file.IsReadOnly = false;
+                    }
+                }
+                catch { }
+            }
+
+            foreach (var dir in directory.GetDirectories("*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    dir.Attributes &= ~FileAttributes.ReadOnly;
+                }
+                catch { }
+            }
+
+            // Delete all files except .env
+            foreach (var file in directory.GetFiles())
+            {
+                if (file.Name.Equals(".env", StringComparison.OrdinalIgnoreCase)) continue;
+                try { file.Delete(); } catch { }
+            }
+
+            // Delete all subdirectories
+            foreach (var dir in directory.GetDirectories())
+            {
+                try { dir.Delete(true); } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (Path.DirectorySeparatorChar == '/')
+            {
+                try
+                {
+                    var psi = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "sudo",
+                        Arguments = $"/usr/local/bin/project-manager.sh clean-path \"{path}\"",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    using var process = System.Diagnostics.Process.Start(psi);
+                    process?.WaitForExit();
+                }
+                catch { }
+            }
+            try
+            {
+                SystemLogQueue.Log("warning", $"[Clean Directory] Klasör içeriği silinemedi: {path}. Hata: {ex.Message}");
+            }
+            catch {}
+        }
     }
 
     private void SafeDeleteDirectory(string path)

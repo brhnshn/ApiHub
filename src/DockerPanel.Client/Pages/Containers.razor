@@ -778,6 +778,39 @@ else
     </DialogContent>
 </MudDialog>
 
+<!-- Proje Yok Etme Onay Modalı -->
+<MudDialog @bind-Visible="_deleteModalVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: #ef4444;">Projeyi Yok Et</MudText>
+    </TitleContent>
+    <DialogContent>
+        <div class="mb-4">
+            <MudText Typo="Typo.body1" Style="font-family: 'Outfit', sans-serif; font-weight: 600; color: var(--text-main);">
+                <strong>@_projectToDelete?.Name</strong> projesini ve tüm yapılandırmalarını silmek istediğinize emin misiniz?
+            </MudText>
+            <MudText Typo="Typo.body2" Class="mt-2" Style="color: #94a3b8;">
+                Bu işlem geri alınamaz. Projeye ait Nginx ayarları ve dosyalar tamamen silinecektir.
+            </MudText>
+        </div>
+
+        <div class="p-3 mb-4" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px;">
+            <MudCheckBox @bind-Value="_deleteLinkedDb" Color="Color.Error" UnCheckedColor="Color.Default" Dense="true">
+                <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Bağlı Veritabanını da Sil</span>
+            </MudCheckBox>
+            <div style="font-size: 11px; color: #ef4444; margin-left: 28px; margin-top: 4px; font-weight: 500;">
+                İşaretlenirse, projeye ait veritabanı şeması ve tüm veriler de geri döndürülemez şekilde silinecektir!
+            </div>
+        </div>
+
+        <div class="d-flex justify-end gap-3 mt-4">
+            <MudButton OnClick="() => { _deleteModalVisible = false; _projectToDelete = null; }" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none; border-radius: 6px;">İptal</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmDeleteProject" Disabled="_isDeletingProject" Style="text-transform: none; font-weight: 700; border-radius: 6px;">
+                @(_isDeletingProject ? "Siliniyor..." : "Projeyi Sil")
+            </MudButton>
+        </div>
+    </DialogContent>
+</MudDialog>
+
 <!-- ZIP Sürüm Güncelleme / Yükleme Modalı -->
 <MudDialog @bind-Visible="_zipUploadModalVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
     <TitleContent>
@@ -899,6 +932,12 @@ else
     private string _detectedRuntime = string.Empty;
     private string _detectedEntryFile = string.Empty;
     private bool _isDeployingZip = false;
+
+    // Proje Silme Değişkenleri
+    private bool _deleteModalVisible = false;
+    private ProjectCardDto? _projectToDelete = null;
+    private bool _deleteLinkedDb = false;
+    private bool _isDeletingProject = false;
 
     // Log Drawer
     private bool _logsDrawerOpen = false;
@@ -1438,17 +1477,28 @@ else
 
     private async Task DeleteProject(ProjectCardDto project)
     {
-        var confirmed = await JsConfirm($"Dikkat! '{project.Name}' adlı projeyi, yapılandırmalarını ve tüm fiziksel verilerini tamamen yok etmek istediğinize emin misiniz?");
-        if (!confirmed) return;
+        _projectToDelete = project;
+        _deleteLinkedDb = false;
+        _deleteModalVisible = true;
+    }
+
+    private async Task ConfirmDeleteProject()
+    {
+        if (_projectToDelete == null) return;
+
+        _isDeletingProject = true;
+        StateHasChanged();
 
         try
         {
-            var response = await Http.DeleteAsync($"api/projects/{project.Id}");
+            var response = await Http.DeleteAsync($"api/projects/{_projectToDelete.Id}?deleteDb={_deleteLinkedDb}");
             if (response.IsSuccessStatusCode)
             {
                 Snackbar.Add("Proje başarıyla yok edildi.", Severity.Success);
                 
-                await AppState.LeaveProjectGroupAsync(project.Id.ToString());
+                await AppState.LeaveProjectGroupAsync(_projectToDelete.Id.ToString());
+                _deleteModalVisible = false;
+                _projectToDelete = null;
 
                 await LoadProjectsAsync();
             }
