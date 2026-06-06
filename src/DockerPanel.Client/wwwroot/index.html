@@ -453,26 +453,86 @@
             });
         };
 
-        navigator.serviceWorker.register('service-worker.js').then(reg => {
-            // Eğer bekleyen bir güncelleme varsa hemen göster
-            if (reg.waiting) {
-                showUpdateNotification(reg.waiting);
+        // Only register service worker if we verify this is the panel host
+        async function initServiceWorker() {
+            if (!('serviceWorker' in navigator)) {
+                return;
             }
-
-            reg.addEventListener('updatefound', () => {
-                const newWorker = reg.installing;
-                if (newWorker) {
-                    newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            showUpdateNotification(newWorker);
-                        }
-                    });
+            const currentHost = window.location.host;
+            if (currentHost.startsWith('localhost') || currentHost.startsWith('127.0.0.1')) {
+                // Register on localhost for development testing
+                registerSW();
+                return;
+            }
+            try {
+                let isPanel = false;
+                const res = await fetch('/api/system/verify-host?host=' + encodeURIComponent(currentHost));
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.isPanel === true) {
+                        isPanel = true;
+                    }
                 }
-            });
+                
+                if (isPanel) {
+                    registerSW();
+                } else {
+                    await unregisterAllAndReload();
+                }
+            } catch (e) {
+                // If it fails to parse JSON or connection refused (e.g. Node.js project is running on this port),
+                // it means this is NOT the panel host. Unregister service worker and reload.
+                console.warn("Host verification error - likely a non-panel app running on this port:", e);
+                await unregisterAllAndReload();
+            }
+        }
 
-            // Aktif olarak her açılışta güncelleme denetimi yap
-            reg.update().catch(err => console.log("SW active update check skipped:", err));
-        });
+        function registerSW() {
+            navigator.serviceWorker.register('service-worker.js').then(reg => {
+                // Eğer bekleyen bir güncelleme varsa hemen göster
+                if (reg.waiting) {
+                    showUpdateNotification(reg.waiting);
+                }
+
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    if (newWorker) {
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                showUpdateNotification(newWorker);
+                            }
+                        });
+                    }
+                });
+
+                // Aktif olarak her açılışta güncelleme denetimi yap
+                reg.update().catch(err => console.log("SW active update check skipped:", err));
+            });
+        }
+
+        async function unregisterAllAndReload() {
+            let cleared = false;
+            if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (let reg of regs) {
+                    await reg.unregister();
+                    cleared = true;
+                }
+            }
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                for (let key of keys) {
+                    await caches.delete(key);
+                    cleared = true;
+                }
+            }
+            if (cleared) {
+                console.info("Cleared service worker hijacking cache. Reloading...");
+                window.location.reload(true);
+            }
+        }
+
+        initServiceWorker();
 
         function showUpdateNotification(worker) {
             const toast = document.createElement('div');

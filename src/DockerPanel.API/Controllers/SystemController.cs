@@ -6,9 +6,11 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 using DockerPanel.Domain.Interfaces;
+using DockerPanel.Infrastructure.Data;
 
 namespace DockerPanel.API.Controllers;
 
@@ -16,6 +18,27 @@ namespace DockerPanel.API.Controllers;
 [Route("api/system")]
 public class SystemController : ControllerBase
 {
+    [HttpGet("verify-host")]
+    public async Task<IActionResult> VerifyHost([FromQuery] string host, [FromServices] DockerPanelDbContext dbContext)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return Ok(new { IsPanel = false });
+        }
+
+        var hostname = host.Split(':')[0].ToLower();
+
+        if (hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1")
+        {
+            return Ok(new { IsPanel = true });
+        }
+
+        bool isProjectDomain = await dbContext.Subdomains.AnyAsync(s => 
+            (s.SubdomainName + "." + s.DomainName).ToLower() == hostname ||
+            s.DomainName.ToLower() == hostname);
+
+        return Ok(new { IsPanel = !isProjectDomain });
+    }
     [HttpGet("status")]
     public async Task<IActionResult> GetSystemStatus([FromServices] IPushNotificationService pushService)
     {
