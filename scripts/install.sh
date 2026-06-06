@@ -105,13 +105,13 @@ After=network.target
 
 [Service]
 WorkingDirectory=/opt/dockerpanel/api/DockerPanel_V1
-ExecStart=/usr/bin/dotnet DockerPanel.API.dll
+ExecStart=/usr/bin/env dotnet DockerPanel.API.dll
 Restart=always
 RestartSec=10
 KillSignal=SIGINT
 SyslogIdentifier=dockerpanel-api
 User=dockerpanel_api
-EnvironmentFile=/opt/dockerpanel/.env
+EnvironmentFile=-/opt/dockerpanel/.env
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://*:5000
 Environment=HOME=/home/dockerpanel_api

@@ -155,6 +155,7 @@ jobs:
             sudo mkdir -p /opt/dockerpanel/downloads
             sudo chmod 755 /opt/dockerpanel/downloads
 
+            sudo mkdir -p /opt/dockerpanel/api
             cd /opt/dockerpanel/api
             rm -rf DockerPanel_V1
             unzip -q DockerPanel.API.zip -d DockerPanel_V1
@@ -170,7 +171,7 @@ jobs:
             printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" > DockerPanel_V1/firebase-service-account.json
 
             # Systemd servis dosyasını güncelle ve HOME/WorkingDirectory tanımlarını uygula
-            sudo bash -c 'printf "[Unit]\nDescription=DockerPanel API and Client Service\nAfter=network.target\n\n[Service]\nWorkingDirectory=/opt/dockerpanel/api/DockerPanel_V1\nExecStart=/usr/bin/dotnet DockerPanel.API.dll\nRestart=always\nRestartSec=10\nKillSignal=SIGINT\nSyslogIdentifier=dockerpanel-api\nUser=dockerpanel_api\nEnvironmentFile=/opt/dockerpanel/.env\nEnvironment=ASPNETCORE_ENVIRONMENT=Production\nEnvironment=ASPNETCORE_URLS=http://*:5000\nEnvironment=HOME=/home/dockerpanel_api\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/dockerpanel-api.service'
+            sudo bash -c 'printf "[Unit]\nDescription=DockerPanel API and Client Service\nAfter=network.target\n\n[Service]\nWorkingDirectory=/opt/dockerpanel/api/DockerPanel_V1\nExecStart=/usr/bin/env dotnet DockerPanel.API.dll\nRestart=always\nRestartSec=10\nKillSignal=SIGINT\nSyslogIdentifier=dockerpanel-api\nUser=dockerpanel_api\nEnvironmentFile=-/opt/dockerpanel/.env\nEnvironment=ASPNETCORE_ENVIRONMENT=Production\nEnvironment=ASPNETCORE_URLS=http://*:5000\nEnvironment=HOME=/home/dockerpanel_api\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/dockerpanel-api.service'
             sudo systemctl daemon-reload
 
             # İzinleri dockerpanel_api kullanıcısına ver
