@@ -47,6 +47,10 @@ public class ProjectZipDeployService : IProjectZipDeployService
         else
         {
             CleanDirectoryContents(targetDir);
+            if (!Directory.Exists(targetDir))
+            {
+                Directory.CreateDirectory(targetDir);
+            }
         }
 
         // ZIP çıkarma işlemini güvenli (Zip Slip korumalı) gerçekleştir
@@ -182,13 +186,13 @@ public class ProjectZipDeployService : IProjectZipDeployService
             foreach (var file in directory.GetFiles())
             {
                 if (file.Name.Equals(".env", StringComparison.OrdinalIgnoreCase)) continue;
-                try { file.Delete(); } catch { }
+                file.Delete();
             }
 
             // Delete all subdirectories
             foreach (var dir in directory.GetDirectories())
             {
-                try { dir.Delete(true); } catch { }
+                dir.Delete(true);
             }
         }
         catch (Exception ex)
@@ -211,11 +215,27 @@ public class ProjectZipDeployService : IProjectZipDeployService
                 }
                 catch { }
             }
+
+            bool isClean = true;
             try
             {
-                SystemLogQueue.Log("warning", $"[Clean Directory] Klasör içeriği silinemedi: {path}. Hata: {ex.Message}");
+                if (Directory.Exists(path))
+                {
+                    var filesLeft = Directory.GetFiles(path);
+                    var subdirsLeft = Directory.GetDirectories(path);
+                    var rootFilesLeft = filesLeft.Where(f => !Path.GetFileName(f).Equals(".env", StringComparison.OrdinalIgnoreCase)).ToList();
+                    if (rootFilesLeft.Count > 0 || subdirsLeft.Length > 0)
+                    {
+                        isClean = false;
+                    }
+                }
             }
-            catch {}
+            catch { isClean = false; }
+
+            if (!isClean)
+            {
+                throw new InvalidOperationException($"Klasör temizlenemedi: {path}. Hata: {ex.Message}", ex);
+            }
         }
     }
 
