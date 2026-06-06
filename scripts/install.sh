@@ -114,6 +114,7 @@ User=dockerpanel_api
 EnvironmentFile=/opt/dockerpanel/.env
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://*:5000
+Environment=HOME=/home/dockerpanel_api
 
 [Install]
 WantedBy=multi-user.target

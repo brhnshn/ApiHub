@@ -417,6 +417,10 @@ public class ProcessManagerService : IProcessManagerService
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            psi.Environment["HOME"] = "/home/dockerpanel_api";
+        }
         if (!string.IsNullOrEmpty(workingDirectory))
         {
             psi.WorkingDirectory = workingDirectory;
