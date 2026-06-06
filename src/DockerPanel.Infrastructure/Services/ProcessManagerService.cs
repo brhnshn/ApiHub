@@ -383,14 +383,18 @@ public class ProcessManagerService : IProcessManagerService
             SystemLogQueue.Log("error", $"[Süreç Hatası] Komut zaman aşımına uğradı!");
             throw new Exception($"Süreç zaman aşımına uğradı: {command} {args}");
         }
-
         if (process.ExitCode != 0)
         {
             string err = await process.StandardError.ReadToEndAsync();
-            SystemLogQueue.Log("error", $"[Süreç Hatası] Komut başarısız oldu (Çıkış Kodu: {process.ExitCode}): {err}");
-            throw new Exception($"Süreç hatası (Kod: {process.ExitCode}): {err}");
+            string outStr = await process.StandardOutput.ReadToEndAsync();
+            string fullErr = string.IsNullOrWhiteSpace(err) ? outStr : err;
+            if (string.IsNullOrWhiteSpace(fullErr))
+            {
+                fullErr = $"Çıkış kodu {process.ExitCode} ile sonlandı (stdout/stderr boş).";
+            }
+            SystemLogQueue.Log("error", $"[Süreç Hatası] Komut başarısız oldu (Çıkış Kodu: {process.ExitCode}): {fullErr}");
+            throw new Exception($"Süreç hatası (Kod: {process.ExitCode}): {fullErr}");
         }
-        
         SystemLogQueue.Log("info", $"[Süreç] Komut başarıyla yürütüldü (Çıkış Kodu: 0).");
     }
 
