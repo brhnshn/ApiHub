@@ -381,7 +381,28 @@ public class ProjectController : ControllerBase
         }
         catch (Exception ex)
         {
-            MarkError(project);
+            try
+            {
+                if (!string.IsNullOrEmpty(project.ImageOrPath))
+                {
+                    SafeDeleteDirectory(project.ImageOrPath);
+                }
+                await _processManagerService.DeleteProcessConfigAsync(project.Name);
+            }
+            catch (Exception cleanEx)
+            {
+                SystemLogQueue.Log("warning", $"[Deploy Cleanup] Hata sonrası temizlik yapılamadı: {cleanEx.Message}");
+            }
+
+            if (existingProject == null)
+            {
+                _dbContext.Projects.Remove(project);
+            }
+            else
+            {
+                MarkError(project);
+                project.ImageOrPath = string.Empty;
+            }
             await _dbContext.SaveChangesAsync();
             return StatusCode(500, new { Message = $"Native deploy hatası: {ex.Message}" });
         }
@@ -487,7 +508,27 @@ public class ProjectController : ControllerBase
         }
         catch (Exception ex)
         {
-            MarkError(project);
+            try
+            {
+                if (!string.IsNullOrEmpty(project.ImageOrPath))
+                {
+                    SafeDeleteDirectory(project.ImageOrPath);
+                }
+            }
+            catch (Exception cleanEx)
+            {
+                SystemLogQueue.Log("warning", $"[Static Deploy Cleanup] Hata sonrası temizlik yapılamadı: {cleanEx.Message}");
+            }
+
+            if (existingProject == null)
+            {
+                _dbContext.Projects.Remove(project);
+            }
+            else
+            {
+                MarkError(project);
+                project.ImageOrPath = string.Empty;
+            }
             await _dbContext.SaveChangesAsync();
             return StatusCode(500, new { Message = $"Statik deploy hatası: {ex.Message}" });
         }
