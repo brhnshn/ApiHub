@@ -235,6 +235,8 @@ start_project() {
     run_command="cd $(printf '%q' "$PROJECT_PATH") && $exec_cmd $PROJECT_COMMAND"
 
     touch "$log_file"
+    chmod 644 "$log_file"
+    chown dockerpanel_api:dockerpanel_api "$log_file" 2>/dev/null || true
     log_manager "info" "$PROJECT_NAME start requested: $PROJECT_COMMAND"
     printf '[%s] [project-manager] starting %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$PROJECT_NAME" >> "$log_file"
 
