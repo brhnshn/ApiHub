@@ -113,7 +113,7 @@ SyslogIdentifier=dockerpanel-api
 User=dockerpanel_api
 EnvironmentFile=-/opt/dockerpanel/.env
 Environment=ASPNETCORE_ENVIRONMENT=Production
-Environment=ASPNETCORE_URLS=http://*:5000
+Environment=ASPNETCORE_URLS=http://*:5002
 Environment=HOME=/home/dockerpanel_api
 
 [Install]
@@ -141,5 +141,5 @@ chmod 755 /var/log/project-manager
 
 echo -e "${GREEN}==============================================================================${NC}"
 echo -e "${GREEN}Kurulum Tamamlandı! DockerPanel Başarıyla Ayağa Kaldırıldı.${NC}"
-echo -e "${GREEN}API & Client Portu: http://SUNUCU_IP:5000${NC}"
+echo -e "${GREEN}API & Client Portu: http://SUNUCU_IP:5002${NC}"
 echo -e "${GREEN}==============================================================================${NC}"
