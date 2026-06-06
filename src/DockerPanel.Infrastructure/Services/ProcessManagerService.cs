@@ -461,8 +461,39 @@ public class ProcessManagerService : IProcessManagerService
             return;
         }
 
-        await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh restart {name}", 45000);
-        SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla yeniden başlatıldı.");
+        try
+        {
+            await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh restart {name}", 45000);
+            SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla yeniden başlatıldı.");
+        }
+        catch (Exception ex)
+        {
+            string logPath = $"/var/log/project-manager/{name}.log";
+            if (File.Exists(logPath))
+            {
+                try
+                {
+                    var logLines = new List<string>();
+                    using (var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var reader = new StreamReader(fs))
+                    {
+                        string? line;
+                        while ((line = await reader.ReadLineAsync()) != null)
+                        {
+                            logLines.Add(line);
+                            if (logLines.Count > 15) logLines.RemoveAt(0);
+                        }
+                    }
+                    if (logLines.Count > 0)
+                    {
+                        string details = string.Join("\n", logLines);
+                        throw new Exception($"{ex.Message}\nUygulama Hata Logları:\n{details}", ex);
+                    }
+                }
+                catch { /* Ignore log reading errors to preserve original exception */ }
+            }
+            throw;
+        }
     }
 
     public async Task RestartAllProcessesAsync()
@@ -507,8 +538,39 @@ public class ProcessManagerService : IProcessManagerService
             return;
         }
 
-        await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh start {name}", 45000);
-        SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla başlatıldı.");
+        try
+        {
+            await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh start {name}", 45000);
+            SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla başlatıldı.");
+        }
+        catch (Exception ex)
+        {
+            string logPath = $"/var/log/project-manager/{name}.log";
+            if (File.Exists(logPath))
+            {
+                try
+                {
+                    var logLines = new List<string>();
+                    using (var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var reader = new StreamReader(fs))
+                    {
+                        string? line;
+                        while ((line = await reader.ReadLineAsync()) != null)
+                        {
+                            logLines.Add(line);
+                            if (logLines.Count > 15) logLines.RemoveAt(0);
+                        }
+                    }
+                    if (logLines.Count > 0)
+                    {
+                        string details = string.Join("\n", logLines);
+                        throw new Exception($"{ex.Message}\nUygulama Hata Logları:\n{details}", ex);
+                    }
+                }
+                catch { /* Ignore log reading errors to preserve original exception */ }
+            }
+            throw;
+        }
     }
 
     public async Task<IEnumerable<string>> GetProcessLogsAsync(string name, int tailLines = 100)

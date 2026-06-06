@@ -33,7 +33,7 @@ if [ -f "packages-microsoft-prod.deb" ]; then
     apt-get update
 fi
 
-apt-get install -y docker.io docker-compose nginx certbot unzip curl dotnet-sdk-8.0
+apt-get install -y docker.io docker-compose nginx certbot unzip curl dotnet-sdk-8.0 nodejs npm
 
 # 2. dockerpanel_api Kullanıcısı ve Sudoers Yapılandırması
 echo -e "${BLUE}[2/7] Sistem Kullanıcısı ve Yetkileri Yapılandırılıyor...${NC}"
