@@ -270,7 +270,7 @@
                         <div class="border-t border-slate-850 pt-3 mt-1 space-y-3">
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Çullanma Zamanı (Runtime)</label>
+                                    <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Çalışma Zamanı (Runtime)</label>
                                     <select @bind="_runtimeType" disabled="@_isDeploying"
                                         class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50">
                                         <option value="dotnet">.NET / C#</option>
@@ -320,7 +320,7 @@
                                     <span class="text-[10px] text-slate-200 font-bold">@_selectedFile.Name</span>
                                     <span class="text-[8px] text-emerald-400 font-semibold mt-0.5">@((_selectedFile.Size / 1024.0 / 1024.0).ToString("F2")) MB - Dosya Hazır</span>
                                 }
-                                <InputFile OnChange="OnZipFileSelected" accept=".zip"
+                                <InputFile id="wizard-zip-input" OnChange="OnZipFileSelected" accept=".zip"
                                     style="position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" />
                             </div>
 
@@ -822,7 +822,7 @@
         StateHasChanged();
     }
 
-    private void OnZipFileSelected(InputFileChangeEventArgs e)
+    private async Task OnZipFileSelected(InputFileChangeEventArgs e)
     {
         _selectedFile = e.File;
         if (_selectedFile != null && !string.IsNullOrWhiteSpace(_selectedFile.Name))
@@ -833,6 +833,49 @@
             _projectName = new string(cleanName.Where(c => char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray());
             if (!_projectName.StartsWith("b")) _projectName = "b" + _projectName;
             UpdateDbDefaults();
+
+            try
+            {
+                // Canlı analiz yapıp runtime ve entry file'ı otomatik tespit edelim
+                var result = await JSRuntime.InvokeAsync<ZipAnalysisResult>("eval", "window.analyzeZipFile(document.getElementById('wizard-zip-input'))");
+                if (result != null && result.Success)
+                {
+                    if (!string.IsNullOrEmpty(result.DetectedRuntime) && result.DetectedRuntime != "unknown")
+                    {
+                        _runtimeType = result.DetectedRuntime;
+                        
+                        if (result.DetectedRuntime == "static")
+                        {
+                            _deployMode = "static";
+                        }
+                        else
+                        {
+                            _deployMode = "native";
+                        }
+                    }
+                    
+                    if (!string.IsNullOrEmpty(result.DetectedName))
+                    {
+                        var cleanDetected = new string(result.DetectedName.ToLower()
+                            .Replace(" ", "-").Replace("_", "-")
+                            .Where(c => char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray());
+                        if (!string.IsNullOrEmpty(cleanDetected))
+                        {
+                            _projectName = cleanDetected.StartsWith("b") ? cleanDetected : "b" + cleanDetected;
+                            UpdateDbDefaults();
+                        }
+                    }
+                    
+                    if (!string.IsNullOrEmpty(result.DetectedEntryFile))
+                    {
+                        _entryFile = result.DetectedEntryFile;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SystemLogQueue.Log("warning", $"[DeployWizard] ZIP analizi esnasında hata: {ex.Message}");
+            }
         }
     }
 
@@ -1108,6 +1151,17 @@
         {
             // localStorage is a convenience cache; deployment should continue without it.
         }
+    }
+
+    public class ZipAnalysisResult
+    {
+        public bool Success { get; set; }
+        public string Error { get; set; } = string.Empty;
+        public string DetectedRuntime { get; set; } = string.Empty;
+        public string DetectedName { get; set; } = string.Empty;
+        public string DetectedEntryFile { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public long FileSize { get; set; }
     }
 
     public class ProjectCardDto { public Guid Id { get; set; } public string Name { get; set; } = ""; public string ImageOrPath { get; set; } = ""; public bool EnablePhp { get; set; } }

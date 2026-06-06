@@ -136,6 +136,49 @@ public class ProcessManagerService : IProcessManagerService
         return $"dotnet {name}.dll --urls http://localhost:{port}";
     }
 
+    private string DetectNodeEntryFile(string targetPath)
+    {
+        if (!Directory.Exists(targetPath))
+        {
+            return "server.js";
+        }
+
+        try
+        {
+            // 1. Check package.json
+            string pkgPath = Path.Combine(targetPath, "package.json");
+            if (File.Exists(pkgPath))
+            {
+                string content = File.ReadAllText(pkgPath);
+                using var doc = System.Text.Json.JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty("main", out var mainProp))
+                {
+                    string? mainVal = mainProp.GetString();
+                    if (!string.IsNullOrWhiteSpace(mainVal))
+                    {
+                        return mainVal;
+                    }
+                }
+            }
+
+            // 2. Check common entry files
+            string[] commonEntries = { "index.js", "app.js", "server.js", "main.js" };
+            foreach (var entry in commonEntries)
+            {
+                if (File.Exists(Path.Combine(targetPath, entry)))
+                {
+                    return entry;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            SystemLogQueue.Log("warning", $"[ProcessManager] Node entry tespiti esnasında hata: {ex.Message}");
+        }
+
+        return "server.js"; // Fallback
+    }
+
     private async Task<List<ProcessConfigEntry>> ParsePipeConfigAsync()
     {
         var entries = new List<ProcessConfigEntry>();
@@ -283,7 +326,11 @@ public class ProcessManagerService : IProcessManagerService
             }
             else if (cleanRuntime.Contains("node"))
             {
-                actualEntry = !string.IsNullOrWhiteSpace(entryFile) ? entryFile : "server.js";
+                actualEntry = !string.IsNullOrWhiteSpace(entryFile) ? entryFile : string.Empty;
+                if (string.IsNullOrWhiteSpace(actualEntry))
+                {
+                    actualEntry = DetectNodeEntryFile(targetPath);
+                }
                 startCommand = $"env PORT={port} node {actualEntry}";
             }
             else if (cleanRuntime.Contains("python"))

@@ -622,6 +622,7 @@
                 
                 let detectedRuntime = "unknown";
                 let detectedName = "";
+                let detectedEntryFile = "";
                 
                 // 1. Detect runtime and project name
                 // Node: package.json
@@ -632,7 +633,19 @@
                         const content = await zip.files[packageJsonFile].async("string");
                         const pkg = JSON.parse(content);
                         detectedName = pkg.name || "";
+                        detectedEntryFile = pkg.main || "";
                     } catch (e) {}
+                    
+                    // If no main file specified, check common defaults
+                    if (!detectedEntryFile) {
+                        const commonEntries = ["index.js", "app.js", "server.js", "main.js"];
+                        for (const entry of commonEntries) {
+                            if (files.some(f => f === entry || f.endsWith("/" + entry))) {
+                                detectedEntryFile = entry;
+                                break;
+                            }
+                        }
+                    }
                 }
                 // Dotnet: csproj or dll / runtimeconfig.json
                 else if (files.some(f => f.endsWith(".csproj") || f.endsWith(".sln") || f.endsWith(".runtimeconfig.json"))) {
@@ -646,6 +659,12 @@
                             detectedName = runtimeConfigFile.split('/').pop().replace(".runtimeconfig.json", "");
                         }
                     }
+                    
+                    // Find main runnable DLL if any
+                    const dllFile = files.find(f => f.endsWith(".dll") && !f.includes("System.") && !f.includes("Microsoft."));
+                    if (dllFile) {
+                        detectedEntryFile = dllFile.split('/').pop();
+                    }
                 }
                 // Python: requirements.txt, manage.py, app.py, main.py
                 else if (files.some(f => f === "requirements.txt" || f.endsWith("/requirements.txt") || f.endsWith("manage.py") || f.endsWith("app.py") || f.endsWith("main.py"))) {
@@ -653,6 +672,7 @@
                     const mainPy = files.find(f => f.endsWith("app.py") || f.endsWith("main.py") || f.endsWith("manage.py"));
                     if (mainPy) {
                         detectedName = mainPy.split('/').pop().replace(".py", "");
+                        detectedEntryFile = mainPy.split('/').pop();
                     }
                 }
                 // Static: index.html, index.htm, index.php
@@ -664,6 +684,7 @@
                     success: true,
                     detectedRuntime: detectedRuntime,
                     detectedName: detectedName,
+                    detectedEntryFile: detectedEntryFile,
                     fileName: file.name,
                     fileSize: file.size
                 };
