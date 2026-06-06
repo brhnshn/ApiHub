@@ -13,4 +13,5 @@ public interface IProcessManagerService
     Task DeleteProcessConfigAsync(string name);
     Task<bool> IsProcessRunningAsync(string name);
     Task<IEnumerable<string>> GetProcessLogsAsync(string name, int tailLines = 100);
+    Task RestoreDependenciesAsync(string name, string path, string? runtimeType);
 }

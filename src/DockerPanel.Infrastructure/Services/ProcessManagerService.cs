@@ -358,9 +358,9 @@ public class ProcessManagerService : IProcessManagerService
         }
     }
 
-    private async Task ExecuteCommandAsync(string command, string args, int timeoutMs = 30000)
+    private async Task ExecuteCommandAsync(string command, string args, string? workingDirectory = null, int timeoutMs = 30000)
     {
-        SystemLogQueue.Log("info", $"$ {command} {args}");
+        SystemLogQueue.Log("info", $"$ {command} {args} (in {workingDirectory ?? "current dir"})");
         var psi = new ProcessStartInfo
         {
             FileName = command,
@@ -370,6 +370,10 @@ public class ProcessManagerService : IProcessManagerService
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        if (!string.IsNullOrEmpty(workingDirectory))
+        {
+            psi.WorkingDirectory = workingDirectory;
+        }
 
         using var process = new Process { StartInfo = psi };
         process.Start();
@@ -525,10 +529,10 @@ public class ProcessManagerService : IProcessManagerService
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-
+ 
             using var process = new Process { StartInfo = psi };
             process.Start();
-
+ 
             var waitTask = process.WaitForExitAsync();
             if (await Task.WhenAny(waitTask, Task.Delay(10000)) != waitTask)
             {
@@ -536,7 +540,7 @@ public class ProcessManagerService : IProcessManagerService
                 SystemLogQueue.Log("warning", $"[ProcessManager] {name} durum kontrolü zaman aşımına uğradı.");
                 return false;
             }
-
+ 
             var output = await process.StandardOutput.ReadToEndAsync();
             var error = await process.StandardError.ReadToEndAsync();
             var statusText = $"{output}\n{error}";
@@ -544,47 +548,91 @@ public class ProcessManagerService : IProcessManagerService
                 .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(line => line.Trim().TrimStart('\uFEFF'))
                 .ToList();
-
+ 
             var exactStatusLine = statusLines.FirstOrDefault(line =>
             {
                 var parts = line.Split('|', 3);
                 return parts.Length >= 2 && parts[0].Trim().Equals(name, StringComparison.OrdinalIgnoreCase);
             });
-
+ 
             if (!string.IsNullOrWhiteSpace(exactStatusLine))
             {
                 var state = exactStatusLine.Split('|', 3)[1].Trim();
                 if (state.Equals("Running", StringComparison.OrdinalIgnoreCase)) return true;
                 if (state.Equals("Stopped", StringComparison.OrdinalIgnoreCase)) return false;
             }
-
+ 
             var statusLine = statusLines
                 .FirstOrDefault(line => line.Contains(name, StringComparison.OrdinalIgnoreCase));
-
+ 
             if (!string.IsNullOrWhiteSpace(statusLine))
             {
                 if (statusLine.Contains("Running", StringComparison.OrdinalIgnoreCase)) return true;
                 if (statusLine.Contains("Stopped", StringComparison.OrdinalIgnoreCase)) return false;
             }
-
+ 
             if (!statusText.Contains("Project Statuses", StringComparison.OrdinalIgnoreCase) &&
                 statusText.Contains("Running", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
-
+ 
             if (statusText.Contains("Stopped", StringComparison.OrdinalIgnoreCase) ||
                 statusText.Contains("No Sockets found", StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
-
+ 
             return process.ExitCode == 0;
         }
         catch (Exception ex)
         {
             SystemLogQueue.Log("warning", $"[ProcessManager] Süreç durumu kontrol edilirken hata oluştu: {ex.Message}");
             return false;
+        }
+    }
+
+    public async Task RestoreDependenciesAsync(string name, string path, string? runtimeType)
+    {
+        if (string.IsNullOrWhiteSpace(runtimeType)) return;
+        string cleanRuntime = runtimeType.ToLowerInvariant();
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            SystemLogQueue.Log("info", $"[Windows Simülasyonu] Bağımlılıklar geri yükleniyor: {name} ({cleanRuntime})");
+            return;
+        }
+
+        try
+        {
+            if (cleanRuntime.Contains("node"))
+            {
+                if (File.Exists(Path.Combine(path, "package.json")))
+                {
+                    SystemLogQueue.Log("info", $"[ProcessManager] Node.js bağımlılıkları yükleniyor: npm install (Proje: {name})");
+                    // Run npm install (give it a longer timeout, e.g., 2 minutes)
+                    await ExecuteCommandAsync("npm", "install --no-audit --no-fund", path, 120000);
+                }
+            }
+            else if (cleanRuntime.Contains("python"))
+            {
+                if (File.Exists(Path.Combine(path, "requirements.txt")))
+                {
+                    SystemLogQueue.Log("info", $"[ProcessManager] Python bağımlılıkları yükleniyor: pip install (Proje: {name})");
+                    await ExecuteCommandAsync("pip", "install -r requirements.txt", path, 120000);
+                }
+            }
+            else if (cleanRuntime.Contains("dotnet") || cleanRuntime.Contains("c#") || cleanRuntime.Contains(".net"))
+            {
+                SystemLogQueue.Log("info", $"[ProcessManager] .NET bağımlılıkları geri yükleniyor: dotnet restore (Proje: {name})");
+                await ExecuteCommandAsync("dotnet", "restore", path, 120000);
+            }
+        }
+        catch (Exception ex)
+        {
+            SystemLogQueue.Log("error", $"[ProcessManager] '{name}' bağımlılıkları yüklenirken hata oluştu: {ex.Message}");
+            // We don't throw to prevent blocking deployment if restore fails due to minor warnings,
+            // but logging it is important.
         }
     }
 }

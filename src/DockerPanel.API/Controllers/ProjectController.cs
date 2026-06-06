@@ -361,6 +361,9 @@ public class ProjectController : ControllerBase
 
             project.ImageOrPath = extractPath;
 
+            // Bağımlılıkları Yükle (npm install, pip install, dotnet restore vb.)
+            await _processManagerService.RestoreDependenciesAsync(request.Name, extractPath, request.RuntimeType);
+
             // Config Kayıt Et
             await _processManagerService.AddOrUpdateProcessConfigAsync(request.Name, request.InternalPort, request.RuntimeType, request.EntryFile, request.CustomCommand);
 
