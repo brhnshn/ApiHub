@@ -358,7 +358,7 @@ public class ProcessManagerService : IProcessManagerService
         }
     }
 
-    private async Task ExecuteCommandAsync(string command, string args, string? workingDirectory = null, int timeoutMs = 30000)
+    private async Task ExecuteCommandAsync(string command, string args, int timeoutMs = 30000, string? workingDirectory = null)
     {
         SystemLogQueue.Log("info", $"$ {command} {args} (in {workingDirectory ?? "current dir"})");
         var psi = new ProcessStartInfo
@@ -611,7 +611,7 @@ public class ProcessManagerService : IProcessManagerService
                 {
                     SystemLogQueue.Log("info", $"[ProcessManager] Node.js bağımlılıkları yükleniyor: npm install (Proje: {name})");
                     // Run npm install (give it a longer timeout, e.g., 2 minutes)
-                    await ExecuteCommandAsync("npm", "install --no-audit --no-fund", path, 120000);
+                    await ExecuteCommandAsync("npm", "install --no-audit --no-fund", 120000, path);
                 }
             }
             else if (cleanRuntime.Contains("python"))
@@ -619,13 +619,13 @@ public class ProcessManagerService : IProcessManagerService
                 if (File.Exists(Path.Combine(path, "requirements.txt")))
                 {
                     SystemLogQueue.Log("info", $"[ProcessManager] Python bağımlılıkları yükleniyor: pip install (Proje: {name})");
-                    await ExecuteCommandAsync("pip", "install -r requirements.txt", path, 120000);
+                    await ExecuteCommandAsync("pip", "install -r requirements.txt", 120000, path);
                 }
             }
             else if (cleanRuntime.Contains("dotnet") || cleanRuntime.Contains("c#") || cleanRuntime.Contains(".net"))
             {
                 SystemLogQueue.Log("info", $"[ProcessManager] .NET bağımlılıkları geri yükleniyor: dotnet restore (Proje: {name})");
-                await ExecuteCommandAsync("dotnet", "restore", path, 120000);
+                await ExecuteCommandAsync("dotnet", "restore", 120000, path);
             }
         }
         catch (Exception ex)
