@@ -26,6 +26,18 @@ public class ProjectZipDeployService : IProjectZipDeployService
             targetDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dockerpanel_projects", name);
         }
 
+        // Read existing .env if it exists to prevent losing database/app credentials on redeployment
+        string? envContent = null;
+        string envPath = Path.Combine(targetDir, ".env");
+        if (File.Exists(envPath))
+        {
+            try
+            {
+                envContent = await File.ReadAllTextAsync(envPath);
+            }
+            catch { }
+        }
+
         // Hedef dizini temizle/oluştur
         SafeDeleteDirectory(targetDir);
         Directory.CreateDirectory(targetDir);
@@ -74,6 +86,16 @@ public class ProjectZipDeployService : IProjectZipDeployService
                     await entryStream.CopyToAsync(fileStream);
                 }
             }
+        }
+
+        // Restore .env file if it was backed up
+        if (envContent != null)
+        {
+            try
+            {
+                await File.WriteAllTextAsync(envPath, envContent);
+            }
+            catch { }
         }
 
         return targetDir;
