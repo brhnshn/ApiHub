@@ -107,14 +107,14 @@ jobs:
           cd ./publish
           zip -r ../DockerPanel.API.zip .
 
-      - name: Copy ZIP to Server via SCP
+      - name: Copy ZIP and Scripts to Server via SCP
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          source: "DockerPanel.API.zip"
+          source: "DockerPanel.API.zip,scripts/project-manager.sh"
           target: "/opt/dockerpanel/api/"
 
       - name: Copy APK to Server via SCP
@@ -145,6 +145,13 @@ jobs:
           script: |
             sudo systemctl stop dockerpanel-api
 
+            # project-manager.sh scriptini guncelle
+            if [ -f /opt/dockerpanel/api/scripts/project-manager.sh ]; then
+              sudo cp /opt/dockerpanel/api/scripts/project-manager.sh /usr/local/bin/project-manager.sh
+              sudo chmod +x /usr/local/bin/project-manager.sh
+              sudo rm -rf /opt/dockerpanel/api/scripts
+            fi
+
             sudo mkdir -p /opt/dockerpanel/downloads
             sudo chmod 755 /opt/dockerpanel/downloads
 
@@ -161,6 +168,35 @@ jobs:
 
             # firebase-service-account.json dosyasini secrettan olustur
             printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" > DockerPanel_V1/firebase-service-account.json
+
+            # Systemd servis dosyasını güncelle ve HOME/WorkingDirectory tanımlarını uygula
+            sudo bash -c 'cat << "EOF" > /etc/systemd/system/dockerpanel-api.service
+[Unit]
+Description=DockerPanel API and Client Service
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/dockerpanel/api/DockerPanel_V1
+ExecStart=/usr/bin/dotnet DockerPanel.API.dll
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=dockerpanel-api
+User=dockerpanel_api
+EnvironmentFile=/opt/dockerpanel/.env
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://*:5000
+Environment=HOME=/home/dockerpanel_api
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+            sudo systemctl daemon-reload
+
+            # İzinleri dockerpanel_api kullanıcısına ver
+            sudo chown -R dockerpanel_api:dockerpanel_api DockerPanel_V1
+            sudo chown -R dockerpanel_api:dockerpanel_api /var/log/project-manager
+            sudo chmod 755 /var/log/project-manager
 
             sudo systemctl start dockerpanel-api
             sudo systemctl reload nginx

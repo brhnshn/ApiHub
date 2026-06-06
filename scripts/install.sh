@@ -95,7 +95,7 @@ docker network create dockerpanel-global-net || true
 
 # 6. Uygulamanın Derlenmesi ve Systemd Servis Kurulumu
 echo -e "${BLUE}[6/7] API ve Client Uygulamaları Derleniyor...${NC}"
-dotnet publish src/DockerPanel.API/DockerPanel.API.csproj -c Release -o /opt/dockerpanel/api
+dotnet publish src/DockerPanel.API/DockerPanel.API.csproj -c Release -o /opt/dockerpanel/api/DockerPanel_V1
 
 # Systemd Servis Dosyası
 cat << 'EOF' > /etc/systemd/system/dockerpanel-api.service
@@ -104,7 +104,7 @@ Description=DockerPanel API and Client Service
 After=network.target
 
 [Service]
-WorkingDirectory=/opt/dockerpanel/api
+WorkingDirectory=/opt/dockerpanel/api/DockerPanel_V1
 ExecStart=/usr/bin/dotnet DockerPanel.API.dll
 Restart=always
 RestartSec=10
