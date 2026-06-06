@@ -37,10 +37,13 @@ public class ProjectZipDeployService : IProjectZipDeployService
 
             foreach (var entry in archive.Entries)
             {
+                // Windows'ta oluşturulan zip dosyalarındaki ters eğik çizgileri Linux için düz eğik çizgiye çevir
+                string entryFullName = entry.FullName.Replace('\\', '/');
+
                 // Boş klasörler
-                if (string.IsNullOrEmpty(entry.Name) && (entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\")))
+                if (string.IsNullOrEmpty(entry.Name) && (entryFullName.EndsWith("/") || entryFullName.EndsWith("\\")))
                 {
-                    string dirPath = Path.GetFullPath(Path.Combine(targetDir, entry.FullName));
+                    string dirPath = Path.GetFullPath(Path.Combine(targetDir, entryFullName));
                     if (!dirPath.StartsWith(destinationFullPath, StringComparison.OrdinalIgnoreCase))
                     {
                         throw new InvalidOperationException($"Güvenlik Uyarısı: Zip Slip (Directory Traversal) teşebbüsü engellendi! Geçersiz Klasör: {entry.FullName}");
@@ -49,7 +52,7 @@ public class ProjectZipDeployService : IProjectZipDeployService
                     continue;
                 }
 
-                string fileFullPath = Path.GetFullPath(Path.Combine(targetDir, entry.FullName));
+                string fileFullPath = Path.GetFullPath(Path.Combine(targetDir, entryFullName));
 
                 // Zip Slip Kontrolü: Çıkarılan dosya kesinlikle hedef klasörün altında olmalı
                 if (!fileFullPath.StartsWith(destinationFullPath, StringComparison.OrdinalIgnoreCase))
