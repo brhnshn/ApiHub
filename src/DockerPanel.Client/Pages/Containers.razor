@@ -794,10 +794,11 @@ else
         </div>
 
         <div class="p-3 mb-4" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px;">
-            <MudCheckBox @bind-Value="_deleteLinkedDb" Color="Color.Error" UnCheckedColor="Color.Default" Dense="true">
-                <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Bağlı Veritabanını da Sil</span>
-            </MudCheckBox>
-            <div style="font-size: 11px; color: #ef4444; margin-left: 28px; margin-top: 4px; font-weight: 500;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <input type="checkbox" id="delete-db-checkbox" @bind="_deleteLinkedDb" style="width: 18px; height: 18px; accent-color: #ef4444; cursor: pointer;" />
+                <label for="delete-db-checkbox" style="font-size: 13px; font-weight: 700; color: var(--text-main); cursor: pointer; user-select: none;">Bağlı Veritabanını da Sil</label>
+            </div>
+            <div style="font-size: 11px; color: #ef4444; margin-left: 26px; font-weight: 500;">
                 İşaretlenirse, projeye ait veritabanı şeması ve tüm veriler de geri döndürülemez şekilde silinecektir!
             </div>
         </div>
