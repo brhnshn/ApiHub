@@ -224,10 +224,15 @@ start_project() {
         return 0
     fi
 
-    local log_file pid_file run_command
+    local log_file pid_file run_command exec_cmd
     log_file="$(project_log_file_for "$PROJECT_NAME")"
     pid_file="$(pid_file_for "$PROJECT_NAME")"
-    run_command="cd $(printf '%q' "$PROJECT_PATH") && exec $PROJECT_COMMAND"
+    
+    exec_cmd="exec"
+    if [[ "$PROJECT_COMMAND" == *=* && ! "$PROJECT_COMMAND" =~ ^env[[:space:]] ]]; then
+        exec_cmd="exec env"
+    fi
+    run_command="cd $(printf '%q' "$PROJECT_PATH") && $exec_cmd $PROJECT_COMMAND"
 
     touch "$log_file"
     log_manager "info" "$PROJECT_NAME start requested: $PROJECT_COMMAND"

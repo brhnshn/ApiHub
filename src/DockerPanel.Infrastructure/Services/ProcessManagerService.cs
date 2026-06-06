@@ -240,6 +240,15 @@ public class ProcessManagerService : IProcessManagerService
         if (!string.IsNullOrWhiteSpace(customCommand))
         {
             startCommand = customCommand;
+            // Prepend env if it starts with environment variable assignments to prevent exec syntax error
+            if (customCommand.Contains('=') && !customCommand.TrimStart().StartsWith("env ", StringComparison.OrdinalIgnoreCase))
+            {
+                var firstToken = customCommand.TrimStart().Split(' ')[0];
+                if (firstToken.Contains('=') && !firstToken.StartsWith("/") && !firstToken.StartsWith("./"))
+                {
+                    startCommand = "env " + customCommand;
+                }
+            }
         }
         else if (!string.IsNullOrWhiteSpace(runtimeType))
         {
@@ -275,12 +284,12 @@ public class ProcessManagerService : IProcessManagerService
             else if (cleanRuntime.Contains("node"))
             {
                 actualEntry = !string.IsNullOrWhiteSpace(entryFile) ? entryFile : "server.js";
-                startCommand = $"PORT={port} node {actualEntry}";
+                startCommand = $"env PORT={port} node {actualEntry}";
             }
             else if (cleanRuntime.Contains("python"))
             {
                 actualEntry = !string.IsNullOrWhiteSpace(entryFile) ? entryFile : "app.py";
-                startCommand = $"PORT={port} python {actualEntry}";
+                startCommand = $"env PORT={port} python {actualEntry}";
             }
             else
             {
