@@ -138,6 +138,8 @@ systemctl restart dockerpanel-api
 chown -R dockerpanel_api:dockerpanel_api /opt/dockerpanel
 chown -R dockerpanel_api:dockerpanel_api /var/log/project-manager
 chmod 755 /var/log/project-manager
+chown -R dockerpanel_api:dockerpanel_api /home/dockerpanel_api
+chmod 755 /home/dockerpanel_api
 
 echo -e "${GREEN}==============================================================================${NC}"
 echo -e "${GREEN}Kurulum Tamamlandı! DockerPanel Başarıyla Ayağa Kaldırıldı.${NC}"

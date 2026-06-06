@@ -153,6 +153,11 @@ jobs:
               sudo rm -rf /opt/dockerpanel/api/scripts
             fi
 
+            # Ensure home directory of dockerpanel_api user exists and is writable by it
+            sudo mkdir -p /home/dockerpanel_api
+            sudo chown -R dockerpanel_api:dockerpanel_api /home/dockerpanel_api
+            sudo chmod 755 /home/dockerpanel_api
+
             sudo mkdir -p /opt/dockerpanel/downloads
             sudo chmod 755 /opt/dockerpanel/downloads
 
