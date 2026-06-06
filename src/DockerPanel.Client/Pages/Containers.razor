@@ -208,7 +208,7 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-3 gap-2 pt-2">
+                        <div class="grid @(project.Type != ProjectType.DockerContainer ? "grid-cols-4" : "grid-cols-3") gap-2 pt-2">
                             <!-- Durdur / Başlat -->
                             @if (project.Status == ProjectStatus.Running)
                             {
@@ -249,6 +249,16 @@
                                 <span class="material-symbols-outlined text-sm">terminal</span>
                                 <span>Loglar</span>
                             </button>
+
+                            <!-- ZIP Yükle (Native/Static için) -->
+                            @if (project.Type != ProjectType.DockerContainer)
+                            {
+                                <button @onclick="@(() => OpenZipUploadModal(project))"
+                                        class="py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-1 select-none" style="border-radius: 12px;">
+                                    <span class="material-symbols-outlined text-sm">cloud_upload</span>
+                                    <span>ZIP Yükle</span>
+                                </button>
+                            }
                         </div>
                     </div>
                 }
@@ -440,6 +450,17 @@ else
                             <MudTooltip Text="Canlı Log Gör">
                                 <MudIconButton Icon="@Icons.Material.Filled.Terminal" Color="Color.Inherit" OnClick="@(() => OpenLogsDrawer(project))" Variant="Variant.Outlined" Size="Size.Small" />
                             </MudTooltip>
+                            @if (project.Type != ProjectType.DockerContainer)
+                            {
+                                <MudTooltip Text="Yeni ZIP Sürümü Yükle">
+                                    <MudIconButton Icon="@Icons.Material.Filled.CloudUpload" 
+                                                   Color="Color.Info" 
+                                                   OnClick="@(() => OpenZipUploadModal(project))" 
+                                                   Variant="Variant.Outlined" 
+                                                   Size="Size.Small" 
+                                                   Style="border-color: rgba(59, 130, 246, 0.3) !important;" />
+                                </MudTooltip>
+                            }
                             <MudTooltip Text="Kaynak Limitlerini Düzenle">
                                 <MudIconButton Icon="@Icons.Material.Filled.Tune" Color="Color.Primary" OnClick="@(() => OpenLimitModal(project))" Variant="Variant.Outlined" Size="Size.Small" />
                             </MudTooltip>
@@ -891,6 +912,7 @@ else
     private string? _zipValidationError = null;
     private string? _zipWarningMessage = null;
     private string _detectedRuntime = string.Empty;
+    private string _detectedEntryFile = string.Empty;
     private bool _isDeployingZip = false;
 
     // Log Drawer
@@ -1535,6 +1557,7 @@ else
         _zipValidationError = null;
         _zipWarningMessage = null;
         _detectedRuntime = string.Empty;
+        _detectedEntryFile = string.Empty;
         _isDeployingZip = false;
         _zipUploadModalVisible = true;
     }
@@ -1544,6 +1567,8 @@ else
         _zipUploadModalVisible = false;
         _activeZipProject = null;
         _uploadedZipFile = null;
+        _detectedRuntime = string.Empty;
+        _detectedEntryFile = string.Empty;
     }
 
     private async Task OnZipUploadSelected(InputFileChangeEventArgs e)
@@ -1554,6 +1579,7 @@ else
         _zipValidationError = null;
         _zipWarningMessage = null;
         _detectedRuntime = string.Empty;
+        _detectedEntryFile = string.Empty;
         StateHasChanged();
 
         try
@@ -1567,6 +1593,7 @@ else
             else
             {
                 _detectedRuntime = result.DetectedRuntime;
+                _detectedEntryFile = result.DetectedEntryFile;
                 
                 // Validate Runtime Match
                 if (_activeZipProject != null && _activeZipProject.Type == ProjectType.StaticSite && result.DetectedRuntime != "static" && result.DetectedRuntime != "unknown")
@@ -1639,6 +1666,14 @@ else
                 content.Add(new StringContent(_activeZipProject.InternalPort.ToString()), "InternalPort");
                 content.Add(new StringContent(_activeZipProject.MemoryLimitBytes.ToString()), "MemoryLimitBytes");
                 content.Add(new StringContent(_activeZipProject.CpuCount.ToString(System.Globalization.CultureInfo.InvariantCulture)), "CpuCount");
+                if (!string.IsNullOrEmpty(_detectedRuntime))
+                {
+                    content.Add(new StringContent(_detectedRuntime), "RuntimeType");
+                }
+                if (!string.IsNullOrEmpty(_detectedEntryFile))
+                {
+                    content.Add(new StringContent(_detectedEntryFile), "EntryFile");
+                }
                 response = await Http.PostAsync("api/projects/native-deploy", content);
             }
 

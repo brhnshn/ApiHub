@@ -314,11 +314,11 @@ public class ProjectController : ControllerBase
                 try
                 {
                     await _processManagerService.StopProcessAsync(existingProject.Name);
-                    await _processManagerService.DeleteProcessConfigAsync(existingProject.Name);
+                    // Do NOT delete process config to preserve previous StartCommand configuration
                 }
                 catch (Exception ex)
                 {
-                    SystemLogQueue.Log("warning", $"[Deployment Retry] Eski native süreç temizlenirken hata oluştu: {ex.Message}");
+                    SystemLogQueue.Log("warning", $"[Deployment Retry] Eski native süreç durdurulurken hata oluştu: {ex.Message}");
                 }
             }
 
@@ -362,7 +362,28 @@ public class ProjectController : ControllerBase
             project.ImageOrPath = extractPath;
 
             // Bağımlılıkları Yükle (npm install, pip install, dotnet restore vb.)
-            await _processManagerService.RestoreDependenciesAsync(request.Name, extractPath, request.RuntimeType);
+            var runtimeType = request.RuntimeType;
+            if (string.IsNullOrWhiteSpace(runtimeType))
+            {
+                if (System.IO.File.Exists(System.IO.Path.Combine(extractPath, "package.json")))
+                {
+                    runtimeType = "node";
+                }
+                else if (System.IO.Directory.GetFiles(extractPath, "*.csproj").Any() || 
+                         System.IO.Directory.GetFiles(extractPath, "*.runtimeconfig.json").Any())
+                {
+                    runtimeType = "dotnet";
+                }
+                else if (System.IO.File.Exists(System.IO.Path.Combine(extractPath, "requirements.txt")) ||
+                         System.IO.File.Exists(System.IO.Path.Combine(extractPath, "manage.py")) ||
+                         System.IO.File.Exists(System.IO.Path.Combine(extractPath, "app.py")) ||
+                         System.IO.File.Exists(System.IO.Path.Combine(extractPath, "main.py")))
+                {
+                    runtimeType = "python";
+                }
+            }
+
+            await _processManagerService.RestoreDependenciesAsync(request.Name, extractPath, runtimeType);
 
             // Config Kayıt Et
             await _processManagerService.AddOrUpdateProcessConfigAsync(request.Name, request.InternalPort, request.RuntimeType, request.EntryFile, request.CustomCommand);
