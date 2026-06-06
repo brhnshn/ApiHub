@@ -744,8 +744,8 @@ public class ProcessManagerService : IProcessManagerService
         catch (Exception ex)
         {
             SystemLogQueue.Log("error", $"[ProcessManager] '{name}' bağımlılıkları yüklenirken hata oluştu: {ex.Message}");
-            // We don't throw to prevent blocking deployment if restore fails due to minor warnings,
-            // but logging it is important.
+            Console.WriteLine($"[ProcessManager Error] '{name}' bağımlılıkları yüklenirken hata oluştu: {ex.ToString()}");
+            throw new Exception($"Bağımlılıklar yüklenemedi: {ex.Message}", ex);
         }
     }
 }
