@@ -53,7 +53,21 @@ public class NginxProxyService : INginxService
     private async Task EnsureTemplateExistsAsync()
     {
         var resolvedTemplate = ResolvePath(TemplatePath);
-        if (!File.Exists(resolvedTemplate))
+        bool shouldWrite = !File.Exists(resolvedTemplate);
+        if (!shouldWrite)
+        {
+            try
+            {
+                var currentContent = await File.ReadAllTextAsync(resolvedTemplate, Utf8WithoutBom);
+                if (!currentContent.Contains("@backend_down"))
+                {
+                    shouldWrite = true;
+                }
+            }
+            catch { }
+        }
+
+        if (shouldWrite)
         {
             var defaultTemplate = @"server {
     listen 80;
@@ -70,6 +84,13 @@ public class NginxProxyService : INginxService
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection ""upgrade"";
+    }
+
+    # Proje kapalıyken veya çökmüşken panel yönlendirmesini (SW cache trap) önleyen 502 sayfası
+    error_page 502 503 504 @backend_down;
+    location @backend_down {
+        return 502 '<html><head><title>Uygulama Calismiyor</title><style>body{font-family:sans-serif;text-align:center;padding:100px 20px;background:#0e1511;color:#dde4dd}h1{font-size:36px;color:#ffb4ab}p{font-size:18px;color:#86948a}</style></head><body><h1>Uygulama Calismiyor (502 Bad Gateway)</h1><p>Bu proje su anda kapali veya baslatilamadi. Lutfen kontrol panelinden loglarini inceleyin.</p></body></html>';
+        add_header Content-Type text/html;
     }
 }";
             await File.WriteAllTextAsync(resolvedTemplate, defaultTemplate, Utf8WithoutBom);
