@@ -494,3 +494,8 @@ appsettings.Local.json
 
 # Orphan / temp files (sadece kok dizindeki index.html)
 /index.html
+
+# Agent folders & temp files
+.agents/
+ORIGINAL_REQUEST.md
+PROJECT.md
