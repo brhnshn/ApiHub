@@ -273,6 +273,7 @@ Ajan, sunucu kurulum aşamasında güvenlik seviyesini maksimumda tutmak için �
 ## 8. Ajan İletişim ve Çıktı Standardı (Agent Communication & Output Standard)
 
 *   **Sanal Ajan Çıktı Kuralı:** Yapay zeka ajanları çıktıları asla uzun tutmamalıdır. Sadece hangi dosyada neyi, nasıl yaptığını net bir şekilde belirtmeli; kesinlikle ekstra öneri, tavsiye veya "şunları da yapabiliriz" gibi yönlendirmeler sunmamalıdır. Sadece doğrudan iş mantığını uygulayıp raporlamalıdır.
+*   **Sunucu Güncelleme Hatırlatma Yasağı:** Sunucu GitHub üzerinden otomatik olarak güncellendiği için, kullanıcıya "git pull", "install.sh" çalıştırma gibi sunucu güncelleme talimatları kesinlikle verilmemeli ve bu yönde hatırlatma yapılmamalıdır.
 
 ---
 
