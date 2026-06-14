@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -171,6 +173,63 @@ public class NginxProxyService : INginxService
         throw new Exception("Nginx reload komutlarinin hicbiri basarili olmadi. Denenen komutlar: " + string.Join(" | ", errors));
     }
 
+    private async Task<List<(string Domain, string? CertPath, string? KeyPath)>> DetectPanelDomainsAsync(int apiPort)
+    {
+        var domains = new List<(string Domain, string? CertPath, string? KeyPath)>();
+        string enabledDir = ResolvePath(SitesEnabledDir);
+        if (!Directory.Exists(enabledDir)) return domains;
+
+        var files = Directory.GetFiles(enabledDir);
+        foreach (var file in files)
+        {
+            try
+            {
+                string filename = Path.GetFileName(file);
+                if (filename.Equals("000-default-panel.conf", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var content = await File.ReadAllTextAsync(file, Utf8WithoutBom);
+                // Check if this config proxies to the panel API port
+                if (content.Contains($"127.0.0.1:{apiPort}") || content.Contains($"localhost:{apiPort}"))
+                {
+                    // Find all server_name lines
+                    var matches = Regex.Matches(content, @"server_name\s+([^;]+);", RegexOptions.IgnoreCase);
+                    var fileDomains = new List<string>();
+                    foreach (Match match in matches)
+                    {
+                        var names = match.Groups[1].Value.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var name in names)
+                        {
+                            var cleanName = name.Trim().ToLower();
+                            if (cleanName != "_" && cleanName != "localhost" && !fileDomains.Contains(cleanName))
+                            {
+                                fileDomains.Add(cleanName);
+                            }
+                        }
+                    }
+
+                    // Extract SSL paths if present
+                    string? certPath = null;
+                    string? keyPath = null;
+                    var certMatch = Regex.Match(content, @"ssl_certificate\s+([^;]+);", RegexOptions.IgnoreCase);
+                    var keyMatch = Regex.Match(content, @"ssl_certificate_key\s+([^;]+);", RegexOptions.IgnoreCase);
+                    if (certMatch.Success) certPath = certMatch.Groups[1].Value.Trim().Trim('"', '\'');
+                    if (keyMatch.Success) keyPath = keyMatch.Groups[1].Value.Trim().Trim('"', '\'');
+
+                    foreach (var domain in fileDomains)
+                    {
+                        if (!domains.Any(d => d.Domain == domain))
+                        {
+                            domains.Add((domain, certPath, keyPath));
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+        return domains;
+    }
+
     private async Task EnsureDefaultPanelConfigAsync()
     {
         // 1. Remove default Nginx symlink to prevent default_server conflict
@@ -201,31 +260,19 @@ public class NginxProxyService : INginxService
             }
         }
 
+        // Detect panel domains and their SSL certificate paths from existing configurations
+        var panelDomains = await DetectPanelDomainsAsync(apiPort);
+        var domainNames = panelDomains.Select(pd => pd.Domain).ToList();
+        SystemLogQueue.Log("info", $"[Nginx] Algılanan Panel Domainleri: {string.Join(", ", domainNames)}");
+
         var configFilename = "000-default-panel.conf";
         var availablePath = Path.Combine(SitesAvailableDir, configFilename);
         var resolvedAvailablePath = ResolvePath(availablePath);
 
-        // Check if it already exists and is up to date
-        if (File.Exists(resolvedAvailablePath))
-        {
-            try
-            {
-                var existingContent = await File.ReadAllTextAsync(resolvedAvailablePath, Utf8WithoutBom);
-                if (existingContent.Contains($"proxy_pass http://127.0.0.1:{apiPort};"))
-                {
-                    // Check if symlink exists
-                    var enabledPathCheck = Path.Combine(SitesEnabledDir, configFilename);
-                    var resolvedEnabledPathCheck = ResolvePath(enabledPathCheck);
-                    if (File.Exists(resolvedEnabledPathCheck) || new FileInfo(resolvedEnabledPathCheck).LinkTarget != null)
-                    {
-                        return; // Up to date and linked
-                    }
-                }
-            }
-            catch { }
-        }
+        var sb = new System.Text.StringBuilder();
 
-        var compiledConfig = $@"server {{
+        // Server block 1: Fallback Default Server (Port 80)
+        sb.AppendLine($@"server {{
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name _;
@@ -242,10 +289,87 @@ public class NginxProxyService : INginxService
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection ""upgrade"";
     }}
-}}";
+}}");
+
+        // Server block 2: Explicit Port 80 blocks for panel domains to win over wildcards
+        if (domainNames.Count > 0)
+        {
+            sb.AppendLine($@"server {{
+    listen 80;
+    server_name {string.Join(" ", domainNames)};
+
+    location / {{
+        proxy_pass http://127.0.0.1:{apiPort};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSockets desteği (SignalR akışı için)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection ""upgrade"";
+    }}
+}}");
+        }
+
+        // Server block 3: Explicit Port 443 SSL blocks for panel domains (if certificates were parsed)
+        foreach (var pd in panelDomains)
+        {
+            if (!string.IsNullOrEmpty(pd.CertPath) && !string.IsNullOrEmpty(pd.KeyPath))
+            {
+                sb.AppendLine($@"server {{
+    listen 443 ssl;
+    server_name {pd.Domain};
+
+    ssl_certificate {pd.CertPath};
+    ssl_certificate_key {pd.KeyPath};
+
+    # Güvenlik Ayarları
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    location / {{
+        proxy_pass http://127.0.0.1:{apiPort};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSockets desteği (SignalR akışı için)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection ""upgrade"";
+    }}
+}}");
+            }
+        }
+
+        var compiledConfig = sb.ToString();
+
+        // Check if it already exists and is identical
+        if (File.Exists(resolvedAvailablePath))
+        {
+            try
+            {
+                var existingContent = await File.ReadAllTextAsync(resolvedAvailablePath, Utf8WithoutBom);
+                if (existingContent.Trim() == compiledConfig.Trim())
+                {
+                    // Check if symlink exists
+                    var enabledPathCheck = Path.Combine(SitesEnabledDir, configFilename);
+                    var resolvedEnabledPathCheck = ResolvePath(enabledPathCheck);
+                    if (File.Exists(resolvedEnabledPathCheck) || new FileInfo(resolvedEnabledPathCheck).LinkTarget != null)
+                    {
+                        return; // Up to date and linked
+                    }
+                }
+            }
+            catch { }
+        }
 
         await File.WriteAllTextAsync(resolvedAvailablePath, compiledConfig, Utf8WithoutBom);
-        SystemLogQueue.Log("info", $"[Nginx] Panel default_server konfigürasyonu sites-available altına yazıldı (Port: {apiPort}).");
+        SystemLogQueue.Log("info", $"[Nginx] Panel default_server ve korumalı vhost konfigürasyonları sites-available altına yazıldı.");
 
         var enabledPath = Path.Combine(SitesEnabledDir, configFilename);
         var resolvedEnabledPath = ResolvePath(enabledPath);
@@ -260,7 +384,7 @@ public class NginxProxyService : INginxService
                     linkInfo.Delete();
                 }
                 File.CreateSymbolicLink(resolvedEnabledPath, resolvedAvailablePath);
-                SystemLogQueue.Log("info", $"[Nginx] Panel default_server symlink oluşturuldu.");
+                SystemLogQueue.Log("info", $"[Nginx] Panel default_server ve korumalı vhost symlink oluşturuldu.");
             }
             catch (Exception symEx)
             {
@@ -497,7 +621,7 @@ public class NginxProxyService : INginxService
             }
             catch (Exception ex)
             {
-                SystemLogQueue.Log("warning", $"[Nginx] Proxy dosyaları silindi fakat reload sırasında uyarı/hata alındı: {ex.Message}");
+                SystemLogQueue.Log("error", $"[Nginx] Proxy kaldırma sonrası reload hatası: {ex.Message}");
             }
         }
         else if (deleted)
@@ -513,13 +637,14 @@ public class NginxProxyService : INginxService
             throw new ArgumentException("Geçersiz subdomain veya alan adı formatı!");
         }
 
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
+        var rootDomain = await dbContext.RootDomains.FirstOrDefaultAsync(rd => rd.Name.ToLower() == domainName.ToLower());
+        bool hasCloudflareToken = rootDomain != null && !string.IsNullOrWhiteSpace(rootDomain.CloudflareToken);
+
         if (subdomainName == "*")
         {
-            // Yaban karakter wildcard SSL için Cloudflare Token / DNS-01 doğrulaması gerekiyor
-            using var scope = _serviceProvider.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
-            var rootDomain = await dbContext.RootDomains.FirstOrDefaultAsync(rd => rd.Name.ToLower() == domainName.ToLower());
-            if (rootDomain == null || string.IsNullOrWhiteSpace(rootDomain.CloudflareToken))
+            if (!hasCloudflareToken)
             {
                 throw new InvalidOperationException("Yaban karakter (*.domain.com) SSL üretimi DNS-01 doğrulaması gerektirir. Lütfen önce Alan Adı sayfasından bu alan adı için geçerli bir Cloudflare API Token tanımlayın!");
             }
@@ -545,7 +670,7 @@ public class NginxProxyService : INginxService
                     Directory.CreateDirectory(credentialsDir);
                 }
 
-                await File.WriteAllTextAsync(credentialsPath, $"dns_cloudflare_api_token = {rootDomain.CloudflareToken.Trim()}\n", Utf8WithoutBom);
+                await File.WriteAllTextAsync(credentialsPath, $"dns_cloudflare_api_token = {rootDomain!.CloudflareToken!.Trim()}\n", Utf8WithoutBom);
                 
                 // chmod 600 vererek yetki sınırlarını koru
                 try
@@ -585,22 +710,74 @@ public class NginxProxyService : INginxService
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            // Windows simülasyonu
-            SystemLogQueue.Log("info", $"$ [Windows Simülasyonu] certbot --nginx -d {fullDomain} --non-interactive --agree-tos --register-unsafely-without-email");
+            if (hasCloudflareToken)
+            {
+                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - Cloudflare DNS-01] certbot -a dns-cloudflare --dns-cloudflare-credentials /opt/dockerpanel/cloudflare_{domainName}.ini -i nginx -d {fullDomain} --non-interactive --agree-tos --register-unsafely-without-email");
+            }
+            else
+            {
+                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - HTTP-01] certbot --nginx -d {fullDomain} --non-interactive --agree-tos --register-unsafely-without-email");
+            }
             await Task.Delay(2000);
             SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için SSL sertifikası başarıyla kuruldu (Simülasyon).");
             return;
         }
 
-        try
+        if (hasCloudflareToken)
         {
-            await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot --nginx -d {fullDomain} --non-interactive --agree-tos --register-unsafely-without-email", 60000);
-            SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için SSL sertifikası başarıyla kuruldu ve Nginx otomatik reload edildi.");
+            // Cloudflare API Token mevcut ise Cloudflare DNS-01 doğrulamasını Nginx yükleyicisi ile birleştirip çalıştırıyoruz
+            var credentialsDir = "/opt/dockerpanel";
+            var credentialsPath = Path.Combine(credentialsDir, $"cloudflare_{domainName}.ini");
+            try
+            {
+                if (!Directory.Exists(credentialsDir))
+                {
+                    Directory.CreateDirectory(credentialsDir);
+                }
+
+                await File.WriteAllTextAsync(credentialsPath, $"dns_cloudflare_api_token = {rootDomain!.CloudflareToken!.Trim()}\n", Utf8WithoutBom);
+
+                try
+                {
+                    await ExecuteCommandAsync("sudo", $"-n /bin/chmod 600 {credentialsPath}", 5000);
+                }
+                catch { }
+
+                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için Cloudflare DNS-01 API ve Nginx yükleyicisi üzerinden SSL sertifikası kuruluyor...");
+                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot -a dns-cloudflare --dns-cloudflare-credentials {credentialsPath} -i nginx -d {fullDomain} --non-interactive --agree-tos --register-unsafely-without-email", 120000);
+                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için Cloudflare DNS-01 tabanlı SSL başarıyla kuruldu ve Nginx konfigüre edildi.");
+            }
+            catch (Exception ex)
+            {
+                SystemLogQueue.Log("error", $"[Let's Encrypt] Cloudflare DNS-01 ile SSL sertifikası üretilirken hata oluştu: {ex.Message}");
+                throw;
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(credentialsPath))
+                    {
+                        File.Delete(credentialsPath);
+                    }
+                }
+                catch { }
+            }
         }
-        catch (Exception ex)
+        else
         {
-            SystemLogQueue.Log("error", $"[Let's Encrypt] SSL sertifikası üretilirken hata oluştu: {ex.Message}");
-            throw;
+            // Klasik HTTP-01 Challenge
+            try
+            {
+                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için HTTP-01 (Nginx) üzerinden SSL sertifikası kuruluyor...");
+                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot --nginx -d {fullDomain} --non-interactive --agree-tos --register-unsafely-without-email", 60000);
+                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için HTTP-01 tabanlı SSL başarıyla kuruldu ve Nginx reload edildi.");
+            }
+            catch (Exception ex)
+            {
+                SystemLogQueue.Log("error", $"[Let's Encrypt] HTTP-01 ile SSL sertifikası üretilirken hata oluştu: {ex.Message}");
+                throw;
+            }
         }
     }
 
