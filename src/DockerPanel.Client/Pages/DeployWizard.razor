@@ -1097,6 +1097,28 @@
             _executionSuccess = false;
             _errorMessage = ex.Message;
             LogConsole($"ERROR: İşlem başarısız. Hata: {ex.Message}");
+
+            // Hatalı biten dağıtımlarda yapılan tüm işlemleri ve projeyi silerek rollback yap
+            if (projectId != Guid.Empty)
+            {
+                LogConsole("INFO: Hata sonrası yapılan işlemler geri alınıyor (Rollback)...");
+                try
+                {
+                    var rollbackResponse = await Http.DeleteAsync($"api/projects/{projectId}?deleteDb=true");
+                    if (rollbackResponse.IsSuccessStatusCode)
+                    {
+                        LogConsole("SUCCESS: Hatalı dağıtıma ait tüm servisler, Nginx kayıtları, DNS tescilleri ve veritabanı başarıyla temizlendi.");
+                    }
+                    else
+                    {
+                        LogConsole("WARNING: Geri alma işlemi kısmen başarısız oldu.");
+                    }
+                }
+                catch (Exception rollbackEx)
+                {
+                    LogConsole($"WARNING: Geri alma işlemi sırasında hata oluştu: {rollbackEx.Message}");
+                }
+            }
         }
         finally
         {

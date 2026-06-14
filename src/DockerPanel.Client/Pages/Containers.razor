@@ -1061,7 +1061,7 @@ else
             if (authState.User.Identity?.IsAuthenticated != true) return;
 
             var raw = await Http.GetFromJsonAsync<List<ProjectCardDto>>("api/projects");
-            _projects = raw ?? new List<ProjectCardDto>();
+            _projects = (raw ?? new List<ProjectCardDto>()).Where(p => p.Status != ProjectStatus.Provisioning).ToList();
 
             // Global önbelleği güncelle
             AppState.CachedProjects = _projects.Select(p => new ProjectCardStateDto

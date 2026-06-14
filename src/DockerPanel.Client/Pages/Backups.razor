@@ -623,9 +623,9 @@ if [ ! -d ""$BACKUP_FOLDER"" ]; then
     exit 1
 fi
 
-echo -e ""${BLUE}[1/6] Bağımlılıklar Kuruluyor (Docker, Nginx, Tar, Gzip)...${NC}""
+echo -e ""${BLUE}[1/6] Bağımlılıklar Kuruluyor (Docker, Nginx, Tar, Gzip, Certbot)...${NC}""
 sudo apt update
-sudo apt install -y docker.io docker-compose nginx tar gzip pg-client-common
+sudo apt install -y docker.io docker-compose nginx tar gzip pg-client-common python3-certbot-dns-cloudflare
 
 # Docker Panel Dizin Yapısı Kuruluyor
 sudo mkdir -p /opt/dockerpanel/projects

@@ -688,6 +688,11 @@ public class NginxProxyService : INginxService
             catch (Exception ex)
             {
                 SystemLogQueue.Log("error", $"[Let's Encrypt] Wildcard SSL sertifikası üretilirken hata oluştu: {ex.Message}");
+                var errMsg = ex.Message.ToLowerInvariant();
+                if (errMsg.Contains("unrecognized arguments") || errMsg.Contains("dns-cloudflare"))
+                {
+                    throw new InvalidOperationException("Sunucuda Certbot Cloudflare eklentisi kurulu değil! Lütfen sunucu terminaline bağlanıp 'sudo apt-get update && sudo apt-get install -y python3-certbot-dns-cloudflare' komutunu çalıştırın ve tekrar deneyin.", ex);
+                }
                 throw;
             }
             finally
@@ -750,6 +755,11 @@ public class NginxProxyService : INginxService
             catch (Exception ex)
             {
                 SystemLogQueue.Log("error", $"[Let's Encrypt] Cloudflare DNS-01 ile SSL sertifikası üretilirken hata oluştu: {ex.Message}");
+                var errMsg = ex.Message.ToLowerInvariant();
+                if (errMsg.Contains("unrecognized arguments") || errMsg.Contains("dns-cloudflare"))
+                {
+                    throw new InvalidOperationException("Sunucuda Certbot Cloudflare eklentisi kurulu değil! Lütfen sunucu terminaline bağlanıp 'sudo apt-get update && sudo apt-get install -y python3-certbot-dns-cloudflare' komutunu çalıştırın ve tekrar deneyin.", ex);
+                }
                 throw;
             }
             finally
