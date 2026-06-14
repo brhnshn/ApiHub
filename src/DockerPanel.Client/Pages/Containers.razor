@@ -347,7 +347,7 @@ else
                                 else if (project.Status == ProjectStatus.Provisioning)
                                 {
                                     <MudProgressCircular Color="Color.Warning" Size="Size.Small" Indeterminate="true" style="width:10px; height:10px;" />
-                                    <span style="font-size: 11px; color: #f59e0b; font-weight: 700;">Kuruluyor</span>
+                                    <span style="font-size: 11px; color: #f59e0b; font-weight: 700;">Dağıtılıyor / Yarım Kaldı</span>
                                 }
                                 else if (project.Status == ProjectStatus.Error)
                                 {
@@ -1061,7 +1061,7 @@ else
             if (authState.User.Identity?.IsAuthenticated != true) return;
 
             var raw = await Http.GetFromJsonAsync<List<ProjectCardDto>>("api/projects");
-            _projects = (raw ?? new List<ProjectCardDto>()).Where(p => p.Status != ProjectStatus.Provisioning).ToList();
+            _projects = raw ?? new List<ProjectCardDto>();
 
             // Global önbelleği güncelle
             AppState.CachedProjects = _projects.Select(p => new ProjectCardStateDto
