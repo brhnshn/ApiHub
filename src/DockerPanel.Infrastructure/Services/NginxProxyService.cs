@@ -31,23 +31,26 @@ public class NginxProxyService : INginxService
     private const string SitesAvailableDir = "/etc/nginx/sites-available";
     private const string SitesEnabledDir = "/etc/nginx/sites-enabled";
 
-    private string ResolvePath(string targetPath)
+    private string ResolvePath(string targetPath, bool createDirectory = true)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var localPath = Path.Combine(AppContext.BaseDirectory, "opt_dockerpanel", targetPath.TrimStart('/'));
             var dir = Path.GetDirectoryName(localPath);
-            if (dir != null && !Directory.Exists(dir))
+            if (createDirectory && dir != null && !Directory.Exists(dir))
             {
                 Directory.CreateDirectory(dir);
             }
             return localPath;
         }
         
-        var targetDir = Path.GetDirectoryName(targetPath);
-        if (targetDir != null && !Directory.Exists(targetDir))
+        if (createDirectory)
         {
-            Directory.CreateDirectory(targetDir);
+            var targetDir = Path.GetDirectoryName(targetPath);
+            if (targetDir != null && !Directory.Exists(targetDir))
+            {
+                Directory.CreateDirectory(targetDir);
+            }
         }
         return targetPath;
     }
@@ -463,19 +466,33 @@ public class NginxProxyService : INginxService
         string certPath = $"/etc/letsencrypt/live/{fullDomain}/fullchain.pem";
         string keyPath = $"/etc/letsencrypt/live/{fullDomain}/privkey.pem";
 
-        bool hasCert = (File.Exists(ResolvePath(certPath)) && File.Exists(ResolvePath(keyPath))) ||
-                       (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && sslEnabled);
-
-        if (!hasCert && !isApex)
+        bool hasCert = false;
+        try
         {
-            string wildcardCert = $"/etc/letsencrypt/live/{domainName}/fullchain.pem";
-            string wildcardKey = $"/etc/letsencrypt/live/{domainName}/privkey.pem";
-            if (File.Exists(ResolvePath(wildcardCert)) && File.Exists(ResolvePath(wildcardKey)))
+            hasCert = (File.Exists(ResolvePath(certPath, false)) && File.Exists(ResolvePath(keyPath, false))) ||
+                           (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && sslEnabled);
+
+            if (!hasCert && !isApex)
             {
-                certPath = wildcardCert;
-                keyPath = wildcardKey;
-                hasCert = true;
+                string wildcardCert = $"/etc/letsencrypt/live/{domainName}/fullchain.pem";
+                string wildcardKey = $"/etc/letsencrypt/live/{domainName}/privkey.pem";
+                if (File.Exists(ResolvePath(wildcardCert, false)) && File.Exists(ResolvePath(wildcardKey, false)))
+                {
+                    certPath = wildcardCert;
+                    keyPath = wildcardKey;
+                    hasCert = true;
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            SystemLogQueue.Log("warning", $"[SSL Kontrolü] {fullDomain} için sertifika yolları taranırken hata oluştu (yetki sorunu olabilir): {ex.Message}");
+        }
+
+        if (sslEnabled && !hasCert)
+        {
+            SystemLogQueue.Log("warning", $"[SSL Uyarısı] {fullDomain} için veritabanında SSL aktif işaretli ancak diskte sertifika bulunamadı veya yetki yetersiz. " +
+                "Eğer sertifikanız varsa, lütfen sunucu terminalinde 'sudo chmod -R 755 /etc/letsencrypt' komutunu çalıştırarak panel kullanıcısına okuma yetkisi verin.");
         }
 
         string compiledConfig;
