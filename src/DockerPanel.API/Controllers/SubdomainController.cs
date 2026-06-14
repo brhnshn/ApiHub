@@ -158,7 +158,8 @@ public class SubdomainController : ControllerBase
                 targetPort,
                 project?.Type ?? ProjectType.DockerContainer,
                 project?.ImageOrPath,
-                project?.EnablePhp
+                project?.EnablePhp,
+                subdomain.SslEnabled
             );
 
             await transaction.CommitAsync();
@@ -240,7 +241,8 @@ public class SubdomainController : ControllerBase
                 targetPort,
                 project?.Type ?? ProjectType.DockerContainer,
                 project?.ImageOrPath,
-                project?.EnablePhp
+                project?.EnablePhp,
+                subdomain.SslEnabled
             );
 
             await transaction.CommitAsync();
@@ -316,6 +318,60 @@ public class SubdomainController : ControllerBase
             var adminId = GetUserId();
             await _nginxService.SyncActiveConfigsWithDbAsync(adminId);
             return Ok(new { Message = "Nginx yapılandırmaları başarıyla taranıp sisteme eşitleme yapıldı." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = ex.Message });
+        }
+    }
+
+    [HttpPost("rebuild")]
+    public async Task<IActionResult> RebuildConfigs()
+    {
+        if (!IsAdmin()) return Forbid();
+
+        try
+        {
+            var subdomains = await _dbContext.Subdomains
+                .Include(s => s.Project)
+                .ToListAsync();
+
+            int successCount = 0;
+            int failCount = 0;
+            var errors = new List<string>();
+
+            foreach (var sub in subdomains)
+            {
+                try
+                {
+                    int targetPort = sub.Project?.InternalPort ?? 80;
+                    
+                    await _nginxService.ProvisionSubdomainAsync(
+                        sub.SubdomainName,
+                        sub.DomainName,
+                        sub.Project?.Name ?? "external_service",
+                        targetPort,
+                        sub.Project?.Type ?? ProjectType.DockerContainer,
+                        sub.Project?.ImageOrPath,
+                        sub.Project?.EnablePhp,
+                        sub.SslEnabled
+                    );
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    failCount++;
+                    errors.Add($"{sub.SubdomainName}.{sub.DomainName}: {ex.Message}");
+                }
+            }
+
+            return Ok(new 
+            { 
+                Message = $"Yeniden yapılandırma tamamlandı. Başarılı: {successCount}, Başarısız: {failCount}",
+                SuccessCount = successCount,
+                FailCount = failCount,
+                Errors = errors
+            });
         }
         catch (Exception ex)
         {

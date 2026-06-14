@@ -436,7 +436,7 @@ public class NginxProxyService : INginxService
         }
     }
 
-    public async Task ProvisionSubdomainAsync(string subdomainName, string domainName, string containerName, int containerPort, ProjectType projectType = ProjectType.DockerContainer, string? staticPath = null, bool? enablePhp = null)
+    public async Task ProvisionSubdomainAsync(string subdomainName, string domainName, string containerName, int containerPort, ProjectType projectType = ProjectType.DockerContainer, string? staticPath = null, bool? enablePhp = null, bool sslEnabled = false)
     {
         // Güvenlik Girdisi Doğrulama
         if (!InputValidator.IsSubdomainName(subdomainName) || !InputValidator.IsDomainName(domainName))
@@ -458,11 +458,31 @@ public class NginxProxyService : INginxService
             ? $"_apex_.{domainName}.conf" 
             : $"{cleanSubdomain}.{domainName}.conf";
 
+        // Let's Encrypt Sertifika Kontrolü (Wildcard veya Spesifik)
+        string fullDomain = isApex ? domainName : $"{cleanSubdomain}.{domainName}";
+        string certPath = $"/etc/letsencrypt/live/{fullDomain}/fullchain.pem";
+        string keyPath = $"/etc/letsencrypt/live/{fullDomain}/privkey.pem";
+
+        bool hasCert = (File.Exists(ResolvePath(certPath)) && File.Exists(ResolvePath(keyPath))) ||
+                       (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && sslEnabled);
+
+        if (!hasCert && !isApex)
+        {
+            string wildcardCert = $"/etc/letsencrypt/live/{domainName}/fullchain.pem";
+            string wildcardKey = $"/etc/letsencrypt/live/{domainName}/privkey.pem";
+            if (File.Exists(ResolvePath(wildcardCert)) && File.Exists(ResolvePath(wildcardKey)))
+            {
+                certPath = wildcardCert;
+                keyPath = wildcardKey;
+                hasCert = true;
+            }
+        }
+
         string compiledConfig;
 
         if (projectType == ProjectType.StaticSite)
         {
-            SystemLogQueue.Log("info", $"[Nginx] Statik Web sitesi yönlendirmesi yapılandırılıyor: {(isApex ? "@" : cleanSubdomain)}.{domainName} -> {staticPath ?? containerName} (PHP: {enablePhp})");
+            SystemLogQueue.Log("info", $"[Nginx] Statik Web sitesi yönlendirmesi yapılandırılıyor: {(isApex ? "@" : cleanSubdomain)}.{domainName} -> {staticPath ?? containerName} (PHP: {enablePhp}) (SSL: {hasCert})");
 
             var resolvedStaticPath = staticPath;
             if (string.IsNullOrEmpty(resolvedStaticPath))
@@ -485,7 +505,37 @@ public class NginxProxyService : INginxService
     }";
             }
 
-            compiledConfig = $@"server {{
+            if (hasCert)
+            {
+                compiledConfig = $@"server {{
+    listen 80;
+    server_name {serverNames};
+    return 301 https://$host$request_uri;
+}}
+
+server {{
+    listen 443 ssl;
+    server_name {serverNames};
+
+    ssl_certificate {certPath};
+    ssl_certificate_key {keyPath};
+
+    # Guvenlik Ayarlari
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    root {resolvedStaticPath};
+    {indexDirective}
+
+    location / {{
+        try_files $uri $uri/ /index.html /index.php?$args;
+    }}{phpBlock}
+}}";
+            }
+            else
+            {
+                compiledConfig = $@"server {{
     listen 80;
     server_name {serverNames};
 
@@ -496,26 +546,31 @@ public class NginxProxyService : INginxService
         try_files $uri $uri/ /index.html /index.php?$args;
     }}{phpBlock}
 }}";
+            }
         }
         else
         {
-            SystemLogQueue.Log("info", $"[Nginx] Proxy yönlendirmesi yapılandırılıyor: {(isApex ? "@" : cleanSubdomain)}.{domainName} -> {containerName}:{containerPort}");
+            SystemLogQueue.Log("info", $"[Nginx] Proxy yönlendirmesi yapılandırılıyor: {(isApex ? "@" : cleanSubdomain)}.{domainName} -> {containerName}:{containerPort} (SSL: {hasCert})");
 
-            await EnsureTemplateExistsAsync();
-
-            // 1. Şablonu oku
-            var resolvedTemplate = ResolvePath(TemplatePath);
-            var templateContent = await File.ReadAllTextAsync(resolvedTemplate, Utf8WithoutBom);
-            templateContent = templateContent.TrimStart('\uFEFF');
-
-            // 2. Tokenları değiştir
-            if (isApex)
+            if (hasCert)
             {
-                // Apex domain (ön eksiz) için şablon kullanmak yerine temiz ve doğrudan konfigürasyon oluşturuyoruz.
-                // Bu sayede şablondaki log yollarında boşluk karakterinden kaynaklı Nginx syntax hataları önlenmiş olur.
                 compiledConfig = $@"server {{
     listen 80;
     server_name {serverNames};
+    return 301 https://$host$request_uri;
+}}
+
+server {{
+    listen 443 ssl;
+    server_name {serverNames};
+
+    ssl_certificate {certPath};
+    ssl_certificate_key {keyPath};
+
+    # Guvenlik Ayarlari
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
 
     location / {{
         proxy_pass http://127.0.0.1:{containerPort};
@@ -540,11 +595,30 @@ public class NginxProxyService : INginxService
             }
             else
             {
-                compiledConfig = templateContent
-                    .Replace("{{Subdomain}}", cleanSubdomain)
-                    .Replace("{{Domain}}", domainName)
-                    .Replace("{{ContainerName}}", containerName)
-                    .Replace("{{ContainerPort}}", containerPort.ToString());
+                compiledConfig = $@"server {{
+    listen 80;
+    server_name {serverNames};
+
+    location / {{
+        proxy_pass http://127.0.0.1:{containerPort};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSockets desteği (SignalR akışı için)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection ""upgrade"";
+    }}
+
+    # Proje kapalıyken veya çökmüşken panel yönlendirmesini önleyen 502 sayfası
+    error_page 502 503 504 @backend_down;
+    location @backend_down {{
+        return 502 '<html><head><title>Uygulama Calismiyor</title><style>body{{font-family:sans-serif;text-align:center;padding:100px 20px;background:#0e1511;color:#dde4dd}}h1{{font-size:36px;color:#ffb4ab}}p{{font-size:18px;color:#86948a}}</style></head><body><h1>Uygulama Calismiyor (502 Bad Gateway)</h1><p>Bu proje su anda kapali veya baslatilamadi. Lutfen kontrol panelinden loglarini inceleyin.</p></body></html>';
+        add_header Content-Type text/html;
+    }}
+}}";
             }
         }
 

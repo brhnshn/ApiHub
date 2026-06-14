@@ -109,7 +109,8 @@ public class ProjectController : ControllerBase
                     project.InternalPort,
                     project.Type,
                     project.ImageOrPath,
-                    project.EnablePhp
+                    project.EnablePhp,
+                    sub.SslEnabled
                 );
             }
             catch (Exception nginxEx)
