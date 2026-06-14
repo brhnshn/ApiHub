@@ -156,86 +156,118 @@ public class ProjectZipDeployService : IProjectZipDeployService
     {
         if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return;
 
-        try
+        // Sürecin durmasından hemen sonra dosya kilitlerinin açılması için kısa bir süre bekleyelim
+        System.Threading.Thread.Sleep(500);
+
+        for (int attempt = 1; attempt <= 3; attempt++)
         {
-            var directory = new DirectoryInfo(path);
-            
-            // Clear Read-Only attribute recursively
-            foreach (var file in directory.GetFiles("*", SearchOption.AllDirectories))
-            {
-                try
-                {
-                    if (file.IsReadOnly)
-                    {
-                        file.IsReadOnly = false;
-                    }
-                }
-                catch { }
-            }
-
-            foreach (var dir in directory.GetDirectories("*", SearchOption.AllDirectories))
-            {
-                try
-                {
-                    dir.Attributes &= ~FileAttributes.ReadOnly;
-                }
-                catch { }
-            }
-
-            // Delete all files except .env
-            foreach (var file in directory.GetFiles())
-            {
-                if (file.Name.Equals(".env", StringComparison.OrdinalIgnoreCase)) continue;
-                file.Delete();
-            }
-
-            // Delete all subdirectories
-            foreach (var dir in directory.GetDirectories())
-            {
-                dir.Delete(true);
-            }
-        }
-        catch (Exception ex)
-        {
-            if (Path.DirectorySeparatorChar == '/')
-            {
-                try
-                {
-                    var psi = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = "sudo",
-                        Arguments = $"/usr/local/bin/project-manager.sh clean-path \"{path}\"",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    using var process = System.Diagnostics.Process.Start(psi);
-                    process?.WaitForExit();
-                }
-                catch { }
-            }
-
-            bool isClean = true;
             try
             {
-                if (Directory.Exists(path))
+                var directory = new DirectoryInfo(path);
+                
+                // Salt okunur özniteliklerini temizle
+                foreach (var file in directory.GetFiles("*", SearchOption.AllDirectories))
                 {
-                    var filesLeft = Directory.GetFiles(path);
-                    var subdirsLeft = Directory.GetDirectories(path);
-                    var rootFilesLeft = filesLeft.Where(f => !Path.GetFileName(f).Equals(".env", StringComparison.OrdinalIgnoreCase)).ToList();
-                    if (rootFilesLeft.Count > 0 || subdirsLeft.Length > 0)
+                    try
                     {
-                        isClean = false;
+                        if (file.IsReadOnly) file.IsReadOnly = false;
                     }
+                    catch { }
+                }
+
+                foreach (var dir in directory.GetDirectories("*", SearchOption.AllDirectories))
+                {
+                    try
+                    {
+                        dir.Attributes &= ~FileAttributes.ReadOnly;
+                    }
+                    catch { }
+                }
+
+                // Alt klasörlerdeki tüm dosyaları teker teker silmeyi dene
+                foreach (var file in directory.GetFiles("*", SearchOption.AllDirectories))
+                {
+                    if (file.Name.Equals(".env", StringComparison.OrdinalIgnoreCase)) continue;
+                    try
+                    {
+                        file.Delete();
+                    }
+                    catch { }
+                }
+
+                // Klasörleri sil (.env dosyasını korumak için doğrudan dizin silmek yerine alt klasörleri siliyoruz)
+                foreach (var dir in directory.GetDirectories())
+                {
+                    try
+                    {
+                        dir.Delete(true);
+                    }
+                    catch { }
+                }
+
+                // Kök dizindeki kalan dosyaları (.env hariç) temizle
+                foreach (var file in directory.GetFiles())
+                {
+                    if (file.Name.Equals(".env", StringComparison.OrdinalIgnoreCase)) continue;
+                    try
+                    {
+                        file.Delete();
+                    }
+                    catch { }
+                }
+
+                // Eğer klasör temizlendiyse döngüden çık
+                if (IsDirectoryClean(path))
+                {
+                    return;
                 }
             }
-            catch { isClean = false; }
-
-            if (!isClean)
+            catch
             {
-                throw new InvalidOperationException($"Klasör temizlenemedi: {path}. Hata: {ex.Message}", ex);
+                if (attempt == 3) break;
+                System.Threading.Thread.Sleep(300 * attempt);
             }
+        }
+
+        // Eğer C# koduyla silinemezse Linux sudo fallback mekanizmasını kullan
+        if (Path.DirectorySeparatorChar == '/')
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "sudo",
+                    Arguments = $"-n /usr/local/bin/project-manager.sh clean-path \"{path}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var process = System.Diagnostics.Process.Start(psi);
+                process?.WaitForExit();
+            }
+            catch { }
+        }
+
+        if (!IsDirectoryClean(path))
+        {
+            throw new InvalidOperationException($"Klasör temizlenemedi: {path}. Bazı dosyalar kilitli olabilir.");
+        }
+    }
+
+    private bool IsDirectoryClean(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path)) return true;
+            var files = Directory.GetFiles(path);
+            var subdirs = Directory.GetDirectories(path);
+            var nonEnvFiles = files.Where(f => !Path.GetFileName(f).Equals(".env", StringComparison.OrdinalIgnoreCase)).ToList();
+            return nonEnvFiles.Count == 0 && subdirs.Length == 0;
+        }
+        catch
+        {
+            return false;
         }
     }
 

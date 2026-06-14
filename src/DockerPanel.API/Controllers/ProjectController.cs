@@ -314,6 +314,8 @@ public class ProjectController : ControllerBase
                 try
                 {
                     await _processManagerService.StopProcessAsync(existingProject.Name);
+                    // Sürecin tamamen durması ve kilitlediği dosyaları bırakması için 2 saniye bekle
+                    await Task.Delay(2000);
                     // Do NOT delete process config to preserve previous StartCommand configuration
                 }
                 catch (Exception ex)
