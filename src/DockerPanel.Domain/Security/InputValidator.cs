@@ -16,7 +16,9 @@ public static partial class InputValidator
 
     public static bool IsSubdomainName(string value)
     {
-        return !string.IsNullOrWhiteSpace(value) && (value == "*" || SubdomainNameRegex().IsMatch(value));
+        if (value == null) return true;
+        var trimmed = value.Trim();
+        return trimmed == "" || trimmed == "@" || trimmed == "*" || SubdomainNameRegex().IsMatch(trimmed);
     }
 
     public static bool IsDomainName(string value)

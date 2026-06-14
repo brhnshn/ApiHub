@@ -20,7 +20,9 @@ public static class SecurityHelper
 
     public static bool IsValidSubdomainName(string name)
     {
-        return name == "*" || Regex.IsMatch(name, "^[a-zA-Z0-9_-]+$");
+        if (name == null) return true;
+        var trimmed = name.Trim();
+        return trimmed == "" || trimmed == "@" || trimmed == "*" || Regex.IsMatch(trimmed, "^[a-zA-Z0-9_-]+$");
     }
 
     public static bool IsValidEmail(string email)

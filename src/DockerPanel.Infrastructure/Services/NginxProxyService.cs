@@ -232,6 +232,45 @@ public class NginxProxyService : INginxService
 
     private async Task EnsureDefaultPanelConfigAsync()
     {
+        // Kırık veya hatalı isimlendirilmiş sites-enabled/sites-available dosyalarını temizle (Auto-healing)
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
+            {
+                string enabledDir = ResolvePath(SitesEnabledDir);
+                if (Directory.Exists(enabledDir))
+                {
+                    foreach (var file in Directory.GetFiles(enabledDir))
+                    {
+                        var filename = Path.GetFileName(file);
+                        if (filename.StartsWith(".") || filename.Contains("@") || filename.Contains(" "))
+                        {
+                            File.Delete(file);
+                            SystemLogQueue.Log("warning", $"[Nginx Cleanup] Hatalı sembolik bağ silindi: {filename}");
+                        }
+                    }
+                }
+                
+                string availableDir = ResolvePath(SitesAvailableDir);
+                if (Directory.Exists(availableDir))
+                {
+                    foreach (var file in Directory.GetFiles(availableDir))
+                    {
+                        var filename = Path.GetFileName(file);
+                        if (filename.StartsWith(".") || filename.Contains("@") || filename.Contains(" "))
+                        {
+                            File.Delete(file);
+                            SystemLogQueue.Log("warning", $"[Nginx Cleanup] Hatalı konfigürasyon dosyası silindi: {filename}");
+                        }
+                    }
+                }
+            }
+            catch (Exception cleanupEx)
+            {
+                SystemLogQueue.Log("warning", $"[Nginx Cleanup] Temizlik sırasında hata: {cleanupEx.Message}");
+            }
+        }
+
         // 1. Remove default Nginx symlink to prevent default_server conflict
         var defaultLink = Path.Combine(SitesEnabledDir, "default");
         var resolvedDefaultLink = ResolvePath(defaultLink);
@@ -408,11 +447,22 @@ public class NginxProxyService : INginxService
         // Ensure default panel server block exists to prevent default_server hijack
         await EnsureDefaultPanelConfigAsync();
 
+        string cleanSubdomain = (subdomainName ?? "").Trim();
+        bool isApex = cleanSubdomain == "" || cleanSubdomain == "@";
+
+        string serverNames = isApex 
+            ? $"{domainName} www.{domainName}" 
+            : $"{cleanSubdomain}.{domainName}";
+
+        string configFilename = isApex 
+            ? $"_apex_.{domainName}.conf" 
+            : $"{cleanSubdomain}.{domainName}.conf";
+
         string compiledConfig;
 
         if (projectType == ProjectType.StaticSite)
         {
-            SystemLogQueue.Log("info", $"[Nginx] Statik Web sitesi yönlendirmesi yapılandırılıyor: {subdomainName}.{domainName} -> {staticPath ?? containerName} (PHP: {enablePhp})");
+            SystemLogQueue.Log("info", $"[Nginx] Statik Web sitesi yönlendirmesi yapılandırılıyor: {(isApex ? "@" : cleanSubdomain)}.{domainName} -> {staticPath ?? containerName} (PHP: {enablePhp})");
 
             var resolvedStaticPath = staticPath;
             if (string.IsNullOrEmpty(resolvedStaticPath))
@@ -437,7 +487,7 @@ public class NginxProxyService : INginxService
 
             compiledConfig = $@"server {{
     listen 80;
-    server_name {subdomainName}.{domainName};
+    server_name {serverNames};
 
     root {resolvedStaticPath};
     {indexDirective}
@@ -449,7 +499,7 @@ public class NginxProxyService : INginxService
         }
         else
         {
-            SystemLogQueue.Log("info", $"[Nginx] Proxy yönlendirmesi yapılandırılıyor: {subdomainName}.{domainName} -> {containerName}:{containerPort}");
+            SystemLogQueue.Log("info", $"[Nginx] Proxy yönlendirmesi yapılandırılıyor: {(isApex ? "@" : cleanSubdomain)}.{domainName} -> {containerName}:{containerPort}");
 
             await EnsureTemplateExistsAsync();
 
@@ -459,15 +509,46 @@ public class NginxProxyService : INginxService
             templateContent = templateContent.TrimStart('\uFEFF');
 
             // 2. Tokenları değiştir
-            compiledConfig = templateContent
-                .Replace("{{Subdomain}}", subdomainName)
-                .Replace("{{Domain}}", domainName)
-                .Replace("{{ContainerName}}", containerName) // Gerekirse internal proxy DNS kullanımı için
-                .Replace("{{ContainerPort}}", containerPort.ToString());
+            if (isApex)
+            {
+                // Apex domain (ön eksiz) için şablon kullanmak yerine temiz ve doğrudan konfigürasyon oluşturuyoruz.
+                // Bu sayede şablondaki log yollarında boşluk karakterinden kaynaklı Nginx syntax hataları önlenmiş olur.
+                compiledConfig = $@"server {{
+    listen 80;
+    server_name {serverNames};
+
+    location / {{
+        proxy_pass http://127.0.0.1:{containerPort};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSockets desteği (SignalR akışı için)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection ""upgrade"";
+    }}
+
+    # Proje kapalıyken veya çökmüşken panel yönlendirmesini önleyen 502 sayfası
+    error_page 502 503 504 @backend_down;
+    location @backend_down {{
+        return 502 '<html><head><title>Uygulama Calismiyor</title><style>body{{font-family:sans-serif;text-align:center;padding:100px 20px;background:#0e1511;color:#dde4dd}}h1{{font-size:36px;color:#ffb4ab}}p{{font-size:18px;color:#86948a}}</style></head><body><h1>Uygulama Calismiyor (502 Bad Gateway)</h1><p>Bu proje su anda kapali veya baslatilamadi. Lutfen kontrol panelinden loglarini inceleyin.</p></body></html>';
+        add_header Content-Type text/html;
+    }}
+}}";
+            }
+            else
+            {
+                compiledConfig = templateContent
+                    .Replace("{{Subdomain}}", cleanSubdomain)
+                    .Replace("{{Domain}}", domainName)
+                    .Replace("{{ContainerName}}", containerName)
+                    .Replace("{{ContainerPort}}", containerPort.ToString());
+            }
         }
 
         // 3. Konfigürasyonu sites-available altına yaz
-        var configFilename = $"{subdomainName}.{domainName}.conf";
         var availablePath = Path.Combine(SitesAvailableDir, configFilename);
         var resolvedAvailablePath = ResolvePath(availablePath);
 
@@ -710,18 +791,21 @@ public class NginxProxyService : INginxService
             return;
         }
 
-        string fullDomain = $"{subdomainName}.{domainName}";
+        string cleanSubdomain = (subdomainName ?? "").Trim();
+        bool isApex = cleanSubdomain == "" || cleanSubdomain == "@";
+        string fullDomain = isApex ? domainName : $"{cleanSubdomain}.{domainName}";
+        string domainArgs = isApex ? $"-d {domainName} -d www.{domainName}" : $"-d {fullDomain}";
         SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için SSL sertifikası üretiliyor...");
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             if (hasCloudflareToken)
             {
-                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - Cloudflare DNS-01] certbot -a dns-cloudflare --dns-cloudflare-credentials /opt/dockerpanel/cloudflare_{domainName}.ini -i nginx -d {fullDomain} --non-interactive --agree-tos --register-unsafely-without-email");
+                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - Cloudflare DNS-01] certbot -a dns-cloudflare --dns-cloudflare-credentials /opt/dockerpanel/cloudflare_{domainName}.ini -i nginx {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email");
             }
             else
             {
-                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - HTTP-01] certbot --nginx -d {fullDomain} --non-interactive --agree-tos --register-unsafely-without-email");
+                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - HTTP-01] certbot --nginx {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email");
             }
             await Task.Delay(2000);
             SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için SSL sertifikası başarıyla kuruldu (Simülasyon).");
@@ -749,7 +833,7 @@ public class NginxProxyService : INginxService
                 catch { }
 
                 SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için Cloudflare DNS-01 API ve Nginx yükleyicisi üzerinden SSL sertifikası kuruluyor...");
-                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot -a dns-cloudflare --dns-cloudflare-credentials {credentialsPath} -i nginx -d {fullDomain} --non-interactive --agree-tos --register-unsafely-without-email", 120000);
+                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot -a dns-cloudflare --dns-cloudflare-credentials {credentialsPath} -i nginx {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email", 120000);
                 SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için Cloudflare DNS-01 tabanlı SSL başarıyla kuruldu ve Nginx konfigüre edildi.");
             }
             catch (Exception ex)
@@ -780,7 +864,7 @@ public class NginxProxyService : INginxService
             try
             {
                 SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için HTTP-01 (Nginx) üzerinden SSL sertifikası kuruluyor...");
-                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot --nginx -d {fullDomain} --non-interactive --agree-tos --register-unsafely-without-email", 60000);
+                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot --nginx {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email", 60000);
                 SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için HTTP-01 tabanlı SSL başarıyla kuruldu ve Nginx reload edildi.");
             }
             catch (Exception ex)
