@@ -171,6 +171,108 @@ public class NginxProxyService : INginxService
         throw new Exception("Nginx reload komutlarinin hicbiri basarili olmadi. Denenen komutlar: " + string.Join(" | ", errors));
     }
 
+    private async Task EnsureDefaultPanelConfigAsync()
+    {
+        // 1. Remove default Nginx symlink to prevent default_server conflict
+        var defaultLink = Path.Combine(SitesEnabledDir, "default");
+        var resolvedDefaultLink = ResolvePath(defaultLink);
+        if (File.Exists(resolvedDefaultLink) || new FileInfo(resolvedDefaultLink).LinkTarget != null)
+        {
+            try
+            {
+                File.Delete(resolvedDefaultLink);
+                SystemLogQueue.Log("info", "[Nginx] Varsayılan Nginx sites-enabled linki silindi (default_server çakışmasını önlemek için).");
+            }
+            catch (Exception ex)
+            {
+                SystemLogQueue.Log("warning", $"[Nginx] Varsayılan Nginx sites-enabled linki silinemedi: {ex.Message}");
+            }
+        }
+
+        // 2. Get current API port dynamically from environment variable
+        int apiPort = 5002;
+        var urls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+        if (!string.IsNullOrEmpty(urls))
+        {
+            var match = Regex.Match(urls, @":(\d+)");
+            if (match.Success && int.TryParse(match.Groups[1].Value, out int port))
+            {
+                apiPort = port;
+            }
+        }
+
+        var configFilename = "000-default-panel.conf";
+        var availablePath = Path.Combine(SitesAvailableDir, configFilename);
+        var resolvedAvailablePath = ResolvePath(availablePath);
+
+        // Check if it already exists and is up to date
+        if (File.Exists(resolvedAvailablePath))
+        {
+            try
+            {
+                var existingContent = await File.ReadAllTextAsync(resolvedAvailablePath, Utf8WithoutBom);
+                if (existingContent.Contains($"proxy_pass http://127.0.0.1:{apiPort};"))
+                {
+                    // Check if symlink exists
+                    var enabledPathCheck = Path.Combine(SitesEnabledDir, configFilename);
+                    var resolvedEnabledPathCheck = ResolvePath(enabledPathCheck);
+                    if (File.Exists(resolvedEnabledPathCheck) || new FileInfo(resolvedEnabledPathCheck).LinkTarget != null)
+                    {
+                        return; // Up to date and linked
+                    }
+                }
+            }
+            catch { }
+        }
+
+        var compiledConfig = $@"server {{
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    location / {{
+        proxy_pass http://127.0.0.1:{apiPort};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSockets desteği (SignalR akışı için)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection ""upgrade"";
+    }}
+}}";
+
+        await File.WriteAllTextAsync(resolvedAvailablePath, compiledConfig, Utf8WithoutBom);
+        SystemLogQueue.Log("info", $"[Nginx] Panel default_server konfigürasyonu sites-available altına yazıldı (Port: {apiPort}).");
+
+        var enabledPath = Path.Combine(SitesEnabledDir, configFilename);
+        var resolvedEnabledPath = ResolvePath(enabledPath);
+
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
+            {
+                var linkInfo = new FileInfo(resolvedEnabledPath);
+                if (linkInfo.Exists || linkInfo.LinkTarget != null)
+                {
+                    linkInfo.Delete();
+                }
+                File.CreateSymbolicLink(resolvedEnabledPath, resolvedAvailablePath);
+                SystemLogQueue.Log("info", $"[Nginx] Panel default_server symlink oluşturuldu.");
+            }
+            catch (Exception symEx)
+            {
+                SystemLogQueue.Log("warning", $"[Nginx] Panel default_server symlink oluşturulamadı: {symEx.Message}");
+            }
+        }
+        else
+        {
+            await File.WriteAllTextAsync(resolvedEnabledPath, compiledConfig, Utf8WithoutBom);
+        }
+    }
+
     public async Task ProvisionSubdomainAsync(string subdomainName, string domainName, string containerName, int containerPort, ProjectType projectType = ProjectType.DockerContainer, string? staticPath = null, bool? enablePhp = null)
     {
         // Güvenlik Girdisi Doğrulama
@@ -178,6 +280,9 @@ public class NginxProxyService : INginxService
         {
             throw new ArgumentException("Geçersiz subdomain veya alan adı formatı!");
         }
+
+        // Ensure default panel server block exists to prevent default_server hijack
+        await EnsureDefaultPanelConfigAsync();
 
         string compiledConfig;
 
