@@ -387,6 +387,12 @@ public class ProjectController : ControllerBase
 
             await _processManagerService.RestoreDependenciesAsync(request.Name, extractPath, runtimeType);
 
+            // Kritik: Otomatik tespit edilen runtimeType'ı request nesnesine aktararak config güncellemesinde ezilmesini önlüyoruz.
+            if (string.IsNullOrWhiteSpace(request.RuntimeType))
+            {
+                request.RuntimeType = runtimeType;
+            }
+
             // Config Kayıt Et
             await _processManagerService.AddOrUpdateProcessConfigAsync(request.Name, request.InternalPort, request.RuntimeType, request.EntryFile, request.CustomCommand);
 
