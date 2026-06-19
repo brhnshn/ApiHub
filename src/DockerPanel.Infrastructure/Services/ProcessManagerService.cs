@@ -420,6 +420,13 @@ public class ProcessManagerService : IProcessManagerService
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             psi.Environment["HOME"] = "/home/dockerpanel_api";
+            
+            // .NET SDK ve araçlarının bulunabilmesi için DOTNET_ROOT ve PATH yapılandırmasını yapıyoruz
+            string dotnetRoot = Directory.Exists("/usr/share/dotnet") ? "/usr/share/dotnet" : "/usr/lib/dotnet";
+            psi.Environment["DOTNET_ROOT"] = dotnetRoot;
+            
+            string currentPath = Environment.GetEnvironmentVariable("PATH") ?? "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+            psi.Environment["PATH"] = $"{dotnetRoot}:{dotnetRoot}/tools:{currentPath}";
         }
         if (!string.IsNullOrEmpty(workingDirectory))
         {
