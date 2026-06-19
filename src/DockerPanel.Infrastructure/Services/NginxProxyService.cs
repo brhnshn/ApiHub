@@ -844,10 +844,10 @@ server {{
 
                 await File.WriteAllTextAsync(credentialsPath, $"dns_cloudflare_api_token = {rootDomain!.CloudflareToken!.Trim()}\n", Utf8WithoutBom);
                 
-                // chmod 600 vererek yetki sınırlarını koru
+                // chmod 600 vererek yetki sınırlarını koru (dosya sahibi bu process kullanıcısı olduğu için doğrudan izin atıyoruz)
                 try
                 {
-                    await ExecuteCommandAsync("sudo", $"-n /bin/chmod 600 {credentialsPath}", 5000);
+                    File.SetUnixFileMode(credentialsPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 }
                 catch { }
 
@@ -917,9 +917,10 @@ server {{
 
                 await File.WriteAllTextAsync(credentialsPath, $"dns_cloudflare_api_token = {rootDomain!.CloudflareToken!.Trim()}\n", Utf8WithoutBom);
 
+                // chmod 600 vererek yetki sınırlarını koru (dosya sahibi bu process kullanıcısı olduğu için doğrudan izin atıyoruz)
                 try
                 {
-                    await ExecuteCommandAsync("sudo", $"-n /bin/chmod 600 {credentialsPath}", 5000);
+                    File.SetUnixFileMode(credentialsPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 }
                 catch { }
 
