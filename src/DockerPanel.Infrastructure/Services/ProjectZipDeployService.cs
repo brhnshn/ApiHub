@@ -105,10 +105,19 @@ public class ProjectZipDeployService : IProjectZipDeployService
             var files = Directory.GetFiles(targetDir);
             var subdirs = Directory.GetDirectories(targetDir);
             
-            var rootFiles = files.Where(f => !Path.GetFileName(f).Equals(".env", StringComparison.OrdinalIgnoreCase)).ToList();
-            if (rootFiles.Count == 0 && subdirs.Length == 1)
+            var rootFiles = files.Where(f => 
+                !Path.GetFileName(f).Equals(".env", StringComparison.OrdinalIgnoreCase) &&
+                !Path.GetFileName(f).Equals(".DS_Store", StringComparison.OrdinalIgnoreCase) &&
+                !Path.GetFileName(f).Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+
+            var rootDirs = subdirs.Where(d => 
+                !Path.GetFileName(d).Equals("__MACOSX", StringComparison.OrdinalIgnoreCase)
+            ).ToArray();
+
+            if (rootFiles.Count == 0 && rootDirs.Length == 1)
             {
-                var singleSubdir = subdirs[0];
+                var singleSubdir = rootDirs[0];
                 foreach (var dir in Directory.GetDirectories(singleSubdir))
                 {
                     var destDir = Path.Combine(targetDir, Path.GetFileName(dir));

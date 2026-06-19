@@ -744,8 +744,35 @@ public class ProcessManagerService : IProcessManagerService
             }
             else if (cleanRuntime.Contains("dotnet") || cleanRuntime.Contains("c#") || cleanRuntime.Contains(".net"))
             {
-                SystemLogQueue.Log("info", $"[ProcessManager] .NET bağımlılıkları geri yükleniyor: dotnet restore (Proje: {name})");
-                await ExecuteCommandAsync("dotnet", "restore", 120000, path);
+                var slnFiles = Directory.GetFiles(path, "*.sln", SearchOption.AllDirectories);
+                var projFiles = Directory.GetFiles(path, "*.*proj", SearchOption.AllDirectories);
+
+                if (slnFiles.Length == 0 && projFiles.Length == 0)
+                {
+                    SystemLogQueue.Log("info", $"[ProcessManager] .csproj veya .sln dosyası bulunamadı. Derlenmiş/yayınlanmış sürüm olduğu varsayılıyor, bağımlılık yükleme adımı atlanıyor (Proje: {name})");
+                    return;
+                }
+
+                if (slnFiles.Length > 0)
+                {
+                    foreach (var sln in slnFiles)
+                    {
+                        SystemLogQueue.Log("info", $"[ProcessManager] .NET bağımlılıkları geri yükleniyor: dotnet restore \"{Path.GetFileName(sln)}\" (Proje: {name})");
+                        string? slnDir = Path.GetDirectoryName(sln);
+                        string slnFile = Path.GetFileName(sln);
+                        await ExecuteCommandAsync("dotnet", $"restore \"{slnFile}\"", 120000, slnDir);
+                    }
+                }
+                else
+                {
+                    foreach (var proj in projFiles)
+                    {
+                        SystemLogQueue.Log("info", $"[ProcessManager] .NET bağımlılıkları geri yükleniyor: dotnet restore \"{Path.GetFileName(proj)}\" (Proje: {name})");
+                        string? projDir = Path.GetDirectoryName(proj);
+                        string projFile = Path.GetFileName(proj);
+                        await ExecuteCommandAsync("dotnet", $"restore \"{projFile}\"", 120000, projDir);
+                    }
+                }
             }
         }
         catch (Exception ex)
