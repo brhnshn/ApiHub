@@ -1136,10 +1136,19 @@
             var content = await response.Content.ReadAsStringAsync();
             if (!string.IsNullOrWhiteSpace(content))
             {
-                using var doc = System.Text.Json.JsonDocument.Parse(content);
-                if (doc.RootElement.TryGetProperty("message", out var msg)) return msg.GetString() ?? content;
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(content);
+                    if (doc.RootElement.TryGetProperty("message", out var msg)) return msg.GetString() ?? content;
+                    if (doc.RootElement.TryGetProperty("Message", out var msg2)) return msg2.GetString() ?? content;
+                }
+                catch
+                {
+                    // JSON ayrıştırılamadıysa (örneğin HTML dönmüşse) ham içeriği göster veya HTTP kodunu dön
+                    return string.IsNullOrWhiteSpace(content) ? $"HTTP {(int)response.StatusCode}" : content;
+                }
             }
-            return content;
+            return string.IsNullOrWhiteSpace(content) ? $"HTTP {(int)response.StatusCode}" : content;
         }
         catch { return $"HTTP {(int)response.StatusCode}"; }
     }
