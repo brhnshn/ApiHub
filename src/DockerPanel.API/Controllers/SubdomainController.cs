@@ -354,7 +354,8 @@ public class SubdomainController : ControllerBase
                         sub.Project?.Type ?? ProjectType.DockerContainer,
                         sub.Project?.ImageOrPath,
                         sub.Project?.EnablePhp,
-                        sub.SslEnabled
+                        sub.SslEnabled,
+                        reloadNginx: false
                     );
                     successCount++;
                 }
@@ -362,6 +363,18 @@ public class SubdomainController : ControllerBase
                 {
                     failCount++;
                     errors.Add($"{sub.SubdomainName}.{sub.DomainName}: {ex.Message}");
+                }
+            }
+
+            if (successCount > 0)
+            {
+                try
+                {
+                    await _nginxService.ReloadNginxAsync();
+                }
+                catch (Exception reloadEx)
+                {
+                    errors.Add($"Toplu reload hatasi: {reloadEx.Message}");
                 }
             }
 

@@ -148,7 +148,7 @@ public class NginxProxyService : INginxService
         }
     }
 
-    private async Task ReloadNginxAsync()
+    public async Task ReloadNginxAsync()
     {
         var reloadCommands = new[]
         {
@@ -439,7 +439,7 @@ public class NginxProxyService : INginxService
         }
     }
 
-    public async Task ProvisionSubdomainAsync(string subdomainName, string domainName, string containerName, int containerPort, ProjectType projectType = ProjectType.DockerContainer, string? staticPath = null, bool? enablePhp = null, bool sslEnabled = false)
+    public async Task ProvisionSubdomainAsync(string subdomainName, string domainName, string containerName, int containerPort, ProjectType projectType = ProjectType.DockerContainer, string? staticPath = null, bool? enablePhp = null, bool sslEnabled = false, bool reloadNginx = true)
     {
         // Güvenlik Girdisi Doğrulama
         if (!InputValidator.IsSubdomainName(subdomainName) || !InputValidator.IsDomainName(domainName))
@@ -716,20 +716,23 @@ server {{
             }
 
             // 6. Nginx Reload (sudo systemctl reload nginx)
-            try
+            if (reloadNginx)
             {
-                await ReloadNginxAsync();
-                SystemLogQueue.Log("info", $"[Nginx] Proxy başarıyla reload edildi: {subdomainName}.{domainName}");
-            }
-            catch (Exception rEx)
-            {
-                if (File.Exists(resolvedEnabledPath)) File.Delete(resolvedEnabledPath);
+                try
+                {
+                    await ReloadNginxAsync();
+                    SystemLogQueue.Log("info", $"[Nginx] Proxy başarıyla reload edildi: {subdomainName}.{domainName}");
+                }
+                catch (Exception rEx)
+                {
+                    if (File.Exists(resolvedEnabledPath)) File.Delete(resolvedEnabledPath);
 
-                if (backupContent != null) await File.WriteAllTextAsync(resolvedAvailablePath, backupContent, Utf8WithoutBom);
-                else if (File.Exists(resolvedAvailablePath)) File.Delete(resolvedAvailablePath);
+                    if (backupContent != null) await File.WriteAllTextAsync(resolvedAvailablePath, backupContent, Utf8WithoutBom);
+                    else if (File.Exists(resolvedAvailablePath)) File.Delete(resolvedAvailablePath);
 
-                SystemLogQueue.Log("error", $"[Nginx] Reload başarısız oldu: {rEx.Message} | {subdomainName}.{domainName}");
-                throw new InvalidOperationException($"Nginx reload tetiklenemedi. Yeni vhost dosyasi geri alindi. Hata: {rEx.Message}");
+                    SystemLogQueue.Log("error", $"[Nginx] Reload başarısız oldu: {rEx.Message} | {subdomainName}.{domainName}");
+                    throw new InvalidOperationException($"Nginx reload tetiklenemedi. Yeni vhost dosyasi geri alindi. Hata: {rEx.Message}");
+                }
             }
         }
         else
