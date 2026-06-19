@@ -1030,7 +1030,9 @@ else
             {
                 card.LiveCpu = metric.Cpu;
                 card.LiveRamBytes = metric.RamBytes;
-                card.LiveRamPct = metric.RamPercentage;
+                card.LiveRamPct = card.MemoryLimitBytes > 0 
+                    ? Math.Round(((double)metric.RamBytes / card.MemoryLimitBytes) * 100.0, 1) 
+                    : 0;
                 StateHasChanged();
             }
         });

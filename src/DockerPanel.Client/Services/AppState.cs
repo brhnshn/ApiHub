@@ -571,7 +571,9 @@ namespace DockerPanel.Client.Services
                         {
                             project.LiveCpu = metric.Cpu;
                             project.LiveRamBytes = metric.RamBytes;
-                            project.LiveRamPct = metric.RamPercentage;
+                            project.LiveRamPct = project.MemoryLimitBytes > 0 
+                                ? Math.Round(((double)metric.RamBytes / project.MemoryLimitBytes) * 100.0, 1) 
+                                : 0;
                         }
                     }
                     OnProjectMetricReceived?.Invoke(metric);

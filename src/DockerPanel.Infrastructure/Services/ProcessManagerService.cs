@@ -651,7 +651,7 @@ public class ProcessManagerService : IProcessManagerService
             {
                 try { process.Kill(); } catch { }
                 SystemLogQueue.Log("warning", $"[ProcessManager] {name} durum kontrolü zaman aşımına uğradı.");
-                return false;
+                throw new TimeoutException($"[ProcessManager] {name} durum kontrolü zaman aşımına uğradı.");
             }
  
             var output = await process.StandardOutput.ReadToEndAsync();
