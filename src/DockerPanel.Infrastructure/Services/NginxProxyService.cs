@@ -251,6 +251,61 @@ public class NginxProxyService : INginxService
 
     private async Task EnsureDefaultPanelConfigAsync()
     {
+        // Programmatically generate self-signed SSL certificate if it does not exist
+        var defaultCertPath = "/etc/ssl/certs/nginx-selfsigned.crt";
+        var defaultKeyPath = "/etc/ssl/private/nginx-selfsigned.key";
+        var resolvedCertPath = ResolvePath(defaultCertPath);
+        var resolvedKeyPath = ResolvePath(defaultKeyPath);
+
+        if (!File.Exists(resolvedCertPath) || !File.Exists(resolvedKeyPath))
+        {
+            try
+            {
+                using (var rsa = System.Security.Cryptography.RSA.Create(2048))
+                {
+                    var request = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+                        "CN=localhost",
+                        rsa,
+                        System.Security.Cryptography.HashAlgorithmName.SHA256,
+                        System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+
+                    request.CertificateExtensions.Add(
+                        new System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension(false, false, 0, false));
+
+                    request.CertificateExtensions.Add(
+                        new System.Security.Cryptography.X509Certificates.X509KeyUsageExtension(
+                            System.Security.Cryptography.X509Certificates.X509KeyUsageFlags.DigitalSignature | 
+                            System.Security.Cryptography.X509Certificates.X509KeyUsageFlags.KeyEncipherment,
+                            false));
+
+                    request.CertificateExtensions.Add(
+                        new System.Security.Cryptography.X509Certificates.X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+
+                    var sanBuilder = new System.Security.Cryptography.X509Certificates.SubjectAlternativeNameBuilder();
+                    sanBuilder.AddDnsName("localhost");
+                    sanBuilder.AddIpAddress(IPAddress.Loopback);
+                    request.CertificateExtensions.Add(sanBuilder.Build());
+
+                    using (var cert = request.CreateSelfSigned(
+                        DateTimeOffset.UtcNow.AddDays(-1),
+                        DateTimeOffset.UtcNow.AddYears(10)))
+                    {
+                        var certPem = cert.ExportCertificatePem();
+                        var keyPem = rsa.ExportPkcs8PrivateKeyPem();
+
+                        await File.WriteAllTextAsync(resolvedCertPath, certPem, Utf8WithoutBom);
+                        await File.WriteAllTextAsync(resolvedKeyPath, keyPem, Utf8WithoutBom);
+                        
+                        SystemLogQueue.Log("info", "[Nginx] Kendi imzaladigi SSL sertifikasi ve anahtari basariyla olusturuldu.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SystemLogQueue.Log("error", $"[Nginx] Kendi imzaladigi SSL sertifikasi olusturulamadi: {ex.Message}");
+            }
+        }
+
         // Kırık veya hatalı isimlendirilmiş sites-enabled/sites-available dosyalarını temizle (Auto-healing)
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -345,6 +400,30 @@ public class NginxProxyService : INginxService
     }}
 }}");
 
+        // Server block 1b: Fallback Default HTTPS Server (Port 443)
+        // Returns 444 Connection Closed to prevent API exposure on unconfigured domains
+        sb.AppendLine($@"server {{
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+
+    ssl_certificate {defaultCertPath};
+    ssl_certificate_key {defaultKeyPath};
+
+    # Guvenlik Ayarlari
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
+
+    location / {{
+        return 444;
+    }}
+}}");
+
         // Server block 2: Explicit Port 80 blocks for allowed panel domains, localhost, 127.0.0.1, and public IP
         var publicIp = await GetPublicIpAsync();
         var allowedPanelHosts = new List<string> { "localhost", "127.0.0.1" };
@@ -381,6 +460,44 @@ public class NginxProxyService : INginxService
         proxy_set_header Connection ""upgrade"";
     }}
 }}");
+
+        // Server block 2b: Explicit Port 443 SSL block for localhost, 127.0.0.1, and public IP (not domains/subdomains)
+        var sslHosts = allowedPanelHosts.Where(host =>
+            host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            IPAddress.TryParse(host, out _)).ToList();
+
+        if (sslHosts.Any())
+        {
+            sb.AppendLine($@"server {{
+    listen 443 ssl;
+    server_name {string.Join(" ", sslHosts)};
+
+    ssl_certificate {defaultCertPath};
+    ssl_certificate_key {defaultKeyPath};
+
+    # Guvenlik Ayarlari
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
+
+    location / {{
+        proxy_pass http://127.0.0.1:{apiPort};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSockets desteği (SignalR akışı için)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection ""upgrade"";
+    }}
+}}");
+        }
 
         // Server block 3: Explicit Port 443 SSL blocks for panel domains (if certificates were parsed)
         foreach (var pd in panelDomains)

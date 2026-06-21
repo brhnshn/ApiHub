@@ -13,6 +13,27 @@ using DockerPanel.Domain.Security;
 
 namespace DockerPanel.Infrastructure.Services;
 
+public static class ProcessTransitionTracker
+{
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> TransitioningProjects = 
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public static void StartTransition(string projectName)
+    {
+        TransitioningProjects[projectName] = 0;
+    }
+
+    public static void EndTransition(string projectName)
+    {
+        TransitioningProjects.TryRemove(projectName, out _);
+    }
+
+    public static bool IsTransitioning(string projectName)
+    {
+        return TransitioningProjects.ContainsKey(projectName);
+    }
+}
+
 public class ProcessManagerService : IProcessManagerService
 {
     private static readonly SemaphoreSlim FileLock = new SemaphoreSlim(1, 1);
@@ -382,26 +403,34 @@ public class ProcessManagerService : IProcessManagerService
     {
         SystemLogQueue.Log("warning", $"[ProcessManager] Proje yapılandırması siliniyor: Proje={name}");
 
-        // Execute the bash deletion script with sudo to cleanly stop the process, remove PID and delete root-owned folders
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        ProcessTransitionTracker.StartTransition(name);
+        try
         {
-            try
+            // Execute the bash deletion script with sudo to cleanly stop the process, remove PID and delete root-owned folders
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh delete {name}", 30000);
+                try
+                {
+                    await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh delete {name}", 30000);
+                }
+                catch (Exception ex)
+                {
+                    SystemLogQueue.Log("warning", $"[ProcessManager] project-manager.sh delete komutu hata verdi: {ex.Message}");
+                }
             }
-            catch (Exception ex)
+
+            var entries = await ParsePipeConfigAsync();
+            var toRemove = entries.FirstOrDefault(e => e.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (toRemove != null)
             {
-                SystemLogQueue.Log("warning", $"[ProcessManager] project-manager.sh delete komutu hata verdi: {ex.Message}");
+                entries.Remove(toRemove);
+                SystemLogQueue.Log("info", $"[ProcessManager] /etc/project-manager/projects.conf dosyasından [{name}] bölümü kaldırıldı.");
+                await SavePipeConfigAsync(entries);
             }
         }
-
-        var entries = await ParsePipeConfigAsync();
-        var toRemove = entries.FirstOrDefault(e => e.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        if (toRemove != null)
+        finally
         {
-            entries.Remove(toRemove);
-            SystemLogQueue.Log("info", $"[ProcessManager] /etc/project-manager/projects.conf dosyasından [{name}] bölümü kaldırıldı.");
-            await SavePipeConfigAsync(entries);
+            ProcessTransitionTracker.EndTransition(name);
         }
     }
 
@@ -464,46 +493,54 @@ public class ProcessManagerService : IProcessManagerService
     {
         InputValidator.ThrowIfInvalidProjectName(name, "Geçersiz proje ismi!");
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            SystemLogQueue.Log("info", $"$ [Windows Simülasyonu] restart-process {name}");
-            await Task.Delay(1000);
-            SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla yeniden başlatıldı.");
-            return;
-        }
-
+        ProcessTransitionTracker.StartTransition(name);
         try
         {
-            await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh restart {name}", 45000);
-            SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla yeniden başlatıldı.");
-        }
-        catch (Exception ex)
-        {
-            string logPath = $"/var/log/project-manager/{name}.log";
-            if (File.Exists(logPath))
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                try
+                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu] restart-process {name}");
+                await Task.Delay(1000);
+                SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla yeniden başlatıldı.");
+                return;
+            }
+
+            try
+            {
+                await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh restart {name}", 45000);
+                SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla yeniden başlatıldı.");
+            }
+            catch (Exception ex)
+            {
+                string logPath = $"/var/log/project-manager/{name}.log";
+                if (File.Exists(logPath))
                 {
-                    var logLines = new List<string>();
-                    using (var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                    using (var reader = new StreamReader(fs))
+                    try
                     {
-                        string? line;
-                        while ((line = await reader.ReadLineAsync()) != null)
+                        var logLines = new List<string>();
+                        using (var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                        using (var reader = new StreamReader(fs))
                         {
-                            logLines.Add(line);
-                            if (logLines.Count > 15) logLines.RemoveAt(0);
+                            string? line;
+                            while ((line = await reader.ReadLineAsync()) != null)
+                            {
+                                logLines.Add(line);
+                                if (logLines.Count > 15) logLines.RemoveAt(0);
+                            }
+                        }
+                        if (logLines.Count > 0)
+                        {
+                            string details = string.Join("\n", logLines);
+                            throw new Exception($"{ex.Message}\nUygulama Hata Logları:\n{details}", ex);
                         }
                     }
-                    if (logLines.Count > 0)
-                    {
-                        string details = string.Join("\n", logLines);
-                        throw new Exception($"{ex.Message}\nUygulama Hata Logları:\n{details}", ex);
-                    }
+                    catch { /* Ignore log reading errors to preserve original exception */ }
                 }
-                catch { /* Ignore log reading errors to preserve original exception */ }
+                throw;
             }
-            throw;
+        }
+        finally
+        {
+            ProcessTransitionTracker.EndTransition(name);
         }
     }
 
@@ -525,62 +562,78 @@ public class ProcessManagerService : IProcessManagerService
     {
         InputValidator.ThrowIfInvalidProjectName(name, "Geçersiz proje ismi!");
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        ProcessTransitionTracker.StartTransition(name);
+        try
         {
-            SystemLogQueue.Log("warning", $"$ [Windows Simülasyonu] stop-process {name}");
-            await Task.Delay(1000);
-            SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla durduruldu.");
-            return;
-        }
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                SystemLogQueue.Log("warning", $"$ [Windows Simülasyonu] stop-process {name}");
+                await Task.Delay(1000);
+                SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla durduruldu.");
+                return;
+            }
 
-        await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh stop {name}", 45000);
-        SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla durduruldu.");
+            await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh stop {name}", 45000);
+            SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla durduruldu.");
+        }
+        finally
+        {
+            ProcessTransitionTracker.EndTransition(name);
+        }
     }
 
     public async Task StartProcessAsync(string name)
     {
         InputValidator.ThrowIfInvalidProjectName(name, "Geçersiz proje ismi!");
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            SystemLogQueue.Log("info", $"$ [Windows Simülasyonu] start-process {name}");
-            await Task.Delay(1000);
-            SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla başlatıldı.");
-            return;
-        }
-
+        ProcessTransitionTracker.StartTransition(name);
         try
         {
-            await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh start {name}", 45000);
-            SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla başlatıldı.");
-        }
-        catch (Exception ex)
-        {
-            string logPath = $"/var/log/project-manager/{name}.log";
-            if (File.Exists(logPath))
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                try
+                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu] start-process {name}");
+                await Task.Delay(1000);
+                SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla başlatıldı.");
+                return;
+            }
+
+            try
+            {
+                await ExecuteCommandAsync("sudo", $"-n /usr/local/bin/project-manager.sh start {name}", 45000);
+                SystemLogQueue.Log("info", $"[ProcessManager] {name} native süreci başarıyla başlatıldı.");
+            }
+            catch (Exception ex)
+            {
+                string logPath = $"/var/log/project-manager/{name}.log";
+                if (File.Exists(logPath))
                 {
-                    var logLines = new List<string>();
-                    using (var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                    using (var reader = new StreamReader(fs))
+                    try
                     {
-                        string? line;
-                        while ((line = await reader.ReadLineAsync()) != null)
+                        var logLines = new List<string>();
+                        using (var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                        using (var reader = new StreamReader(fs))
                         {
-                            logLines.Add(line);
-                            if (logLines.Count > 15) logLines.RemoveAt(0);
+                            string? line;
+                            while ((line = await reader.ReadLineAsync()) != null)
+                            {
+                                logLines.Add(line);
+                                if (logLines.Count > 15) logLines.RemoveAt(0);
+                            }
+                        }
+                        if (logLines.Count > 0)
+                        {
+                            string details = string.Join("\n", logLines);
+                            throw new Exception($"{ex.Message}\nUygulama Hata Logları:\n{details}", ex);
                         }
                     }
-                    if (logLines.Count > 0)
-                    {
-                        string details = string.Join("\n", logLines);
-                        throw new Exception($"{ex.Message}\nUygulama Hata Logları:\n{details}", ex);
-                    }
+                    catch { /* Ignore log reading errors to preserve original exception */ }
                 }
-                catch { /* Ignore log reading errors to preserve original exception */ }
+                throw;
             }
-            throw;
+        }
+        finally
+        {
+            ProcessTransitionTracker.EndTransition(name);
         }
     }
 

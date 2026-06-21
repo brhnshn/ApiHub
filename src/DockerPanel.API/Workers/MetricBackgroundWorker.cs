@@ -198,68 +198,93 @@ public class MetricBackgroundWorker : BackgroundService
                             {
                                 // Watchdog: Check if the Native process is actually running (every 15s)
                                 bool isRunning = true;
-                                if (runWatchdog)
+                                bool isTransitioning = ProcessTransitionTracker.IsTransitioning(project.Name);
+
+                                if (runWatchdog && !isTransitioning)
                                 {
-                                    isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
-                                    
-                                    // Transient check verification: wait 2s and verify again to prevent false alarms
-                                    if (!isRunning)
+                                    var freshProject = await dbContext.Projects
+                                        .AsNoTracking()
+                                        .FirstOrDefaultAsync(p => p.Id == project.Id, stoppingToken);
+
+                                    if (freshProject != null && freshProject.Status == ProjectStatus.Running)
                                     {
-                                        await Task.Delay(2000, stoppingToken);
+                                        string runDir = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                                            ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "project-manager")
+                                            : "/run/project-manager";
+                                        string pidFile = Path.Combine(runDir, $"{project.Name}.pid");
+                                        bool pidFileExistsBeforeCheck = File.Exists(pidFile);
+
                                         isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
-                                    }
-
-                                    if (!isRunning)
-                                    {
-                                        int failures = _watchdogFailures.AddOrUpdate(project.Id, 1, (key, val) => val + 1);
-                                        _logger.LogWarning("[Watchdog] Native process for project {ProjectName} ({ProjectId}) is not running! Failure count: {Failures}", project.Name, project.Id, failures);
-
-                                        if (failures >= 3)
+                                        
+                                        // Transient check verification: wait 2s and verify again to prevent false alarms
+                                        if (!isRunning)
                                         {
-                                            _logger.LogError("[Watchdog] Native process for project {ProjectName} ({ProjectId}) failed to start after {Failures} attempts. Halted.", project.Name, project.Id, failures);
-                                            SystemLogQueue.Log("error", $"[Watchdog] '{project.Name}' Native projesi üst üste {failures} kez başlatılamadı. Otomatik kurtarma durduruldu, proje durumu 'Hata' olarak güncellendi.");
+                                            await Task.Delay(2000, stoppingToken);
+                                            isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
+                                        }
 
-                                            await pushService.SendNotificationToUserAsync(
-                                                project.UserId,
-                                                "⚠️ Otomatik Kurtarma Başarısız",
-                                                $"'{project.Name}' native süreci sürekli çöküyor ve otomatik başlatılamadı. Süreç durduruldu. Lütfen logları inceleyin.",
-                                                $"apihub://navigate?path=/containers&projectId={project.Id}");
+                                        if (!isRunning)
+                                        {
+                                            if (!pidFileExistsBeforeCheck && !_watchdogFailures.ContainsKey(project.Id))
+                                            {
+                                                _logger.LogInformation("[Watchdog] Native process {ProjectName} ({ProjectId}) is not running and PID file did not exist (clean CLI stop). Setting status to Stopped.", project.Name, project.Id);
+                                                project.Status = ProjectStatus.Stopped;
+                                                project.StartedAt = null;
+                                                projectStateChanged = true;
+                                            }
+                                            else
+                                            {
+                                                int failures = _watchdogFailures.AddOrUpdate(project.Id, 1, (key, val) => val + 1);
+                                                _logger.LogWarning("[Watchdog] Native process for project {ProjectName} ({ProjectId}) is not running! Failure count: {Failures}", project.Name, project.Id, failures);
 
-                                            project.Status = ProjectStatus.Error;
-                                            project.StartedAt = null;
-                                            projectStateChanged = true;
-                                            _watchdogFailures.TryRemove(project.Id, out _);
+                                                if (failures >= 3)
+                                                {
+                                                    _logger.LogError("[Watchdog] Native process for project {ProjectName} ({ProjectId}) failed to start after {Failures} attempts. Halted.", project.Name, project.Id, failures);
+                                                    SystemLogQueue.Log("error", $"[Watchdog] '{project.Name}' Native projesi üst üste {failures} kez başlatılamadı. Otomatik kurtarma durduruldu, proje durumu 'Hata' olarak güncellendi.");
+
+                                                    await pushService.SendNotificationToUserAsync(
+                                                        project.UserId,
+                                                        "⚠️ Otomatik Kurtarma Başarısız",
+                                                        $"'{project.Name}' native süreci sürekli çöküyor ve otomatik başlatılamadı. Süreç durduruldu. Lütfen logları inceleyin.",
+                                                        $"apihub://navigate?path=/containers&projectId={project.Id}");
+
+                                                    project.Status = ProjectStatus.Error;
+                                                    project.StartedAt = null;
+                                                    projectStateChanged = true;
+                                                    _watchdogFailures.TryRemove(project.Id, out _);
+                                                }
+                                                else
+                                                {
+                                                    SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Native projesi durmuş durumda tespit edildi (Kurtarma Denemesi {failures}/3), otomatik yeniden başlatılıyor...");
+                                                    
+                                                    // Send alert only on first detection to avoid spam
+                                                    if (failures == 1)
+                                                    {
+                                                        await pushService.SendNotificationToUserAsync(
+                                                            project.UserId,
+                                                            "🔴 Servis Durdu (Native)",
+                                                            $"'{project.Name}' native süreci durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
+                                                            $"apihub://navigate?path=/containers&projectId={project.Id}");
+                                                    }
+
+                                                    try
+                                                    {
+                                                        await processManagerService.StartProcessAsync(project.Name);
+                                                        project.StartedAt = DateTimeOffset.UtcNow;
+                                                        projectStateChanged = true;
+                                                    }
+                                                    catch (Exception ex)
+                                                    {
+                                                        _logger.LogError(ex, "[Watchdog] Failed to restart native process for project {ProjectName}", project.Name);
+                                                    }
+                                                }
+                                            }
                                         }
                                         else
                                         {
-                                            SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Native projesi durmuş durumda tespit edildi (Kurtarma Denemesi {failures}/3), otomatik yeniden başlatılıyor...");
-                                            
-                                            // Send alert only on first detection to avoid spam
-                                            if (failures == 1)
-                                            {
-                                                await pushService.SendNotificationToUserAsync(
-                                                    project.UserId,
-                                                    "🔴 Servis Durdu (Native)",
-                                                    $"'{project.Name}' native süreci durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
-                                                    $"apihub://navigate?path=/containers&projectId={project.Id}");
-                                            }
-
-                                            try
-                                            {
-                                                await processManagerService.StartProcessAsync(project.Name);
-                                                project.StartedAt = DateTimeOffset.UtcNow;
-                                                projectStateChanged = true;
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                _logger.LogError(ex, "[Watchdog] Failed to restart native process for project {ProjectName}", project.Name);
-                                            }
+                                            // Reset tracker if check passes
+                                            _watchdogFailures.TryRemove(project.Id, out _);
                                         }
-                                    }
-                                    else
-                                    {
-                                        // Reset tracker if check passes
-                                        _watchdogFailures.TryRemove(project.Id, out _);
                                     }
                                 }
 
@@ -291,8 +316,13 @@ public class MetricBackgroundWorker : BackgroundService
 
                             if (projectStateChanged)
                             {
-                                dbContext.Entry(project).State = EntityState.Modified;
-                                await dbContext.SaveChangesAsync(stoppingToken);
+                                var dbProject = await dbContext.Projects.FirstOrDefaultAsync(p => p.Id == project.Id, stoppingToken);
+                                if (dbProject != null)
+                                {
+                                    dbProject.Status = project.Status;
+                                    dbProject.StartedAt = project.StartedAt;
+                                    await dbContext.SaveChangesAsync(stoppingToken);
+                                }
                             }
 
                             // İlgili proje SignalR grubuna metrikleri bas

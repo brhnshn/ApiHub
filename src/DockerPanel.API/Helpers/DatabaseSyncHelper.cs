@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using DockerPanel.Domain.Entities;
 using DockerPanel.Domain.Enums;
+using DockerPanel.Domain.Interfaces;
 using DockerPanel.Infrastructure.Data;
 
 namespace DockerPanel.API.Helpers;
@@ -56,6 +57,7 @@ public static class DatabaseSyncHelper
 
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
+        var processManagerService = scope.ServiceProvider.GetRequiredService<IProcessManagerService>();
 
         // 1. En az bir kullanıcı var mı kontrol et, yoksa eşitleme yapamayız (UserId lazım)
         var defaultUser = await db.Users.FirstOrDefaultAsync();
@@ -114,10 +116,27 @@ public static class DatabaseSyncHelper
                         details.TryGetValue("path", out var pathStr);
                         string targetPath = pathStr ?? "";
 
-                        if (project.Status == ProjectStatus.Running && !project.StartedAt.HasValue)
+                        bool isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
+                        if (isRunning)
                         {
-                            project.StartedAt = project.CreatedAt;
-                            Console.WriteLine($"[Sync] Çalışan Native proje için eksik StartedAt geçmiş CreatedAt ile tamamlandı: {project.Name}");
+                            if (project.Status != ProjectStatus.Running)
+                            {
+                                project.Status = ProjectStatus.Running;
+                                Console.WriteLine($"[Sync] OS üzerinde çalışan Native proje durumu Running olarak güncellendi: {project.Name}");
+                            }
+                            if (!project.StartedAt.HasValue)
+                            {
+                                project.StartedAt = DateTimeOffset.UtcNow;
+                            }
+                        }
+                        else
+                        {
+                            if (project.Status == ProjectStatus.Running || project.Status == ProjectStatus.Provisioning)
+                            {
+                                project.Status = ProjectStatus.Stopped;
+                                project.StartedAt = null;
+                                Console.WriteLine($"[Sync] OS üzerinde çalışmayan Native proje durumu Stopped olarak güncellendi: {project.Name}");
+                            }
                         }
 
                         if (project.InternalPort != port || project.ImageOrPath != targetPath)
@@ -152,11 +171,7 @@ public static class DatabaseSyncHelper
                         details.TryGetValue("path", out var pathStr);
                         string targetPath = pathStr ?? "";
 
-                        string runDir = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                            ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "project-manager")
-                            : "/run/project-manager";
-                        string pidFile = Path.Combine(runDir, $"{projectName}.pid");
-                        bool isRunning = File.Exists(pidFile);
+                        bool isRunning = await processManagerService.IsProcessRunningAsync(projectName);
 
                         var newProject = new Project
                         {
