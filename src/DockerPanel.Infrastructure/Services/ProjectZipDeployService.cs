@@ -322,7 +322,7 @@ public class ProjectZipDeployService : IProjectZipDeployService
                     var psi = new System.Diagnostics.ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = $"/usr/local/bin/project-manager.sh clean-path \"{path}\"",
+                        Arguments = $"-n /usr/local/bin/project-manager.sh clean-path \"{path}\"",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,

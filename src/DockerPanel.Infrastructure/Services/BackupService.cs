@@ -297,11 +297,11 @@ public class BackupService : IBackupService
                 }
                 else
                 {
-                    SystemLogQueue.Log("info", $"$ sudo tar -czf {projectsFile} -C {projectsPath} .");
+                    SystemLogQueue.Log("info", $"$ sudo -n tar -czf {projectsFile} -C {projectsPath} .");
                     var psi = new ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = $"nice -n 19 tar -czf {projectsFile} -C {projectsPath} .",
+                        Arguments = $"-n tar -czf {projectsFile} -C {projectsPath} .",
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
@@ -322,7 +322,7 @@ public class BackupService : IBackupService
                     var chownPsi = new ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = $"chown dockerpanel_api:dockerpanel_api {projectsFile}",
+                        Arguments = $"-n chown dockerpanel_api:dockerpanel_api {projectsFile}",
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
@@ -344,11 +344,11 @@ public class BackupService : IBackupService
                 }
                 else
                 {
-                    SystemLogQueue.Log("info", $"$ sudo tar -czf {nginxFile} -C {nginxPath} .");
+                    SystemLogQueue.Log("info", $"$ sudo -n tar -czf {nginxFile} -C {nginxPath} .");
                     var psi = new ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = $"nice -n 19 tar -czf {nginxFile} -C {nginxPath} .",
+                        Arguments = $"-n tar -czf {nginxFile} -C {nginxPath} .",
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
@@ -369,7 +369,7 @@ public class BackupService : IBackupService
                     var chownPsi = new ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = $"chown dockerpanel_api:dockerpanel_api {nginxFile}",
+                        Arguments = $"-n chown dockerpanel_api:dockerpanel_api {nginxFile}",
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
@@ -391,11 +391,11 @@ public class BackupService : IBackupService
                 }
                 else
                 {
-                    SystemLogQueue.Log("info", $"$ sudo tar -czf {mailFile} -C {mailPath} .");
+                    SystemLogQueue.Log("info", $"$ sudo -n tar -czf {mailFile} -C {mailPath} .");
                     var psi = new ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = $"nice -n 19 tar -czf {mailFile} -C {mailPath} .",
+                        Arguments = $"-n tar -czf {mailFile} -C {mailPath} .",
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
@@ -416,7 +416,7 @@ public class BackupService : IBackupService
                     var chownPsi = new ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = $"chown dockerpanel_api:dockerpanel_api {mailFile}",
+                        Arguments = $"-n chown dockerpanel_api:dockerpanel_api {mailFile}",
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
@@ -640,11 +640,11 @@ public class BackupService : IBackupService
                 }
                 else
                 {
-                    SystemLogQueue.Log("info", $"$ sudo tar -xzf {projectsFile} -C {projectsPath}");
+                    SystemLogQueue.Log("info", $"$ sudo -n tar -xzf {projectsFile} -C {projectsPath}");
                     var psi = new ProcessStartInfo
                     {
                         FileName = "bash",
-                        Arguments = $"-c \"sudo rm -rf {projectsPath}/* && sudo tar -xzf {projectsFile} -C {projectsPath} && sudo chown -R dockerpanel_api:dockerpanel_api {projectsPath}\"",
+                        Arguments = $"-c \"sudo -n rm -rf {projectsPath}/* && sudo -n tar -xzf {projectsFile} -C {projectsPath} && sudo -n chown -R dockerpanel_api:dockerpanel_api {projectsPath}\"",
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
@@ -676,11 +676,11 @@ public class BackupService : IBackupService
                 }
                 else
                 {
-                    SystemLogQueue.Log("info", $"$ sudo tar -xzf {nginxFile} -C {nginxPath}");
+                    SystemLogQueue.Log("info", $"$ sudo -n tar -xzf {nginxFile} -C {nginxPath}");
                     var psi = new ProcessStartInfo
                     {
                         FileName = "bash",
-                        Arguments = $"-c \"sudo rm -rf {nginxPath}/* && sudo tar -xzf {nginxFile} -C {nginxPath} && sudo nginx -t && sudo systemctl reload nginx\"",
+                        Arguments = $"-c \"sudo -n rm -rf {nginxPath}/* && sudo -n tar -xzf {nginxFile} -C {nginxPath} && sudo -n nginx -t && sudo -n systemctl reload nginx\"",
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
@@ -713,11 +713,11 @@ public class BackupService : IBackupService
                 }
                 else
                 {
-                    SystemLogQueue.Log("info", $"$ sudo tar -xzf {mailFile} -C {mailPath}");
+                    SystemLogQueue.Log("info", $"$ sudo -n tar -xzf {mailFile} -C {mailPath}");
                     var psi = new ProcessStartInfo
                     {
                         FileName = "bash",
-                        Arguments = $"-c \"sudo rm -rf {mailPath}/* && sudo tar -xzf {mailFile} -C {mailPath} && docker restart dockerpanel-mailserver || true\"",
+                        Arguments = $"-c \"sudo -n rm -rf {mailPath}/* && sudo -n tar -xzf {mailFile} -C {mailPath} && docker restart dockerpanel-mailserver || true\"",
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
