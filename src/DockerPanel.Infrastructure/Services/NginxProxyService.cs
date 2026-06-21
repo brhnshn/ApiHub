@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -314,31 +316,43 @@ public class NginxProxyService : INginxService
         var sb = new System.Text.StringBuilder();
 
         // Server block 1: Fallback Default Server (Port 80)
+        // Returns 444 Connection Closed to prevent API exposure on unconfigured domains
         sb.AppendLine($@"server {{
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name _;
 
-    location / {{
-        proxy_pass http://127.0.0.1:{apiPort};
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
 
-        # WebSockets desteği (SignalR akışı için)
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection ""upgrade"";
+    location / {{
+        return 444;
     }}
 }}");
 
-        // Server block 2: Explicit Port 80 blocks for panel domains to win over wildcards
-        if (domainNames.Count > 0)
+        // Server block 2: Explicit Port 80 blocks for allowed panel domains, localhost, 127.0.0.1, and public IP
+        var publicIp = await GetPublicIpAsync();
+        var allowedPanelHosts = new List<string> { "localhost", "127.0.0.1" };
+        if (!string.IsNullOrEmpty(publicIp))
         {
-            sb.AppendLine($@"server {{
+            allowedPanelHosts.Add(publicIp);
+        }
+        foreach (var name in domainNames)
+        {
+            if (!allowedPanelHosts.Contains(name))
+            {
+                allowedPanelHosts.Add(name);
+            }
+        }
+
+        sb.AppendLine($@"server {{
     listen 80;
-    server_name {string.Join(" ", domainNames)};
+    server_name {string.Join(" ", allowedPanelHosts)};
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
 
     location / {{
         proxy_pass http://127.0.0.1:{apiPort};
@@ -353,7 +367,6 @@ public class NginxProxyService : INginxService
         proxy_set_header Connection ""upgrade"";
     }}
 }}");
-        }
 
         // Server block 3: Explicit Port 443 SSL blocks for panel domains (if certificates were parsed)
         foreach (var pd in panelDomains)
@@ -371,6 +384,10 @@ public class NginxProxyService : INginxService
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
 
     location / {{
         proxy_pass http://127.0.0.1:{apiPort};
@@ -527,7 +544,14 @@ public class NginxProxyService : INginxService
                 compiledConfig = $@"server {{
     listen 80;
     server_name {serverNames};
-    return 301 https://$host$request_uri;
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
+
+    location / {{
+        return 301 https://$host$request_uri;
+    }}
 }}
 
 server {{
@@ -545,6 +569,10 @@ server {{
     root {resolvedStaticPath};
     {indexDirective}
 
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
+
     location / {{
         try_files $uri $uri/ /index.html /index.php?$args;
     }}{phpBlock}
@@ -558,6 +586,10 @@ server {{
 
     root {resolvedStaticPath};
     {indexDirective}
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
 
     location / {{
         try_files $uri $uri/ /index.html /index.php?$args;
@@ -574,7 +606,14 @@ server {{
                 compiledConfig = $@"server {{
     listen 80;
     server_name {serverNames};
-    return 301 https://$host$request_uri;
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
+
+    location / {{
+        return 301 https://$host$request_uri;
+    }}
 }}
 
 server {{
@@ -588,6 +627,10 @@ server {{
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
 
     location / {{
         proxy_pass http://127.0.0.1:{containerPort};
@@ -615,6 +658,10 @@ server {{
                 compiledConfig = $@"server {{
     listen 80;
     server_name {serverNames};
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
 
     location / {{
         proxy_pass http://127.0.0.1:{containerPort};
@@ -888,18 +935,38 @@ server {{
         string cleanSubdomain = (subdomainName ?? "").Trim();
         bool isApex = cleanSubdomain == "" || cleanSubdomain == "@";
         string fullDomain = isApex ? domainName : $"{cleanSubdomain}.{domainName}";
-        string domainArgs = isApex ? $"-d {domainName} -d www.{domainName}" : $"-d {fullDomain}";
+
+        string domainArgs;
+        if (isApex)
+        {
+            var domainsToRequest = new List<string> { domainName };
+            string wwwDomain = $"www.{domainName}";
+            if (await IsDomainResolvableAsync(wwwDomain))
+            {
+                domainsToRequest.Add(wwwDomain);
+            }
+            else
+            {
+                SystemLogQueue.Log("warning", $"[Let's Encrypt] {wwwDomain} çözümlenemedi (DNS kaydı bulunamadı). SSL sertifika talebine dahil edilmiyor.");
+            }
+            domainArgs = string.Join(" ", domainsToRequest.Select(d => $"-d {d}"));
+        }
+        else
+        {
+            domainArgs = $"-d {fullDomain}";
+        }
+
         SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için SSL sertifikası üretiliyor...");
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             if (hasCloudflareToken)
             {
-                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - Cloudflare DNS-01] certbot -a dns-cloudflare --dns-cloudflare-credentials /opt/dockerpanel/cloudflare_{domainName}.ini --dns-cloudflare-propagation-seconds 30 -i nginx {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email");
+                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - Cloudflare DNS-01] certbot certonly --dns-cloudflare --dns-cloudflare-credentials /opt/dockerpanel/cloudflare_{domainName}.ini --dns-cloudflare-propagation-seconds 30 {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email");
             }
             else
             {
-                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - HTTP-01] certbot --nginx {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email");
+                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - Webroot] certbot certonly --webroot -w /var/www/html {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email");
             }
             await Task.Delay(2000);
             SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için SSL sertifikası başarıyla kuruldu (Simülasyon).");
@@ -908,7 +975,7 @@ server {{
 
         if (hasCloudflareToken)
         {
-            // Cloudflare API Token mevcut ise Cloudflare DNS-01 doğrulamasını Nginx yükleyicisi ile birleştirip çalıştırıyoruz
+            // Cloudflare API Token mevcut ise Cloudflare DNS-01 doğrulaması ile certonly
             var credentialsDir = "/opt/dockerpanel";
             var credentialsPath = Path.Combine(credentialsDir, $"cloudflare_{domainName}.ini");
             try
@@ -920,16 +987,16 @@ server {{
 
                 await File.WriteAllTextAsync(credentialsPath, $"dns_cloudflare_api_token = {rootDomain!.CloudflareToken!.Trim()}\n", Utf8WithoutBom);
 
-                // chmod 600 vererek yetki sınırlarını koru (dosya sahibi bu process kullanıcısı olduğu için doğrudan izin atıyoruz)
+                // chmod 600 vererek yetki sınırlarını koru
                 try
                 {
                     File.SetUnixFileMode(credentialsPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 }
                 catch { }
 
-                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için Cloudflare DNS-01 API ve Nginx yükleyicisi üzerinden SSL sertifikası kuruluyor...");
-                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot -a dns-cloudflare --dns-cloudflare-credentials {credentialsPath} --dns-cloudflare-propagation-seconds 30 -i nginx {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email", 180000);
-                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için Cloudflare DNS-01 tabanlı SSL başarıyla kuruldu ve Nginx konfigüre edildi.");
+                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için Cloudflare DNS-01 API üzerinden SSL sertifikası kuruluyor...");
+                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot certonly --dns-cloudflare --dns-cloudflare-credentials {credentialsPath} --dns-cloudflare-propagation-seconds 30 {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email", 180000);
+                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için Cloudflare DNS-01 tabanlı SSL başarıyla kuruldu.");
             }
             catch (Exception ex)
             {
@@ -955,12 +1022,20 @@ server {{
         }
         else
         {
-            // Klasik HTTP-01 Challenge
+            // Klasik HTTP-01 Challenge - Webroot yöntemi ile
             try
             {
-                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için HTTP-01 (Nginx) üzerinden SSL sertifikası kuruluyor...");
-                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot --nginx {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email", 60000);
-                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için HTTP-01 tabanlı SSL başarıyla kuruldu ve Nginx reload edildi.");
+                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için HTTP-01 (Webroot) üzerinden SSL sertifikası kuruluyor...");
+                
+                var webrootPath = "/var/www/html";
+                var resolvedWebroot = ResolvePath(webrootPath);
+                if (!Directory.Exists(resolvedWebroot))
+                {
+                    Directory.CreateDirectory(resolvedWebroot);
+                }
+
+                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot certonly --webroot -w {webrootPath} {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email", 90000);
+                SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için HTTP-01 (Webroot) tabanlı SSL başarıyla kuruldu.");
             }
             catch (Exception ex)
             {
@@ -1051,5 +1126,63 @@ server {{
          {
              SystemLogQueue.Log("info", "[Nginx Eşitleme] Eşitleme tamamlandı. Yeni bir yönlendirme bulunamadı.");
          }
+    }
+
+    private static string? _cachedPublicIp = null;
+    private static async Task<string?> GetPublicIpAsync()
+    {
+        if (_cachedPublicIp != null) return _cachedPublicIp;
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            var ip = await client.GetStringAsync("https://api.ipify.org");
+            _cachedPublicIp = ip.Trim();
+            return _cachedPublicIp;
+        }
+        catch (Exception ex)
+        {
+            SystemLogQueue.Log("warning", $"[IP Algılama] api.ipify.org üzerinden IP alınamadı: {ex.Message}. Yerel arayüzlere geçiliyor.");
+            try
+            {
+                var ipAddresses = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
+                    .Where(n => n.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up)
+                    .SelectMany(n => n.GetIPProperties().UnicastAddresses)
+                    .Where(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !System.Net.IPAddress.IsLoopback(a.Address))
+                    .Select(a => a.Address.ToString())
+                    .ToList();
+                var publicIp = ipAddresses.FirstOrDefault(ip => !ip.StartsWith("10.") && !ip.StartsWith("192.168.") && !ip.StartsWith("172."));
+                if (publicIp != null) 
+                {
+                    _cachedPublicIp = publicIp;
+                    return publicIp;
+                }
+                var firstIp = ipAddresses.FirstOrDefault();
+                if (firstIp != null)
+                {
+                    _cachedPublicIp = firstIp;
+                    return firstIp;
+                }
+                return null;
+            }
+            catch (Exception fallbackEx)
+            {
+                SystemLogQueue.Log("warning", $"[IP Algılama] Yerel arayüz taraması başarısız: {fallbackEx.Message}");
+                return null;
+            }
+        }
+    }
+
+    private async Task<bool> IsDomainResolvableAsync(string domain)
+    {
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(domain);
+            return addresses != null && addresses.Length > 0;
+        }
+        catch (Exception ex)
+        {
+            SystemLogQueue.Log("warning", $"[DNS Çözümleme] {domain} için DNS çözümleme başarısız: {ex.Message}");
+            return false;
+        }
     }
 }

@@ -138,3 +138,20 @@ Platformun sunucu üzerinde kullandığı kritik dizinlerin fiziksel yolları ve
 | `/etc/nginx/sites-available/` | Dinamik olarak üretilen subdomain vhost dosyaları. | `root:root` / `dockerpanel_api` (Sudo ile yazılır) |
 | `/etc/nginx/sites-enabled/` | Aktif vhost sembolik bağlantıları (symlinks). | `root:root` / `dockerpanel_api` (Sudo ile yazılır) |
 | `/etc/project-manager/projects.conf` | Native projelerin listesini ve kısıtlarını tutan INI dosyası. | `dockerpanel_api:dockerpanel_api` (644) |
+
+---
+
+## 8. Nginx Güvenlik Sınırlandırması ve Certbot SSL Yapılandırması
+
+Sistem güvenliğini artırmak ve SSL sertifikası üretim süreçlerini iyileştirmek amacıyla aşağıdaki yapılandırmalar Nginx ve Certbot süreçlerine dahil edilmiştir:
+
+### A. Nginx default_server ve API Erişim Sınırları
+* **Yetkisiz Domainlerin Engellenmesi:** Sunucu IP adresini hedef alan ancak DockerPanel üzerinde tanımlı olmayan domainler veya rastgele bağlantılar için port 80 üzerinden gelen istekler Nginx `default_server` bloğu tarafından karşılanır ve **444 Connection Closed (Bağlantıyı Kapat)** yanıtı ile sonlandırılır. Bu sayede kontrol paneli API'si dış dünyaya yetkisiz şekilde ifşa edilmez.
+* **İzin Verilen Hostlar (Server Names):** DockerPanel API'sine ve Blazor web paneline port 80 üzerinden sadece `localhost`, `127.0.0.1`, sunucunun tespit edilen **kamusal IP adresi** ve panele kaydedilen aktif **panel alan adları** üzerinden erişilebilir.
+
+### B. Certbot Webroot Moduna Geçiş (Resilient SSL)
+* **Webroot Challenge Dizin Entegrasyonu:** SSL doğrulamaları için Certbot'un `--nginx` yükleyicisi yerine, daha kararlı olan `certonly --webroot -w /var/www/html` eklentisi kullanılır.
+* **Nginx Konfigürasyonunun Korunması:** Bu yöntemle Certbot, Nginx konfigürasyon dosyalarını doğrudan düzenlemez. Sadece doğrulama token dosyasını `/var/www/html/.well-known/acme-challenge/` altına yazar.
+* **Evrensel ACME Yönlendirmesi:** DockerPanel tarafından üretilen tüm Nginx site (vhost) konfigürasyonlarına ve default sunucu bloğuna `location /.well-known/acme-challenge/` tanımı eklenerek isteklerin doğrudan `/var/www/html` dizininden sunulması sağlanır. Bu sayede proxy yönlendirmeli projeler veya HTTPS yönlendirmeli web siteleri için bile HTTP-01 doğrulamaları sıfır hata ile tamamlanır.
+* **DNS Ön Kontrolleri:** Apex alan adı (`domain.com`) için SSL talep edildiğinde sistem, `www.domain.com` adresinin DNS (A/AAAA) kaydı üzerinden çözümlenip çözümlenmediğini denetler. DNS kaydı olmayan adresler SSL talebinden çıkarılarak Certbot işleminin çökmesi engellenir.
+

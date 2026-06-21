@@ -274,7 +274,10 @@ public class SubdomainController : ControllerBase
     [HttpPost("{id}/ssl")]
     public async Task<IActionResult> EnableSsl(Guid id)
     {
-        var subdomain = await _dbContext.Subdomains.FirstOrDefaultAsync(s => s.Id == id);
+        var subdomain = await _dbContext.Subdomains
+            .Include(s => s.Project)
+            .FirstOrDefaultAsync(s => s.Id == id);
+            
         if (subdomain == null) return NotFound();
 
         if (!IsAdmin() && subdomain.UserId != GetUserId()) return Forbid();
@@ -287,6 +290,21 @@ public class SubdomainController : ControllerBase
             // Veritabanında SSL durumunu güncelle
             subdomain.SslEnabled = true;
             await _dbContext.SaveChangesAsync();
+
+            // Nginx konfigürasyonunu SSL ile yeniden yapılandır
+            var project = subdomain.Project;
+            int targetPort = project?.InternalPort ?? 80;
+
+            await _nginxService.ProvisionSubdomainAsync(
+                subdomain.SubdomainName,
+                subdomain.DomainName,
+                project?.Name ?? "external_service",
+                targetPort,
+                project?.Type ?? ProjectType.DockerContainer,
+                project?.ImageOrPath,
+                project?.EnablePhp,
+                true // sslEnabled
+            );
 
             return Ok(new
             {
