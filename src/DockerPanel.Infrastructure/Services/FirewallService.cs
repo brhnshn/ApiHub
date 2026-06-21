@@ -69,7 +69,7 @@ public class FirewallService : IFirewallService
 
         try
         {
-            string output = await ExecuteCommandAsync("sudo", "/usr/sbin/ufw status");
+            string output = await ExecuteCommandAsync("sudo", "-n /usr/sbin/ufw status");
             return output.Contains("Status: active", StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception ex)
@@ -88,7 +88,7 @@ public class FirewallService : IFirewallService
 
         try
         {
-            string output = await ExecuteCommandAsync("sudo", "/usr/sbin/ufw status numbered");
+            string output = await ExecuteCommandAsync("sudo", "-n /usr/sbin/ufw status numbered");
             var rules = new List<FirewallRuleDto>();
             
             // Satır satır oku ve regex ile çöz
@@ -168,7 +168,7 @@ public class FirewallService : IFirewallService
         try
         {
             string cmdArgs = $"{actionCmd} {port}{cleanProto}";
-            await ExecuteCommandAsync("sudo", $"/usr/sbin/ufw {cmdArgs}");
+            await ExecuteCommandAsync("sudo", $"-n /usr/sbin/ufw {cmdArgs}");
             SystemLogQueue.Log("info", $"[UFW] Kural başarıyla eklendi: {action.ToUpper()} {port}/{protocol}");
         }
         catch (Exception ex)
@@ -200,7 +200,7 @@ public class FirewallService : IFirewallService
         try
         {
             // --force flag'i onay istemeden silmek için kullanılır
-            await ExecuteCommandAsync("sudo", $"/usr/sbin/ufw --force delete {ruleNumber}");
+            await ExecuteCommandAsync("sudo", $"-n /usr/sbin/ufw --force delete {ruleNumber}");
             SystemLogQueue.Log("info", $"[UFW] Kural {ruleNumber} başarıyla kaldırıldı.");
         }
         catch (Exception ex)
@@ -226,7 +226,7 @@ public class FirewallService : IFirewallService
         {
             // --force flag'i enable ederken onay istemesini engeller
             string forceFlag = active ? "--force " : "";
-            await ExecuteCommandAsync("sudo", $"/usr/sbin/ufw {forceFlag}{cmd}");
+            await ExecuteCommandAsync("sudo", $"-n /usr/sbin/ufw {forceFlag}{cmd}");
             SystemLogQueue.Log("info", $"[UFW] Güvenlik duvarı başarıyla güncellendi: {cmd.ToUpper()}");
         }
         catch (Exception ex)
