@@ -169,7 +169,7 @@
                         {
                             <tr class="text-slate-300 hover:bg-slate-950/20 transition-colors">
                                 <td class="py-3 font-semibold">
-                                    <span class="font-mono text-emerald-400 font-bold">@context.SubdomainName</span>.@context.DomainName
+                                    @(string.IsNullOrWhiteSpace(context.SubdomainName) ? context.DomainName : $"{context.SubdomainName}.{context.DomainName}")
                                 </td>
                                 <td class="py-3">
                                     @if (context.ProjectId.HasValue && context.ProjectId.Value != Guid.Empty)
@@ -433,7 +433,14 @@
             <div class="space-y-4 text-xs">
                 <div class="bg-slate-950 p-3 rounded border border-slate-800/80">
                     <span class="text-[10px] text-slate-500 block">DÜZENLENEN ALAN ADI</span>
-                    <span class="font-mono text-sm font-bold text-emerald-400">@_editModel.SubdomainName</span><span class="font-mono text-sm font-bold">.@_editModel.DomainName</span>
+                    @if (string.IsNullOrWhiteSpace(_editModel.SubdomainName))
+                    {
+                        <span class="font-mono text-sm font-bold text-emerald-400">@_editModel.DomainName</span>
+                    }
+                    else
+                    {
+                        <span class="font-mono text-sm font-bold text-emerald-400">@_editModel.SubdomainName</span><span class="font-mono text-sm font-bold">.@_editModel.DomainName</span>
+                    }
                 </div>
 
                 <div>
@@ -1187,7 +1194,7 @@
     // SSL CERTBOT UYGULAMASI VE ONAYLANMA EKRANI TETİKLEYİCİ
     private async Task GenerateSslForSubdomain(SubdomainDto item)
     {
-        _sslTargetDomain = $"{item.SubdomainName}.{item.DomainName}";
+        _sslTargetDomain = string.IsNullOrWhiteSpace(item.SubdomainName) ? item.DomainName : $"{item.SubdomainName}.{item.DomainName}";
         _sslErrorMessage = string.Empty;
         _sslStep = 1;
         _sslVerificationState = SslState.Processing;

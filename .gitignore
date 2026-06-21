@@ -6,6 +6,10 @@
 # dotenv files
 .env
 
+# Agent workspace directories (internal teamwork artifacts)
+ .agents/
+.agents/
+
 # User-specific files
 *.rsuser
 *.suo

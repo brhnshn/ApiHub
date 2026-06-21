@@ -521,8 +521,8 @@
                                 <div>
                                     <h4 class="text-xs font-extrabold text-white uppercase tracking-wider">Tebrikler! Dağıtım Tamamlandı</h4>
                                     <p class="text-[10px] text-slate-400 mt-0.5">Uygulama başarıyla sunucuya kuruldu ve internete açıldı.</p>
-                                    <a href="https://@_subdomain.@_domain" target="_blank" class="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline inline-flex items-center gap-1 mt-1">
-                                        https://@_subdomain.@_domain <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                                    <a href="https://@(string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}")" target="_blank" class="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline inline-flex items-center gap-1 mt-1">
+                                        https://@(string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}") <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
                                     </a>
                                 </div>
                             </div>
@@ -1062,7 +1062,7 @@
             if (_createDnsRecord)
             {
                 await SaveCloudflareSettingsAsync();
-                var dnsName = $"{_subdomain}.{_domain}";
+                var dnsName = string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}";
                 var dnsPayload = new CreateDnsModel { ProjectId = projectId, Name = dnsName, Value = _serverIp, Proxied = _cfProxied, UseCloudflare = true, CloudflareToken = _cfToken, CloudflareZoneId = _cfZoneId };
                 var dnsResponse = await Http.PostAsJsonAsync("api/dns", dnsPayload);
                 if (!dnsResponse.IsSuccessStatusCode) throw new Exception(await ParseErrorAsync(dnsResponse));
@@ -1153,15 +1153,19 @@
         catch { return $"HTTP {(int)response.StatusCode}"; }
     }
 
-    private string GetNginxConfig() => $@"server {{
+    private string GetNginxConfig()
+    {
+        var serverName = string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}";
+        return $@"server {{
     listen 80;
-    server_name {_subdomain}.{_domain};
+    server_name {serverName};
     location / {{
         proxy_pass http://127.0.0.1:{_port};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }}
 }}";
+    }
 
     private async Task CopyText(string text)
     {
