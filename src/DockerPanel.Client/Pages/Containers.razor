@@ -122,9 +122,21 @@
                                     <div class="flex flex-wrap gap-1 mt-1">
                                         @foreach (var sub in project.Subdomains)
                                         {
-                                            <span class="text-[9px] bg-slate-800 text-[#adc6ff] px-1.5 py-0.5 rounded font-mono border border-white/5 whitespace-nowrap">
-                                                @(string.IsNullOrEmpty(sub.SubdomainName) ? sub.DomainName : $"{sub.SubdomainName}.{sub.DomainName}")
-                                            </span>
+                                            var fullDomain = string.IsNullOrEmpty(sub.SubdomainName) ? sub.DomainName : $"{sub.SubdomainName}.{sub.DomainName}";
+                                            var domainUrl = $"{(sub.SslEnabled ? "https" : "http")}://{fullDomain}";
+                                            <a href="@domainUrl" target="_blank" rel="noopener noreferrer"
+                                               class="inline-flex items-center gap-1 text-[9px] bg-slate-800 hover:bg-slate-700 text-[#adc6ff] hover:text-white px-1.5 py-0.5 rounded font-mono border border-white/5 hover:border-[#adc6ff]/30 whitespace-nowrap transition-all duration-150 cursor-pointer">
+                                                @if (sub.SslEnabled)
+                                                {
+                                                    <i class="fa-solid fa-lock text-[7px] text-emerald-400"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fa-solid fa-globe text-[7px] text-slate-400"></i>
+                                                }
+                                                @fullDomain
+                                                <i class="fa-solid fa-arrow-up-right-from-square text-[6px] opacity-50"></i>
+                                            </a>
                                         }
                                     </div>
                                 }
@@ -1791,6 +1803,7 @@ else
     {
         public string SubdomainName { get; set; } = string.Empty;
         public string DomainName { get; set; } = string.Empty;
+        public bool SslEnabled { get; set; }
     }
 
     public enum ProjectType
