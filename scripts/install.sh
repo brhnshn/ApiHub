@@ -47,7 +47,7 @@ usermod -aG docker dockerpanel_api
 
 # Sudoers İzinleri
 cat << 'EOF' > /etc/sudoers.d/dockerpanel_api
-dockerpanel_api ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t, /usr/sbin/service nginx reload, /usr/sbin/systemctl reload nginx, /usr/bin/certbot *, /usr/local/bin/project-manager.sh *, /usr/sbin/ufw *, /usr/bin/tar *, /usr/bin/chown *, /usr/bin/rm *
+dockerpanel_api ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t, /usr/sbin/service nginx reload, /usr/sbin/systemctl reload nginx, /usr/bin/certbot *, /usr/local/bin/project-manager.sh *, /usr/sbin/ufw *, /usr/bin/tar *, /usr/bin/chown *, /usr/bin/rm *, /usr/bin/openssl *, /usr/bin/mkdir *, /bin/chmod *
 EOF
 chmod 440 /etc/sudoers.d/dockerpanel_api
 echo -e "${GREEN}-> Sudoers izinleri (/etc/sudoers.d/dockerpanel_api) yapılandırıldı.${NC}"
@@ -58,6 +58,26 @@ mkdir -p /opt/dockerpanel/projects
 mkdir -p /opt/dockerpanel/backups
 mkdir -p /opt/dockerpanel/mail
 mkdir -p /var/log/project-manager
+
+# Ensure /etc/ssl directories exist
+mkdir -p /etc/ssl/certs
+mkdir -p /etc/ssl/private
+
+# Pre-generate self-signed SSL certificate if it doesn't exist
+if [ ! -f /etc/ssl/certs/nginx-selfsigned.crt ] || [ ! -f /etc/ssl/private/nginx-selfsigned.key ]; then
+    echo -e "${BLUE}Varsayılan self-signed SSL sertifikası üretiliyor...${NC}"
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+      -keyout /etc/ssl/private/nginx-selfsigned.key \
+      -out /etc/ssl/certs/nginx-selfsigned.crt \
+      -subj "/CN=localhost"
+    echo -e "${GREEN}-> Self-signed SSL sertifikası oluşturuldu.${NC}"
+fi
+
+# Configure ownership and permissions (root owns the files, dockerpanel_api can read cert via group)
+chown root:dockerpanel_api /etc/ssl/certs/nginx-selfsigned.crt || true
+chown root:dockerpanel_api /etc/ssl/private/nginx-selfsigned.key || true
+chmod 644 /etc/ssl/certs/nginx-selfsigned.crt || true
+chmod 640 /etc/ssl/private/nginx-selfsigned.key || true
 
 # project-manager.sh scriptini kopyala ve yetkilendir
 if [ -f "scripts/project-manager.sh" ]; then
@@ -140,6 +160,10 @@ chown -R dockerpanel_api:dockerpanel_api /var/log/project-manager
 chmod 755 /var/log/project-manager
 chown -R dockerpanel_api:dockerpanel_api /home/dockerpanel_api
 chmod 755 /home/dockerpanel_api
+chown dockerpanel_api:dockerpanel_api /etc/ssl/certs/nginx-selfsigned.crt || true
+chown dockerpanel_api:dockerpanel_api /etc/ssl/private/nginx-selfsigned.key || true
+chmod 644 /etc/ssl/certs/nginx-selfsigned.crt || true
+chmod 600 /etc/ssl/private/nginx-selfsigned.key || true
 
 # 8. Logrotate Yapılandırması
 echo -e "${BLUE}[8/8] LogRotate Yapılandırması Yapılıyor...${NC}"

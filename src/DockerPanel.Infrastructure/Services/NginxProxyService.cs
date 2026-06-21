@@ -259,50 +259,65 @@ public class NginxProxyService : INginxService
 
         if (!File.Exists(resolvedCertPath) || !File.Exists(resolvedKeyPath))
         {
-            try
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                using (var rsa = System.Security.Cryptography.RSA.Create(2048))
+                // Linux: /etc/ssl/private/ yalnızca root yazabilir.
+                // sudo -n openssl ile sertifika üret, ardından grup okuma izni ver.
+                try
                 {
+                    // Dizinlerin var olduğundan emin ol
+                    await ExecuteCommandAsync("sudo", "-n /usr/bin/mkdir -p /etc/ssl/certs /etc/ssl/private", 5000);
+
+                    await ExecuteCommandAsync("sudo",
+                        $"-n /usr/bin/openssl req -x509 -nodes -days 3650 -newkey rsa:2048 " +
+                        $"-keyout {defaultKeyPath} " +
+                        $"-out {defaultCertPath} " +
+                        $"-subj \"/CN=localhost\"",
+                        30000);
+
+                    // dockerpanel_api'nin okuyabilmesi için grup izni ver
+                    await ExecuteCommandAsync("sudo", $"-n /usr/bin/chown root:dockerpanel_api {defaultCertPath} {defaultKeyPath}", 5000);
+                    await ExecuteCommandAsync("sudo", $"-n /bin/chmod 644 {defaultCertPath}", 5000);
+                    await ExecuteCommandAsync("sudo", $"-n /bin/chmod 640 {defaultKeyPath}", 5000);
+
+                    SystemLogQueue.Log("info", "[Nginx] Self-signed SSL sertifikası ve anahtarı başarıyla oluşturuldu.");
+                }
+                catch (Exception ex)
+                {
+                    SystemLogQueue.Log("error", $"[Nginx] Self-signed SSL sertifikası oluşturulamadı: {ex.Message}");
+                }
+            }
+            else
+            {
+                // Windows simülasyonu: .NET kriptografi API ile in-memory üret
+                try
+                {
+                    using var rsa = System.Security.Cryptography.RSA.Create(2048);
                     var request = new System.Security.Cryptography.X509Certificates.CertificateRequest(
-                        "CN=localhost",
-                        rsa,
+                        "CN=localhost", rsa,
                         System.Security.Cryptography.HashAlgorithmName.SHA256,
                         System.Security.Cryptography.RSASignaturePadding.Pkcs1);
-
                     request.CertificateExtensions.Add(
                         new System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension(false, false, 0, false));
-
                     request.CertificateExtensions.Add(
                         new System.Security.Cryptography.X509Certificates.X509KeyUsageExtension(
-                            System.Security.Cryptography.X509Certificates.X509KeyUsageFlags.DigitalSignature | 
-                            System.Security.Cryptography.X509Certificates.X509KeyUsageFlags.KeyEncipherment,
-                            false));
-
+                            System.Security.Cryptography.X509Certificates.X509KeyUsageFlags.DigitalSignature |
+                            System.Security.Cryptography.X509Certificates.X509KeyUsageFlags.KeyEncipherment, false));
                     request.CertificateExtensions.Add(
                         new System.Security.Cryptography.X509Certificates.X509SubjectKeyIdentifierExtension(request.PublicKey, false));
-
                     var sanBuilder = new System.Security.Cryptography.X509Certificates.SubjectAlternativeNameBuilder();
                     sanBuilder.AddDnsName("localhost");
                     sanBuilder.AddIpAddress(IPAddress.Loopback);
                     request.CertificateExtensions.Add(sanBuilder.Build());
-
-                    using (var cert = request.CreateSelfSigned(
-                        DateTimeOffset.UtcNow.AddDays(-1),
-                        DateTimeOffset.UtcNow.AddYears(10)))
-                    {
-                        var certPem = cert.ExportCertificatePem();
-                        var keyPem = rsa.ExportPkcs8PrivateKeyPem();
-
-                        await File.WriteAllTextAsync(resolvedCertPath, certPem, Utf8WithoutBom);
-                        await File.WriteAllTextAsync(resolvedKeyPath, keyPem, Utf8WithoutBom);
-                        
-                        SystemLogQueue.Log("info", "[Nginx] Kendi imzaladigi SSL sertifikasi ve anahtari basariyla olusturuldu.");
-                    }
+                    using var cert = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(10));
+                    await File.WriteAllTextAsync(resolvedCertPath, cert.ExportCertificatePem(), Utf8WithoutBom);
+                    await File.WriteAllTextAsync(resolvedKeyPath, rsa.ExportPkcs8PrivateKeyPem(), Utf8WithoutBom);
+                    SystemLogQueue.Log("info", "[Nginx][Windows] Self-signed SSL sertifikası simüle edildi.");
                 }
-            }
-            catch (Exception ex)
-            {
-                SystemLogQueue.Log("error", $"[Nginx] Kendi imzaladigi SSL sertifikasi olusturulamadi: {ex.Message}");
+                catch (Exception ex)
+                {
+                    SystemLogQueue.Log("error", $"[Nginx][Windows] Self-signed SSL sertifikası simüle edilemedi: {ex.Message}");
+                }
             }
         }
 
