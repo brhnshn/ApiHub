@@ -141,6 +141,23 @@ chmod 755 /var/log/project-manager
 chown -R dockerpanel_api:dockerpanel_api /home/dockerpanel_api
 chmod 755 /home/dockerpanel_api
 
+# 8. Logrotate Yapılandırması
+echo -e "${BLUE}[8/8] LogRotate Yapılandırması Yapılıyor...${NC}"
+cat << 'EOF' > /etc/logrotate.d/project-manager
+/var/log/project-manager/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 0640 dockerpanel_api dockerpanel_api
+}
+EOF
+chmod 644 /etc/logrotate.d/project-manager
+echo -e "${GREEN}-> Logrotate yapılandırması tamamlandı.${NC}"
+
 echo -e "${GREEN}==============================================================================${NC}"
 echo -e "${GREEN}Kurulum Tamamlandı! DockerPanel Başarıyla Ayağa Kaldırıldı.${NC}"
 echo -e "${GREEN}API & Client Portu: http://SUNUCU_IP:5002${NC}"

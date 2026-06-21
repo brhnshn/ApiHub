@@ -18,6 +18,42 @@ public static class DatabaseSyncHelper
 {
     public static async Task SyncExistingSystemDataAsync(IServiceProvider services)
     {
+        // 0. Log temizliği tetikleme (Tek seferlik disk doluluk riski azaltma)
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
+            {
+                Console.WriteLine("[Sync] Log temizliği tetikleniyor...");
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "sudo",
+                    Arguments = "-n /usr/local/bin/project-manager.sh clean-logs",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var process = System.Diagnostics.Process.Start(psi);
+                if (process != null)
+                {
+                    await process.WaitForExitAsync();
+                    if (process.ExitCode == 0)
+                    {
+                        Console.WriteLine("[Sync] Log temizliği başarıyla tamamlandı.");
+                    }
+                    else
+                    {
+                        string err = await process.StandardError.ReadToEndAsync();
+                        Console.WriteLine($"[Sync] Log temizliği başarısız oldu (ExitCode: {process.ExitCode}): {err}");
+                    }
+                }
+            }
+            catch (Exception logEx)
+            {
+                Console.WriteLine($"[Sync] Log temizleme tetiklenirken hata oluştu: {logEx.Message}");
+            }
+        }
+
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
 
@@ -78,13 +114,7 @@ public static class DatabaseSyncHelper
                         details.TryGetValue("path", out var pathStr);
                         string targetPath = pathStr ?? "";
 
-                        if (project.Status != ProjectStatus.Running)
-                        {
-                            project.Status = ProjectStatus.Running;
-                            project.StartedAt = DateTimeOffset.UtcNow;
-                            Console.WriteLine($"[Sync] Mevcut Native Proje Durumu Güncellendi -> Running: {project.Name} (Port: {port})");
-                        }
-                        else if (!project.StartedAt.HasValue)
+                        if (project.Status == ProjectStatus.Running && !project.StartedAt.HasValue)
                         {
                             project.StartedAt = project.CreatedAt;
                             Console.WriteLine($"[Sync] Çalışan Native proje için eksik StartedAt geçmiş CreatedAt ile tamamlandı: {project.Name}");
@@ -122,6 +152,12 @@ public static class DatabaseSyncHelper
                         details.TryGetValue("path", out var pathStr);
                         string targetPath = pathStr ?? "";
 
+                        string runDir = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                            ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "project-manager")
+                            : "/run/project-manager";
+                        string pidFile = Path.Combine(runDir, $"{projectName}.pid");
+                        bool isRunning = File.Exists(pidFile);
+
                         var newProject = new Project
                         {
                             UserId = defaultUser.Id,
@@ -131,12 +167,12 @@ public static class DatabaseSyncHelper
                             InternalPort = port,
                             MemoryLimitBytes = 536870912, // 512 MB varsayılan
                             CpuCount = 0.5,
-                            Status = ProjectStatus.Running,
-                            StartedAt = DateTimeOffset.UtcNow,
+                            Status = isRunning ? ProjectStatus.Running : ProjectStatus.Stopped,
+                            StartedAt = isRunning ? DateTimeOffset.UtcNow : null,
                             CreatedAt = DateTimeOffset.UtcNow
                         };
                         db.Projects.Add(newProject);
-                        Console.WriteLine($"[Sync] Eksik Native Proje Veritabanına Eklendi: {projectName} (Port: {port})");
+                        Console.WriteLine($"[Sync] Eksik Native Proje Veritabanına Eklendi: {projectName} (Port: {port}, Çalışıyor: {isRunning})");
                     }
                 }
             }

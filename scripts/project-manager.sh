@@ -17,6 +17,7 @@ PROJECT_USER=""
 usage() {
     echo "Usage: project-manager.sh {start|stop|restart|status} [project_name]"
     echo "       project-manager.sh delete project_name"
+    echo "       project-manager.sh clean-logs"
 }
 
 trim() {
@@ -389,6 +390,22 @@ main() {
                 rm -rf "$target"
                 log_manager "info" "Clean path requested and completed: $target"
             fi
+            ;;
+        clean-logs)
+            acquire_lock
+            # 1. Rotasyon artığı olan eski logları sil
+            rm -f "$LOG_DIR"/*.log.* "$LOG_DIR"/*.gz "$LOG_DIR"/*.zip "$LOG_DIR"/*.rar 2>/dev/null || true
+            # 2. Ana log dosyalarını sıfırla (truncate)
+            for f in "$LOG_DIR"/*.log; do
+                if [[ -f "$f" ]]; then
+                    truncate -s 0 "$f"
+                fi
+            done
+            # 3. Manager logunu sıfırla
+            if [[ -f "$MANAGER_LOG" ]]; then
+                truncate -s 0 "$MANAGER_LOG"
+            fi
+            echo "Logs cleaned successfully."
             ;;
         *)
             usage >&2

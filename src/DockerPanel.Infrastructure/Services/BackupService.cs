@@ -8,6 +8,8 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using System.Security.Cryptography;
 using DockerPanel.Domain.Interfaces;
 using DockerPanel.Domain.Entities;
 using Docker.DotNet;
@@ -44,15 +46,17 @@ public class BackupService : IBackupService
 
     private readonly IConfiguration _configuration;
     private readonly IAuditLogService _auditLogService;
+    private readonly IServiceProvider _serviceProvider;
     private const string LinuxBackupsDir = "/opt/dockerpanel/backups";
     private const string LinuxProjectsDir = "/opt/dockerpanel/projects";
     private const string LinuxNginxDir = "/etc/nginx/sites-available";
     private const string LinuxMailDir = "/opt/dockerpanel/mail";
 
-    public BackupService(IConfiguration configuration, IAuditLogService auditLogService)
+    public BackupService(IConfiguration configuration, IAuditLogService auditLogService, IServiceProvider serviceProvider)
     {
         _configuration = configuration;
         _auditLogService = auditLogService;
+        _serviceProvider = serviceProvider;
     }
 
     private string GetBackupsPath()
@@ -425,6 +429,21 @@ public class BackupService : IBackupService
 
                     mailSize = GetFriendlyFileSize(mailFile);
                 }
+
+                // Encrypt backup files if they exist
+                if (status == "success")
+                {
+                    if (File.Exists(dbFile)) await EncryptFileIfNeededAsync(dbFile);
+                    if (File.Exists(projectsFile)) await EncryptFileIfNeededAsync(projectsFile);
+                    if (File.Exists(nginxFile)) await EncryptFileIfNeededAsync(nginxFile);
+                    if (File.Exists(mailFile)) await EncryptFileIfNeededAsync(mailFile);
+
+                    // Recalculate file sizes after encryption
+                    dbSize = GetFriendlyFileSize(dbFile);
+                    projectsSize = GetFriendlyFileSize(projectsFile);
+                    nginxSize = GetFriendlyFileSize(nginxFile);
+                    mailSize = GetFriendlyFileSize(mailFile);
+                }
             }
             catch (Exception ex)
             {
@@ -512,6 +531,22 @@ public class BackupService : IBackupService
         if (!Directory.Exists(targetBackupDir))
         {
             throw new FileNotFoundException("Belirtilen yedek klasörü bulunamadı!");
+        }
+
+        string fileToDecrypt = type.ToLowerInvariant() switch
+        {
+            "database" => Path.Combine(targetBackupDir, "database.sql.gz"),
+            "projects" => Path.Combine(targetBackupDir, "projects.tar.gz"),
+            "nginx" => Path.Combine(targetBackupDir, "nginx.tar.gz"),
+            "mail" => Path.Combine(targetBackupDir, "mail.tar.gz"),
+            _ => null
+        };
+
+        bool wasDecrypted = false;
+        if (!string.IsNullOrEmpty(fileToDecrypt) && File.Exists(fileToDecrypt))
+        {
+            await DecryptFileIfNeededAsync(fileToDecrypt);
+            wasDecrypted = true;
         }
 
         SystemLogQueue.Log("warning", $"[Geri Yükleme] Süreç başlatıldı: {folderName} (Tip: {type})");
@@ -745,6 +780,13 @@ public class BackupService : IBackupService
             SystemLogQueue.Log("error", $"[Geri Yükleme] Hata oluştu: {ex.Message}");
             throw;
         }
+        finally
+        {
+            if (wasDecrypted && !string.IsNullOrEmpty(fileToDecrypt) && File.Exists(fileToDecrypt))
+            {
+                await EncryptFileIfNeededAsync(fileToDecrypt);
+            }
+        }
     }
 
     public async Task DeleteBackupAsync(Guid userId, string folderName)
@@ -791,7 +833,33 @@ public class BackupService : IBackupService
         // Audit Log
         await _auditLogService.LogAsync(userId, "BackupDownloaded", "Backup", Guid.Empty, JsonSerializer.Serialize(new { folder = folderName, type = type }), "localhost", "System/Web");
 
-        return File.OpenRead(filePath);
+        var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        byte[] magic = new byte[4];
+        int readMagic = await fs.ReadAsync(magic, 0, magic.Length);
+        if (readMagic == 4 && System.Text.Encoding.UTF8.GetString(magic) == "DPEN")
+        {
+            byte[] iv = new byte[16];
+            int readIv = await fs.ReadAsync(iv, 0, iv.Length);
+            if (readIv < 16)
+            {
+                fs.Dispose();
+                throw new InvalidOperationException("Şifreli yedek dosyasında IV eksik!");
+            }
+
+            string keyString = GetBackupEncryptionKey();
+            byte[] keyBytes = System.Text.Encoding.UTF8.GetBytes(keyString.PadRight(32).Substring(0, 32));
+            var aes = Aes.Create();
+            aes.Key = keyBytes;
+            aes.IV = iv;
+
+            var decryptor = aes.CreateDecryptor();
+            return new CryptoStream(fs, decryptor, CryptoStreamMode.Read);
+        }
+        else
+        {
+            fs.Seek(0, SeekOrigin.Begin);
+            return fs;
+        }
     }
 
     private async Task CleanOldBackupsAsync()
@@ -1270,5 +1338,120 @@ public class BackupService : IBackupService
             index++;
         }
         return $"{doubleBytes:0.0} {suffix[index]}";
+    }
+
+    private string GetBackupEncryptionKey()
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var config = scope.ServiceProvider.GetService<IConfiguration>();
+            if (config != null)
+            {
+                var val = config["BackupSettings:EncryptionKey"];
+                if (!string.IsNullOrEmpty(val))
+                {
+                    return val;
+                }
+                
+                var jwtSecret = config["JwtSettings:SecretKey"];
+                if (!string.IsNullOrEmpty(jwtSecret))
+                {
+                    return jwtSecret;
+                }
+            }
+        }
+        catch { }
+        return "DockerPanelDefaultSecureBackupPassword123!";
+    }
+
+    private async Task EncryptFileIfNeededAsync(string filePath)
+    {
+        string keyString = GetBackupEncryptionKey();
+        if (string.IsNullOrEmpty(keyString)) return;
+
+        try
+        {
+            byte[] keyBytes = System.Text.Encoding.UTF8.GetBytes(keyString.PadRight(32).Substring(0, 32));
+            using var aes = Aes.Create();
+            aes.Key = keyBytes;
+            aes.GenerateIV();
+            byte[] iv = aes.IV;
+            byte[] magic = System.Text.Encoding.UTF8.GetBytes("DPEN");
+
+            string tempFile = filePath + ".enc";
+            using (var sourceStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            using (var destStream = new FileStream(tempFile, FileMode.Create, FileAccess.Write))
+            {
+                await destStream.WriteAsync(magic, 0, magic.Length);
+                await destStream.WriteAsync(iv, 0, iv.Length);
+
+                using var encryptor = aes.CreateEncryptor();
+                using var cryptoStream = new CryptoStream(destStream, encryptor, CryptoStreamMode.Write);
+                await sourceStream.CopyToAsync(cryptoStream);
+            }
+
+            File.Delete(filePath);
+            File.Move(tempFile, filePath);
+            SystemLogQueue.Log("info", $"[Yedek Şifreleme] Dosya şifrelendi: {Path.GetFileName(filePath)}");
+        }
+        catch (Exception ex)
+        {
+            SystemLogQueue.Log("error", $"[Yedek Şifreleme] Dosya şifrelenirken hata oluştu: {ex.Message}");
+            throw;
+        }
+    }
+
+    private async Task DecryptFileIfNeededAsync(string filePath)
+    {
+        string keyString = GetBackupEncryptionKey();
+        if (string.IsNullOrEmpty(keyString)) return;
+
+        try
+        {
+            using (var testStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            {
+                byte[] magic = new byte[4];
+                int readMagic = await testStream.ReadAsync(magic, 0, magic.Length);
+                if (readMagic < 4 || System.Text.Encoding.UTF8.GetString(magic) != "DPEN")
+                {
+                    return;
+                }
+            }
+
+            byte[] keyBytes = System.Text.Encoding.UTF8.GetBytes(keyString.PadRight(32).Substring(0, 32));
+            using var aes = Aes.Create();
+            aes.Key = keyBytes;
+
+            string tempFile = filePath + ".dec";
+            using (var sourceStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            {
+                sourceStream.Seek(4, SeekOrigin.Begin);
+
+                byte[] iv = new byte[16];
+                int readIv = await sourceStream.ReadAsync(iv, 0, iv.Length);
+                if (readIv < 16)
+                {
+                    throw new InvalidOperationException("Şifreli yedek dosyasında IV eksik!");
+                }
+                aes.IV = iv;
+
+                using (var destStream = new FileStream(tempFile, FileMode.Create, FileAccess.Write))
+                using (var decryptor = aes.CreateDecryptor())
+                using (var cryptoStream = new CryptoStream(sourceStream, decryptor, CryptoStreamMode.Read))
+                {
+                    await cryptoStream.CopyToAsync(destStream);
+                }
+            }
+
+            File.Delete(filePath);
+            File.Move(tempFile, filePath);
+            SystemLogQueue.Log("info", $"[Yedek Şifre Çözme] Şifreli dosya çözüldü: {Path.GetFileName(filePath)}");
+        }
+        catch (Exception ex)
+        {
+            SystemLogQueue.Log("error", $"[Yedek Şifre Çözme] Yedek dosya şifresi çözülürken hata oluştu: {ex.Message}");
+            throw;
+        }
     }
 }

@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using DockerPanel.Infrastructure.Data;
 using DockerPanel.Domain.Interfaces;
 using DockerPanel.Domain.Entities;
@@ -23,11 +24,24 @@ namespace DockerPanel.Infrastructure.Services;
 public class NginxProxyService : INginxService
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly IConfiguration _configuration;
 
-    public NginxProxyService(IServiceProvider serviceProvider)
+    public NginxProxyService(IServiceProvider serviceProvider, IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
+        _configuration = configuration;
     }
+
+    private int GetCloudflarePropagationSeconds()
+    {
+        var value = _configuration["CertbotSettings:CloudflarePropagationSeconds"];
+        if (!string.IsNullOrEmpty(value) && int.TryParse(value, out int seconds) && seconds > 0)
+        {
+            return seconds;
+        }
+        return 30; // default to 30
+    }
+
     private static readonly Encoding Utf8WithoutBom = new UTF8Encoding(false);
     private const string TemplatePath = "/opt/dockerpanel/nginx-template.conf";
     private const string SitesAvailableDir = "/etc/nginx/sites-available";
@@ -859,6 +873,9 @@ server {{
             throw new ArgumentException("Geçersiz subdomain veya alan adı formatı!");
         }
 
+        var propagationSeconds = GetCloudflarePropagationSeconds();
+        var certbotTimeoutMs = (propagationSeconds * 1000) + 120000;
+
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
         var rootDomain = await dbContext.RootDomains.FirstOrDefaultAsync(rd => rd.Name.ToLower() == domainName.ToLower());
@@ -876,7 +893,7 @@ server {{
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // Windows simülasyonu
-                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu] certbot certonly --dns-cloudflare --dns-cloudflare-credentials /opt/dockerpanel/cloudflare_{domainName}.ini --dns-cloudflare-propagation-seconds 30 -d *.{domainName} -d {domainName} --non-interactive --agree-tos");
+                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu] certbot certonly --dns-cloudflare --dns-cloudflare-credentials /opt/dockerpanel/cloudflare_{domainName}.ini --dns-cloudflare-propagation-seconds {propagationSeconds} -d *.{domainName} -d {domainName} --non-interactive --agree-tos");
                 await Task.Delay(2000);
                 SystemLogQueue.Log("info", $"[Let's Encrypt] *.{domainName} için Wildcard SSL sertifikası başarıyla kuruldu (Simülasyon).");
                 return;
@@ -903,7 +920,7 @@ server {{
 
                 // Wildcard sertifikasını al (hem *.domain hem domain için)
                 string wildcardDomain = $"*.{domainName}";
-                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot certonly --dns-cloudflare --dns-cloudflare-credentials {credentialsPath} --dns-cloudflare-propagation-seconds 30 -d {wildcardDomain} -d {domainName} --non-interactive --agree-tos --register-unsafely-without-email", 180000);
+                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot certonly --dns-cloudflare --dns-cloudflare-credentials {credentialsPath} --dns-cloudflare-propagation-seconds {propagationSeconds} -d {wildcardDomain} -d {domainName} --non-interactive --agree-tos --register-unsafely-without-email", certbotTimeoutMs);
                 
                 SystemLogQueue.Log("info", $"[Let's Encrypt] *.{domainName} için Wildcard SSL sertifikası başarıyla alındı ve kuruldu.");
             }
@@ -962,7 +979,7 @@ server {{
         {
             if (hasCloudflareToken)
             {
-                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - Cloudflare DNS-01] certbot certonly --dns-cloudflare --dns-cloudflare-credentials /opt/dockerpanel/cloudflare_{domainName}.ini --dns-cloudflare-propagation-seconds 30 {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email");
+                SystemLogQueue.Log("info", $"$ [Windows Simülasyonu - Cloudflare DNS-01] certbot certonly --dns-cloudflare --dns-cloudflare-credentials /opt/dockerpanel/cloudflare_{domainName}.ini --dns-cloudflare-propagation-seconds {propagationSeconds} {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email");
             }
             else
             {
@@ -995,7 +1012,7 @@ server {{
                 catch { }
 
                 SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için Cloudflare DNS-01 API üzerinden SSL sertifikası kuruluyor...");
-                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot certonly --dns-cloudflare --dns-cloudflare-credentials {credentialsPath} --dns-cloudflare-propagation-seconds 30 {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email", 180000);
+                await ExecuteCommandAsync("sudo", $"-n /usr/bin/certbot certonly --dns-cloudflare --dns-cloudflare-credentials {credentialsPath} --dns-cloudflare-propagation-seconds {propagationSeconds} {domainArgs} --non-interactive --agree-tos --register-unsafely-without-email", certbotTimeoutMs);
                 SystemLogQueue.Log("info", $"[Let's Encrypt] {fullDomain} için Cloudflare DNS-01 tabanlı SSL başarıyla kuruldu.");
             }
             catch (Exception ex)
