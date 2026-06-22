@@ -34,6 +34,7 @@ public class MetricBackgroundWorker : BackgroundService
     private int _watchdogCounter = 0;
     private int _periodicErrorRecoveryCounter = 0;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, int> _watchdogFailures = new();
+    private readonly DateTimeOffset _startedTime = DateTimeOffset.UtcNow;
 
     public MetricBackgroundWorker(
         IServiceScopeFactory scopeFactory,
@@ -261,7 +262,8 @@ public class MetricBackgroundWorker : BackgroundService
 
                                         if (!isRunning)
                                         {
-                                            if (!pidFileExistsBeforeCheck && !_watchdogFailures.ContainsKey(project.Id))
+                                            bool isStartupGracePeriod = (DateTimeOffset.UtcNow - _startedTime).TotalMinutes < 2;
+                                            if (!isStartupGracePeriod && !pidFileExistsBeforeCheck && !_watchdogFailures.ContainsKey(project.Id))
                                             {
                                                 _logger.LogInformation("[Watchdog] Native process {ProjectName} ({ProjectId}) is not running and PID file did not exist (clean CLI stop). Setting status to Stopped.", project.Name, project.Id);
                                                 project.Status = ProjectStatus.Stopped;

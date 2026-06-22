@@ -133,9 +133,20 @@ public static class DatabaseSyncHelper
                         {
                             if (project.Status == ProjectStatus.Running || project.Status == ProjectStatus.Provisioning)
                             {
-                                project.Status = ProjectStatus.Stopped;
-                                project.StartedAt = null;
-                                Console.WriteLine($"[Sync] OS üzerinde çalışmayan Native proje durumu Stopped olarak güncellendi: {project.Name}");
+                                try
+                                {
+                                    Console.WriteLine($"[Sync] OS üzerinde çalışmayan Native proje başlatılıyor: {project.Name}");
+                                    await processManagerService.StartProcessAsync(project.Name);
+                                    project.Status = ProjectStatus.Running;
+                                    project.StartedAt = DateTimeOffset.UtcNow;
+                                    Console.WriteLine($"[Sync] OS üzerinde çalışmayan Native proje başarıyla başlatıldı: {project.Name}");
+                                }
+                                catch (Exception startEx)
+                                {
+                                    project.Status = ProjectStatus.Error;
+                                    project.StartedAt = null;
+                                    Console.WriteLine($"[Sync Hatası] Proje başlatılamadı, Hata durumuna alındı: {project.Name}. Detay: {startEx.Message}");
+                                }
                             }
                         }
 
