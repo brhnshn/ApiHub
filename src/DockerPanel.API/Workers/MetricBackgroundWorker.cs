@@ -32,6 +32,7 @@ public class MetricBackgroundWorker : BackgroundService
     // static: her iterasyonda new Random() üretilmesi önleniyor (seed sorunu + performans)
     private static readonly Random _rand = new();
     private int _watchdogCounter = 0;
+    private int _periodicErrorRecoveryCounter = 0;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, int> _watchdogFailures = new();
 
     public MetricBackgroundWorker(
@@ -93,6 +94,41 @@ public class MetricBackgroundWorker : BackgroundService
                 // 2. Her bir aktif proje için donanım metriklerini al ve ilgili gruba yay
                 _watchdogCounter = (_watchdogCounter + 1) % 5;
                 bool runWatchdog = (_watchdogCounter == 0);
+
+                _periodicErrorRecoveryCounter = (_periodicErrorRecoveryCounter + 1) % 100; // 100 * 3s = 300s = 5dk
+                if (_periodicErrorRecoveryCounter == 0)
+                {
+                    try
+                    {
+                        using (var scope = _scopeFactory.CreateScope())
+                        {
+                            var dbContext = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
+                            var errorProjects = await dbContext.Projects
+                                .Where(p => p.Status == ProjectStatus.Error)
+                                .ToListAsync(stoppingToken);
+
+                            foreach (var project in errorProjects)
+                            {
+                                _logger.LogInformation("[Watchdog] Hata durumundaki '{ProjectName}' projesi için 5 dakikalık periyodik kurtarma tetiklendi.", project.Name);
+                                SystemLogQueue.Log("info", $"[Watchdog] Hata durumundaki '{project.Name}' projesi için 5 dakikalık periyodik otomatik kurtarma başlatılıyor...");
+                                
+                                _watchdogFailures.TryRemove(project.Id, out _);
+                                
+                                project.Status = ProjectStatus.Running;
+                                dbContext.Entry(project).Property(p => p.Status).IsModified = true;
+                            }
+
+                            if (errorProjects.Any())
+                            {
+                                await dbContext.SaveChangesAsync(stoppingToken);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[Watchdog] Periyodik otomatik kurtarma işlemi sırasında hata oluştu.");
+                    }
+                }
 
                 using (var scope = _scopeFactory.CreateScope())
                 {
