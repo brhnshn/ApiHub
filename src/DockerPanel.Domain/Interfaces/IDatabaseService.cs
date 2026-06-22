@@ -10,4 +10,5 @@ public interface IDatabaseService
     Task DeleteDatabaseAsync(string dbName, string dbUser);
     Task<long> GetDatabaseSizeAsync(string dbName);
     Task<List<ExistingDatabaseInfo>> DiscoverExistingDatabasesAsync();
+    Task<int> GetActiveConnectionsCountAsync();
 }

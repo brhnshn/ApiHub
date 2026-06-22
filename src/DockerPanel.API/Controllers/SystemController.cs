@@ -255,4 +255,83 @@ public class SystemController : ControllerBase
         }
         return "Generic Intel Xeon";
     }
+
+    [HttpPost("terminal/run")]
+    public async Task<IActionResult> RunTerminalCommand([FromBody] RunCommandRequest request)
+    {
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr))
+        {
+            return Forbid();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Command))
+        {
+            return BadRequest(new { Message = "Komut boş olamaz." });
+        }
+
+        var command = request.Command.Trim();
+        var outputLines = new List<string>();
+
+        try
+        {
+            ProcessStartInfo psi;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                psi = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c {command}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+            }
+            else
+            {
+                psi = new ProcessStartInfo
+                {
+                    FileName = "/bin/bash",
+                    Arguments = $"-c \"{command.Replace("\"", "\\\"")}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+            }
+
+            using var process = Process.Start(psi);
+            if (process != null)
+            {
+                var stdoutTask = process.StandardOutput.ReadToEndAsync();
+                var stderrTask = process.StandardError.ReadToEndAsync();
+
+                await process.WaitForExitAsync();
+
+                var stdout = await stdoutTask;
+                var stderr = await stderrTask;
+
+                if (!string.IsNullOrEmpty(stdout))
+                {
+                    outputLines.AddRange(stdout.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None));
+                }
+                if (!string.IsNullOrEmpty(stderr))
+                {
+                    outputLines.AddRange(stderr.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            outputLines.Add($"Komut yürütülürken hata oluştu: {ex.Message}");
+        }
+
+        return Ok(outputLines);
+    }
+
+    public class RunCommandRequest
+    {
+        public string Command { get; set; } = string.Empty;
+    }
 }

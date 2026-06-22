@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject HttpClient Http
 @inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
 @inject PlatformInfo PlatformInfo
 @inject DockerPanel.Client.Services.AppState AppState
 @implements IDisposable
@@ -77,12 +78,12 @@
 
                 <div class="d-flex align-center justify-between mb-3" style="font-size: 13px;">
                     <span style="color: #64748b;">Aktif Bağlantı:</span>
-                    <strong style="color: var(--text-main);">3 / 100</strong>
+                    <strong style="color: var(--text-main);">@_stats.ActiveConnections / @_stats.MaxConnections</strong>
                 </div>
 
                 <div class="d-flex align-center justify-between" style="font-size: 13px;">
                     <span style="color: #64748b;">Disk Kullanımı (DB):</span>
-                    <strong style="color: #ef4444;">18.4 MB</strong>
+                    <strong style="color: #ef4444;">@FormatSize(_stats.TotalSizeBytes)</strong>
                 </div>
             </div>
 
@@ -120,7 +121,10 @@
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Veritabanı Şeması">
-                            <span style="font-family: 'JetBrains Mono', monospace; color: #10b981; font-weight: 700;">@context.DbName</span>
+                            <div class="d-flex align-center gap-2">
+                                <span style="font-family: 'JetBrains Mono', monospace; color: #10b981; font-weight: 700;">@context.DbName</span>
+                                <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: rgba(0, 108, 73, 0.06); color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;">@FormatSize(context.SizeBytes)</span>
+                            </div>
                         </MudTd>
                         <MudTd DataLabel="Yetkili Kullanıcı">
                             <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Person">
@@ -249,6 +253,7 @@
 @code {
     private List<DatabaseSchemaDto> _databases = new();
     private List<DiscoveredDatabaseDto> _discoveredDatabases = new();
+    private DatabaseStatsDto _stats = new();
     private bool _discoverModalVisible = false;
     private bool _isDiscovering = false;
     private bool _isLoading = true;
@@ -269,6 +274,12 @@
         {
             var raw = await Http.GetFromJsonAsync<List<DatabaseSchemaDto>>("api/databases");
             _databases = raw ?? new List<DatabaseSchemaDto>();
+
+            var statsRaw = await Http.GetFromJsonAsync<DatabaseStatsDto>("api/databases/stats");
+            if (statsRaw != null)
+            {
+                _stats = statsRaw;
+            }
         }
         catch (Exception ex)
         {
@@ -277,6 +288,7 @@
         finally
         {
             _isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -323,6 +335,9 @@
 
     private async Task DeleteSchema(DatabaseSchemaDto item)
     {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"'{item.DbName}' veritabanı şemasını ve yetkili kullanıcısı '{item.DbUser}'ı silmek istediğinize emin misiniz?\nBu işlem veritabanını kalıcı olarak yok edecektir ve geri alınamaz!");
+        if (!confirmed) return;
+
         try
         {
             var response = await Http.DeleteAsync($"api/databases/{item.Id}");
@@ -422,18 +437,26 @@
         public Guid Id { get; set; }
         public string DbName { get; set; } = string.Empty;
         public string DbUser { get; set; } = string.Empty;
+        public long SizeBytes { get; set; }
         public DateTime CreatedAt { get; set; }
+    }
+
+    public class DatabaseStatsDto
+    {
+        public int ActiveConnections { get; set; } = 3;
+        public int MaxConnections { get; set; } = 100;
+        public long TotalSizeBytes { get; set; } = 0;
     }
 
     // Form Model Tanımı
     public class CreateDatabaseModel
     {
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Veritabanı adı zorunludur!")]
-        [System.ComponentModel.DataAnnotations.RegularExpression("^[a-z0-9_-]+$", ErrorMessage = "Yalnızca küçük harf, rakam, tire veya alt çizgi kullanabilirsiniz.")]
+        [System.ComponentModel.DataAnnotations.RegularExpression("^[a-zA-Z0-9_]+$", ErrorMessage = "Yalnızca harf, rakam veya alt çizgi (_) kullanabilirsiniz.")]
         public string DbName { get; set; } = string.Empty;
 
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Kullanıcı adı zorunludur!")]
-        [System.ComponentModel.DataAnnotations.RegularExpression("^[a-z0-9_-]+$", ErrorMessage = "Yalnızca küçük harf, rakam, tire veya alt çizgi kullanabilirsiniz.")]
+        [System.ComponentModel.DataAnnotations.RegularExpression("^[a-zA-Z0-9_]+$", ErrorMessage = "Yalnızca harf, rakam veya alt çizgi (_) kullanabilirsiniz.")]
         public string DbUser { get; set; } = string.Empty;
 
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Veritabanı parolası zorunludur!")]

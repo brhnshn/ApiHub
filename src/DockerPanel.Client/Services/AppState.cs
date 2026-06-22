@@ -635,6 +635,16 @@ namespace DockerPanel.Client.Services
             }
         }
 
+        public void AddSystemLog(string message)
+        {
+            lock (_lock)
+            {
+                SystemLogs.Add(message);
+                if (SystemLogs.Count > 300) SystemLogs.RemoveAt(0);
+            }
+            NotifyStateChanged();
+        }
+
         public void ClearTerminal()
         {
             lock (_lock)

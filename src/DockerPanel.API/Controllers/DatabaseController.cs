@@ -78,6 +78,41 @@ public class DatabaseController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("stats")]
+    [DisableRateLimiting]
+    public async Task<IActionResult> GetStats()
+    {
+        try
+        {
+            var activeConns = await _databaseService.GetActiveConnectionsCountAsync();
+            
+            var userId = GetUserId();
+            var query = _dbContext.DatabaseSchemas.AsQueryable();
+            if (!IsAdmin())
+            {
+                query = query.Where(d => d.UserId == userId);
+            }
+            var schemas = await query.ToListAsync();
+            
+            long totalBytes = 0;
+            foreach (var s in schemas)
+            {
+                totalBytes += await _databaseService.GetDatabaseSizeAsync(s.DbName);
+            }
+
+            return Ok(new
+            {
+                ActiveConnections = activeConns,
+                MaxConnections = 100,
+                TotalSizeBytes = totalBytes
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = ex.Message });
+        }
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateDatabaseRequest request)
     {

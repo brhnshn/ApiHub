@@ -13,7 +13,9 @@
     :root {
         --bg-sub: #ffffff;
         --border-color: #e2e8f0;
-        --accent-indigo: #006c49;
+        --accent-primary: #006c49;
+        --accent-success: #006c49;
+        --accent-danger: #be123c;
         --text-secondary: #64748b;
     }
 
@@ -35,8 +37,8 @@
 
     a.active-link {
         background-color: rgba(0, 108, 73, 0.12) !important;
-        color: var(--accent-indigo) !important;
-        border-left: 4px solid var(--accent-indigo) !important;
+        color: var(--accent-primary) !important;
+        border-left: 4px solid var(--accent-primary) !important;
         border-radius: 0 8px 8px 0 !important;
     }
 
@@ -120,7 +122,7 @@
     }
     .cyber-navlink:hover {
         background-color: rgba(0, 108, 73, 0.08) !important;
-        color: var(--accent-indigo) !important;
+        color: var(--accent-primary) !important;
     }
     @@media (min-width: 768px) {
         .cyber-sidebar.desktop-closed .cyber-navlink {

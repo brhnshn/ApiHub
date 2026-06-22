@@ -26,11 +26,11 @@
     /* Soluk Yardımcı Metin */
 
     /* Sembolik İşlev Renkleri */
-    --accent-indigo: #006c49;
+    --accent-primary: #006c49;
     /* Birincil Zümrüt Yeşili */
-    --accent-emerald: #006c49;
+    --accent-success: #006c49;
     /* Çalışan/Sağlıklı Durum Vurgusu */
-    --accent-ruby: #be123c;
+    --accent-danger: #be123c;
     /* Tehlike/Durmuş/Silme Vurgusu */
 
     /* Gölgelendirme ve Parlama */
@@ -73,7 +73,7 @@ p { font-size: 0.825rem !important; line-height: 1.5 !important; }
     border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-indigo);
+    background: var(--accent-primary);
 }
 
 /* ================= DOCKERPANEL SİBER-HİBRİT OVERRIDES ================= */
@@ -131,13 +131,13 @@ input, select, textarea {
     color: var(--text-main) !important;
 }
 input:focus, select:focus, textarea:focus {
-    border-color: var(--accent-indigo) !important;
+    border-color: var(--accent-primary) !important;
     box-shadow: 0 0 0 2px var(--accent-glow) !important;
 }
 
 /* Aksan Butonları ve Indigo Detaylar */
 .bg-indigo-600 {
-    background-color: var(--accent-indigo) !important;
+    background-color: var(--accent-primary) !important;
 }
 .hover\:bg-indigo-500:hover {
     background-color: #4f46e5 !important;
@@ -194,7 +194,7 @@ table tr:hover {
 /* Geliştirici Terminal Sabitleri */
 #large-log-box, #dashboard-log-box, .cyber-terminal {
     background-color: #04020a !important;
-    color: var(--accent-emerald) !important;
+    color: var(--accent-success) !important;
     border: 1px solid var(--border-color) !important;
     font-family: 'Fira Code', 'JetBrains Mono', monospace !important;
     font-size: 13px !important;
