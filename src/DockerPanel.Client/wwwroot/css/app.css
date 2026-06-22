@@ -281,3 +281,7 @@ table tr:hover {
     text-decoration: underline !important;
     margin: 0 8px;
 }
+
+/* SSH Terminal Output Colors */
+.ssh-out-normal { color: #c9d1d9; }
+.ssh-out-error  { color: #ff7b72; }

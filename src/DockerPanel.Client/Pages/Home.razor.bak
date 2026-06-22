@@ -349,72 +349,42 @@ else
             </div>
         </div>
 
-        <!-- Sağ Sütun: SSH Terminal -->
-        <div class="lg:col-span-2 rounded-xl flex flex-col h-full min-w-0 overflow-hidden shadow-xl" style="background:#0d1117; border:1px solid #30363d;">
-            <!-- Terminal Başlık Çubuğu -->
-            <div class="flex items-center justify-between px-4 py-2.5 border-b" style="background:#161b22; border-color:#30363d;">
-                <div class="flex items-center gap-1.5">
-                    <span class="w-3 h-3 rounded-full inline-block" style="background:#ff5f57;"></span>
-                    <span class="w-3 h-3 rounded-full inline-block" style="background:#febc2e;"></span>
-                    <span class="w-3 h-3 rounded-full inline-block" style="background:#28c840;"></span>
-                    <span class="ml-4 text-xs font-mono" style="color:#8b949e;">root&#64;apiserver: ~</span>
+        <!-- Sağ Sütun: Canlı Orkestrasyon Logları -->
+        <div class="lg:col-span-2 bg-white border border-[#bbcabf]/30 rounded-xl p-5 flex flex-col h-full shadow-sm min-w-0 overflow-hidden">
+            <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full pulse-green"></span>
+                    <h3 class="font-bold text-[#0b1c30] text-sm uppercase tracking-wider">Canlı Orkestrasyon Logları</h3>
                 </div>
-                <div class="flex items-center gap-3">
-                    <span class="flex items-center gap-1.5 text-[10px] font-mono" style="color:#3fb950;">
-                        <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#3fb950;"></span>
-                        SSH BAĞLANDI
-                    </span>
-                    <button @onclick="ClearTerminal" class="text-[10px] font-mono hover:opacity-75 transition-opacity flex items-center gap-1" style="color:#8b949e;">
-                        <i class="fa-solid fa-eraser text-[9px]"></i> Temizle
-                    </button>
-                </div>
+                <button @onclick="ClearTerminal" class="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash-can"></i> Terminali Temizle
+                </button>
             </div>
 
-            <!-- Terminal Çıktı Alanı -->
-            <div class="flex-grow overflow-y-auto px-4 py-3 font-mono text-xs leading-relaxed" id="ssh-terminal-output"
-                 style="background:#0d1117; color:#c9d1d9; min-height:320px; max-height:380px;">
-                @if (!_sshHistory.Any())
+            <div class="flex-grow" style="height: 380px; background-color: #f1f5f9 !important; color: #0b1c30 !important; border: 1px solid var(--border-color) !important; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 16px; border-radius: 8px; overflow-y: auto; box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);" id="terminal-log-box">
+                @if (!_systemLogs.Any())
                 {
-                    <div class="mb-1" style="color:#8b949e;">Welcome to Ubuntu 22.04 LTS (GNU/Linux x86_64)</div>
-                    <div class="mb-3" style="color:#8b949e;">Komut girin ve Enter'a basın...</div>
+                    <div style="color: #64748b;">[OK] ApiHub orkestratör izleme modülü aktif edildi. Akış dinleniyor...</div>
                 }
-                @foreach (var entry in _sshHistory)
+                else
                 {
-                    @if (entry.IsCommand)
+                    @foreach (var log in _systemLogs)
                     {
-                        <div class="flex items-center gap-0 mb-0.5">
-                            <span style="color:#3fb950; white-space:nowrap; flex-shrink:0;">root&#64;apiserver</span><span style="color:#8b949e; flex-shrink:0;">:</span><span style="color:#58a6ff; flex-shrink:0;">~</span><span style="color:#e6edf3; flex-shrink:0;" class="mr-1.5">$</span>
-                            <span style="color:#e6edf3; word-break:break-all;">@entry.Text</span>
+                        <div style="margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px;">
+                            <span>@log</span>
                         </div>
                     }
-                    else
-                    {
-                        <div class="mb-0.5 whitespace-pre-wrap break-words @(entry.IsError ? "ssh-out-error" : "ssh-out-normal")">@entry.Text</div>
-                    }
-                }
-                @if (_isExecutingCommand)
-                {
-                    <div class="flex items-center gap-1.5 mt-1" style="color:#8b949e;">
-                        <span class="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin inline-block" style="flex-shrink:0;"></span>
-                        <span>&#x00e7;alıştırılıyor...</span>
-                    </div>
                 }
             </div>
 
-            <!-- Komut Giriş Satırı -->
-            <div class="flex items-center px-4 py-2.5 border-t font-mono text-xs" style="background:#161b22; border-color:#30363d;">
-                <span style="color:#3fb950; white-space:nowrap; flex-shrink:0;">root&#64;apiserver</span>
-                <span style="color:#8b949e; flex-shrink:0;">:</span>
-                <span style="color:#58a6ff; flex-shrink:0;">~</span>
-                <span style="color:#e6edf3; flex-shrink:0;" class="mr-2">$</span>
-                <input @bind="_terminalCommand"
-                       @bind:event="oninput"
-                       @onkeydown="HandleTerminalKeyDown"
-                       id="ssh-input"
-                       class="flex-grow bg-transparent border-none outline-none focus:ring-0 min-w-0"
-                       style="color:#e6edf3; caret-color:#58a6ff; font-family:'JetBrains Mono',monospace; font-size:12px;"
-                       autocomplete="off"
-                       spellcheck="false" />
+            <!-- Terminal Komut Giriş Alanı -->
+            <div class="mt-3 flex items-center border border-slate-200 rounded-lg bg-[#f1f5f9] px-3 py-1 font-mono text-xs">
+                <span class="text-slate-500 mr-2">$</span>
+                <input @bind="_terminalCommand" @onkeydown="HandleTerminalKeyDown" class="flex-grow bg-transparent border-none outline-none text-[#0b1c30] p-1.5 focus:ring-0" placeholder="Konteyner komutu girin..." />
+                @if (_isExecutingCommand)
+                {
+                    <span class="w-4 h-4 border-2 border-[#0b1c30] border-t-transparent rounded-full animate-spin flex-shrink-0 ml-2"></span>
+                }
             </div>
         </div>
     </div>
@@ -451,14 +421,6 @@ else
     private double _systemCpu = 0;
     private string _terminalCommand = string.Empty;
     private bool _isExecutingCommand = false;
-    private List<SshEntry> _sshHistory = new();
-
-    public class SshEntry
-    {
-        public string Text { get; set; } = string.Empty;
-        public bool IsCommand { get; set; }
-        public bool IsError { get; set; }
-    }
 
     private async Task HandleTerminalKeyDown(KeyboardEventArgs e)
     {
@@ -467,9 +429,11 @@ else
             var cmd = _terminalCommand.Trim();
             _terminalCommand = string.Empty;
             _isExecutingCommand = true;
-
-            _sshHistory.Add(new SshEntry { Text = cmd, IsCommand = true });
             StateHasChanged();
+
+            // Append command to log stream
+            var timestamp = DateTime.Now.ToString("HH:mm:ss");
+            AppState.AddSystemLog($"$ {cmd}");
 
             try
             {
@@ -481,19 +445,19 @@ else
                     {
                         foreach (var line in lines)
                         {
-                            _sshHistory.Add(new SshEntry { Text = line, IsCommand = false, IsError = false });
+                            AppState.AddSystemLog(line);
                         }
                     }
                 }
                 else
                 {
                     var err = await response.Content.ReadAsStringAsync();
-                    _sshHistory.Add(new SshEntry { Text = $"bash: {err}", IsCommand = false, IsError = true });
+                    AppState.AddSystemLog($"[HATA]: Komut yürütülemedi: {err}");
                 }
             }
             catch (Exception ex)
             {
-                _sshHistory.Add(new SshEntry { Text = $"bash: {ex.Message}", IsCommand = false, IsError = true });
+                AppState.AddSystemLog($"[HATA]: {ex.Message}");
             }
             finally
             {
@@ -501,9 +465,9 @@ else
                 StateHasChanged();
                 try
                 {
-                    await JSRuntime.InvokeVoidAsync("eval", "var el = document.getElementById('ssh-terminal-output'); if(el) el.scrollTop = el.scrollHeight;");
+                    await JSRuntime.InvokeVoidAsync("eval", "var el = document.getElementById('terminal-log-box'); if(el) el.scrollTop = el.scrollHeight;");
                 }
-                catch { }
+                catch {}
             }
         }
     }
@@ -756,7 +720,6 @@ else
 
     private void ClearTerminal()
     {
-        _sshHistory.Clear();
         AppState.ClearTerminal();
     }
 
@@ -863,3 +826,4 @@ else
         NavigationManager.NavigateTo("/login", replace: true);
     }
 }
+
