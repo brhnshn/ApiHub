@@ -272,6 +272,7 @@ public class SystemController : ControllerBase
     // In-memory terminal session store (per-user working directory)
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _userWorkingDirs = new();
 
+    [Microsoft.AspNetCore.Authorization.Authorize]
     [HttpPost("terminal/run")]
     public async Task<IActionResult> RunTerminalCommand([FromBody] RunCommandRequest request)
     {
@@ -458,11 +459,12 @@ public class SystemController : ControllerBase
         return Ok();
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize]
     [HttpPost("terminal/unlock")]
     public async Task<IActionResult> UnlockTerminal([FromBody] UnlockRequest request, [FromServices] DockerPanelDbContext dbContext)
     {
         var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+        if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
         {
             return Forbid();
         }
