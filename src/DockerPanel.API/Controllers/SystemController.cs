@@ -458,6 +458,36 @@ public class SystemController : ControllerBase
         return Ok();
     }
 
+    [HttpPost("terminal/unlock")]
+    public async Task<IActionResult> UnlockTerminal([FromBody] UnlockRequest request, [FromServices] DockerPanelDbContext dbContext)
+    {
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+        {
+            return Forbid();
+        }
+
+        var user = await dbContext.Users.FindAsync(userId);
+        if (user == null)
+        {
+            return NotFound(new { Message = "Kullanıcı bulunamadı." });
+        }
+
+        var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<DockerPanel.Domain.Entities.User>();
+        var result = hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+        if (result == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed)
+        {
+            return BadRequest(new { Message = "Geçersiz şifre!" });
+        }
+
+        return Ok(new { Success = true });
+    }
+
+    public class UnlockRequest
+    {
+        public string Password { get; set; } = string.Empty;
+    }
+
     public class RunCommandRequest
     {
         public string Command { get; set; } = string.Empty;

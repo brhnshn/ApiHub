@@ -350,7 +350,7 @@ else
         </div>
 
         <!-- Sağ Sütun: SSH Terminal -->
-        <div class="lg:col-span-2 rounded-xl flex flex-col min-w-0 overflow-hidden shadow-xl" style="background:#0d1117; border:1px solid #30363d; height:460px;">
+        <div class="lg:col-span-2 rounded-xl flex flex-col min-w-0 overflow-hidden shadow-xl relative" style="background:#0d1117; border:1px solid #30363d; height:460px;">
             <!-- Terminal Başlık Çubuğu -->
             <div class="flex items-center justify-between px-4 py-2.5 border-b" style="background:#161b22; border-color:#30363d;">
                 <div class="flex items-center gap-1.5">
@@ -364,6 +364,12 @@ else
                         <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#3fb950;"></span>
                         SSH BAĞLANDI
                     </span>
+                    @if (!_isTerminalLocked)
+                    {
+                        <button @onclick="@(() => { _isTerminalLocked = true; _terminalPassword = string.Empty; })" class="text-[10px] font-mono hover:opacity-75 transition-opacity flex items-center gap-1" style="color:#8b949e;">
+                            <i class="fa-solid fa-lock text-[9px]"></i> Kilitle (Ctrl+O)
+                        </button>
+                    }
                     <button @onclick="ClearTerminal" class="text-[10px] font-mono hover:opacity-75 transition-opacity flex items-center gap-1" style="color:#8b949e;">
                         <i class="fa-solid fa-eraser text-[9px]"></i> Temizle
                     </button>
@@ -410,12 +416,60 @@ else
                 <input @bind="_terminalCommand"
                        @bind:event="oninput"
                        @onkeydown="HandleTerminalKeyDown"
+                       disabled="@(_isTerminalLocked || _isExecutingCommand)"
                        id="ssh-input"
                        class="flex-grow bg-transparent border-none outline-none focus:ring-0 min-w-0"
                        style="color:#e6edf3; caret-color:#58a6ff; font-family:'JetBrains Mono',monospace; font-size:12px;"
                        autocomplete="off"
                        spellcheck="false" />
             </div>
+
+            <!-- Şifre Giriş Maskesi (Overlay) -->
+            @if (_isTerminalLocked)
+            {
+                <div class="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center animate-fade-in" style="background: rgba(13, 17, 23, 0.92); backdrop-filter: blur(8px);">
+                    <div class="w-full max-w-xs space-y-5">
+                        <div class="flex flex-col items-center gap-2">
+                            <div class="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 animate-pulse">
+                                <i class="fa-solid fa-lock text-lg"></i>
+                            </div>
+                            <h3 class="text-sm font-bold text-slate-200 tracking-wider">GÜVENLİ TERMİNAL</h3>
+                            <p class="text-[11px] text-slate-400">Komut çalıştırmak için kullanıcı şifrenizi girin</p>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="relative">
+                                <input type="password" 
+                                       @bind="_terminalPassword"
+                                       @bind:event="oninput"
+                                       @onkeydown="HandleUnlockKeyDown"
+                                       placeholder="Şifre girin..." 
+                                       class="w-full bg-[#161b22] border border-[#30363d] focus:border-[#58a6ff] focus:ring-1 focus:ring-[#58a6ff] rounded-lg px-3 py-2 text-center text-sm text-slate-200 placeholder-slate-500 outline-none transition-all"
+                                       disabled="@_isUnlocking" />
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(_unlockErrorMessage))
+                            {
+                                <p class="text-xs text-red-400 font-semibold">@_unlockErrorMessage</p>
+                            }
+
+                            <button @onclick="UnlockTerminal" 
+                                    disabled="@_isUnlocking"
+                                    class="w-full bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-bold py-2 rounded-lg transition-colors shadow-lg shadow-red-950/20">
+                                @if (_isUnlocking)
+                                {
+                                    <span class="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin inline-block mr-1"></span>
+                                    <span>Doğrulanıyor...</span>
+                                }
+                                else
+                                {
+                                    <span>Kilidi Aç</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -454,6 +508,59 @@ else
     private List<SshEntry> _sshHistory = new();
     private string _terminalWorkingDir = "/root";
 
+    private bool _isTerminalLocked = true;
+    private string _terminalPassword = string.Empty;
+    private bool _isUnlocking = false;
+    private string _unlockErrorMessage = string.Empty;
+
+    private async Task UnlockTerminal()
+    {
+        if (string.IsNullOrWhiteSpace(_terminalPassword)) return;
+        _isUnlocking = true;
+        _unlockErrorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/system/terminal/unlock", new { Password = _terminalPassword });
+            if (response.IsSuccessStatusCode)
+            {
+                _isTerminalLocked = false;
+                _terminalPassword = string.Empty;
+                _sshHistory.Add(new SshEntry { Text = "Terminal kilidi başarıyla açıldı. Yetkili komutları çalıştırabilirsiniz.", IsCommand = false });
+            }
+            else
+            {
+                _unlockErrorMessage = "Geçersiz şifre!";
+            }
+        }
+        catch (Exception ex)
+        {
+            _unlockErrorMessage = $"Hata: {ex.Message}";
+        }
+        finally
+        {
+            _isUnlocking = false;
+            StateHasChanged();
+            if (!_isTerminalLocked)
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("eval", "setTimeout(function() { var el = document.getElementById('ssh-input'); if(el) el.focus(); }, 100);");
+                }
+                catch { }
+            }
+        }
+    }
+
+    private async Task HandleUnlockKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await UnlockTerminal();
+        }
+    }
+
     public class SshEntry
     {
         public string Text { get; set; } = string.Empty;
@@ -478,6 +585,43 @@ else
 
     private async Task HandleTerminalKeyDown(KeyboardEventArgs e)
     {
+        // Ctrl+C (Clear input / print ^C)
+        if (e.CtrlKey && (e.Key == "c" || e.Key == "C"))
+        {
+            var cmd = _terminalCommand;
+            _terminalCommand = string.Empty;
+            _sshHistory.Add(new SshEntry { Text = cmd + "^C", IsCommand = true });
+            StateHasChanged();
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("eval", "var el = document.getElementById('ssh-terminal-output'); if(el) el.scrollTop = el.scrollHeight;");
+            }
+            catch { }
+            return;
+        }
+
+        // Ctrl+L (Clear screen)
+        if (e.CtrlKey && (e.Key == "l" || e.Key == "L"))
+        {
+            await ClearTerminal();
+            return;
+        }
+
+        // Ctrl+O (Lock terminal)
+        if (e.CtrlKey && (e.Key == "o" || e.Key == "O"))
+        {
+            _isTerminalLocked = true;
+            _terminalPassword = string.Empty;
+            _unlockErrorMessage = string.Empty;
+            StateHasChanged();
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("eval", "setTimeout(function() { var el = document.getElementById('ssh-input'); if(el) el.blur(); }, 50);");
+            }
+            catch { }
+            return;
+        }
+
         if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_terminalCommand))
         {
             var cmd = _terminalCommand.Trim();
