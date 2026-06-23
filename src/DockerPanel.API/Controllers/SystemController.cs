@@ -256,6 +256,19 @@ public class SystemController : ControllerBase
         return "Generic Intel Xeon";
     }
 
+    private static bool IsDirectoryAccessible(string path)
+    {
+        try
+        {
+            Directory.GetFileSystemEntries(path);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     // In-memory terminal session store (per-user working directory)
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _userWorkingDirs = new();
 
@@ -278,11 +291,19 @@ public class SystemController : ControllerBase
 
         // Get or initialize working directory for this user
         bool isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        string defaultDir = isWindows ? "C:\\" : "/root";
+        string defaultDir = isWindows ? "C:\\" : "/";
         string workingDir = _userWorkingDirs.GetOrAdd(userIdStr, defaultDir);
 
-        // Validate that workingDir still exists, reset if not
-        if (!Directory.Exists(workingDir))
+        // Validate that workingDir still exists and is accessible, reset if not
+        try
+        {
+            if (!Directory.Exists(workingDir) || !IsDirectoryAccessible(workingDir))
+            {
+                workingDir = defaultDir;
+                _userWorkingDirs[userIdStr] = workingDir;
+            }
+        }
+        catch
         {
             workingDir = defaultDir;
             _userWorkingDirs[userIdStr] = workingDir;
@@ -294,8 +315,11 @@ public class SystemController : ControllerBase
             var parts = command.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length == 1 || parts[1] == "~")
             {
-                // cd with no args or cd ~ -> go home
-                workingDir = isWindows ? "C:\\Users" : "/root";
+                // cd with no args or cd ~ -> go to process home or /
+                string homeDir = System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile);
+                if (string.IsNullOrEmpty(homeDir) || !Directory.Exists(homeDir) || !IsDirectoryAccessible(homeDir))
+                    homeDir = isWindows ? "C:\\" : "/";
+                workingDir = homeDir;
             }
             else if (parts[1] == "-")
             {
@@ -316,13 +340,13 @@ public class SystemController : ControllerBase
                     newPath = Path.GetFullPath(Path.Combine(workingDir, target));
                 }
 
-                if (Directory.Exists(newPath))
+                if (Directory.Exists(newPath) && IsDirectoryAccessible(newPath))
                 {
                     workingDir = newPath;
                 }
                 else
                 {
-                    outputLines.Add($"bash: cd: {target}: No such file or directory");
+                    outputLines.Add($"bash: cd: {target}: No such file or directory or Permission denied");
                     return Ok(new TerminalResponse { Output = outputLines, WorkingDir = workingDir });
                 }
             }
@@ -348,19 +372,53 @@ public class SystemController : ControllerBase
             }
             else
             {
+                // Find bash dynamically
+                string bashPath = "/bin/bash";
+                foreach (var candidate in new[] { "/bin/bash", "/usr/bin/bash", "/usr/local/bin/bash", "/bin/sh", "/usr/bin/sh" })
+                {
+                    if (System.IO.File.Exists(candidate))
+                    {
+                        bashPath = candidate;
+                        break;
+                    }
+                }
+
+                // Ensure workingDir is accessible, fallback to /
+                string safeWorkDir = workingDir;
+                try { if (!Directory.Exists(safeWorkDir) || !IsDirectoryAccessible(safeWorkDir)) safeWorkDir = "/"; } catch { safeWorkDir = "/"; }
+                if (safeWorkDir != workingDir)
+                {
+                    workingDir = safeWorkDir;
+                    _userWorkingDirs[userIdStr] = workingDir;
+                }
+
                 psi = new ProcessStartInfo
                 {
-                    FileName = "/bin/bash",
+                    FileName = bashPath,
                     Arguments = $"-c \"{command.Replace("\"", "\\\"")}\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                    WorkingDirectory = workingDir
+                    WorkingDirectory = safeWorkDir
                 };
             }
 
-            using var process = Process.Start(psi);
+            using Process? process = await Task.Run(() =>
+            {
+                try
+                {
+                    return Process.Start(psi);
+                }
+                catch (Exception) when (!isWindows && psi.WorkingDirectory != "/")
+                {
+                    psi.WorkingDirectory = "/";
+                    workingDir = "/";
+                    _userWorkingDirs[userIdStr] = workingDir;
+                    return Process.Start(psi);
+                }
+            });
+
             if (process != null)
             {
                 var stdoutTask = process.StandardOutput.ReadToEndAsync();
