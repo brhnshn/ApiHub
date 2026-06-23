@@ -198,7 +198,7 @@ else
             <p class="text-xs text-slate-400 font-medium mt-1">Sunucu donanım durumunu ve konteyner orkestrasyonunu anlık takip edin.</p>
         </div>
         <div>
-            <button @onclick="@(() => NavigationManager.NavigateTo("/deploy"))" class="text-sm font-bold text-white hover:opacity-90 transition-all py-2.5 px-5 rounded-lg bg-[#4f46e5] flex items-center gap-2 shadow-lg">
+            <button @onclick="@(() => NavigationManager.NavigateTo("/deploy-wizard"))" class="text-sm font-bold text-white hover:opacity-90 transition-all py-2.5 px-5 rounded-lg bg-[#4f46e5] flex items-center gap-2 shadow-lg">
                 <i class="fa-solid fa-rocket"></i> Yeni Deploy
             </button>
         </div>
@@ -357,7 +357,7 @@ else
                     <span class="w-3 h-3 rounded-full inline-block" style="background:#ff5f57;"></span>
                     <span class="w-3 h-3 rounded-full inline-block" style="background:#febc2e;"></span>
                     <span class="w-3 h-3 rounded-full inline-block" style="background:#28c840;"></span>
-                    <span class="ml-4 text-xs font-mono" style="color:#8b949e;">root&#64;apiserver: ~</span>
+                    <span class="ml-4 text-xs font-mono" style="color:#8b949e;">root&#64;apiserver: @GetPromptPath()</span>
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="flex items-center gap-1.5 text-[10px] font-mono" style="color:#3fb950;">
@@ -405,7 +405,7 @@ else
             <div class="flex items-center px-4 py-2.5 border-t font-mono text-xs" style="background:#161b22; border-color:#30363d;">
                 <span style="color:#3fb950; white-space:nowrap; flex-shrink:0;">root&#64;apiserver</span>
                 <span style="color:#8b949e; flex-shrink:0;">:</span>
-                <span style="color:#58a6ff; flex-shrink:0;">~</span>
+                <span style="color:#58a6ff; flex-shrink:0;">@GetPromptPath()</span>
                 <span style="color:#e6edf3; flex-shrink:0;" class="mr-2">$</span>
                 <input @bind="_terminalCommand"
                        @bind:event="oninput"
@@ -452,12 +452,28 @@ else
     private string _terminalCommand = string.Empty;
     private bool _isExecutingCommand = false;
     private List<SshEntry> _sshHistory = new();
+    private string _terminalWorkingDir = "/root";
 
     public class SshEntry
     {
         public string Text { get; set; } = string.Empty;
         public bool IsCommand { get; set; }
         public bool IsError { get; set; }
+    }
+
+    private string GetPromptPath()
+    {
+        if (string.IsNullOrEmpty(_terminalWorkingDir)) return "~";
+        // Show ~ for /root, otherwise show the path
+        if (_terminalWorkingDir == "/root" || _terminalWorkingDir == "C:\\Users")
+            return "~";
+        return _terminalWorkingDir;
+    }
+
+    public class TerminalResponse
+    {
+        public List<string>? Output { get; set; }
+        public string WorkingDir { get; set; } = string.Empty;
     }
 
     private async Task HandleTerminalKeyDown(KeyboardEventArgs e)
@@ -476,12 +492,20 @@ else
                 var response = await Http.PostAsJsonAsync("api/system/terminal/run", new { Command = cmd });
                 if (response.IsSuccessStatusCode)
                 {
-                    var lines = await response.Content.ReadFromJsonAsync<List<string>>();
-                    if (lines != null)
+                    var result = await response.Content.ReadFromJsonAsync<TerminalResponse>();
+                    if (result != null)
                     {
-                        foreach (var line in lines)
+                        if (!string.IsNullOrEmpty(result.WorkingDir))
                         {
-                            _sshHistory.Add(new SshEntry { Text = line, IsCommand = false, IsError = false });
+                            _terminalWorkingDir = result.WorkingDir;
+                        }
+                        if (result.Output != null)
+                        {
+                            foreach (var line in result.Output)
+                            {
+                                if (!string.IsNullOrEmpty(line))
+                                    _sshHistory.Add(new SshEntry { Text = line, IsCommand = false, IsError = false });
+                            }
                         }
                     }
                 }
@@ -754,10 +778,17 @@ else
         return string.Join(" ", points);
     }
 
-    private void ClearTerminal()
+    private async Task ClearTerminal()
     {
         _sshHistory.Clear();
+        _terminalWorkingDir = "/root";
         AppState.ClearTerminal();
+        try
+        {
+            await Http.PostAsync("api/system/terminal/reset", null);
+        }
+        catch { }
+        StateHasChanged();
     }
 
     public void Dispose()

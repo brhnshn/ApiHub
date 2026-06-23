@@ -256,6 +256,9 @@ public class SystemController : ControllerBase
         return "Generic Intel Xeon";
     }
 
+    // In-memory terminal session store (per-user working directory)
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _userWorkingDirs = new();
+
     [HttpPost("terminal/run")]
     public async Task<IActionResult> RunTerminalCommand([FromBody] RunCommandRequest request)
     {
@@ -273,10 +276,64 @@ public class SystemController : ControllerBase
         var command = request.Command.Trim();
         var outputLines = new List<string>();
 
+        // Get or initialize working directory for this user
+        bool isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        string defaultDir = isWindows ? "C:\\" : "/root";
+        string workingDir = _userWorkingDirs.GetOrAdd(userIdStr, defaultDir);
+
+        // Validate that workingDir still exists, reset if not
+        if (!Directory.Exists(workingDir))
+        {
+            workingDir = defaultDir;
+            _userWorkingDirs[userIdStr] = workingDir;
+        }
+
+        // Handle 'cd' command specially to maintain working directory state
+        if (command.StartsWith("cd", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = command.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 1 || parts[1] == "~")
+            {
+                // cd with no args or cd ~ -> go home
+                workingDir = isWindows ? "C:\\Users" : "/root";
+            }
+            else if (parts[1] == "-")
+            {
+                // cd - not supported in stateless mode
+                outputLines.Add("bash: cd -: OLDPWD not set");
+                return Ok(new TerminalResponse { Output = outputLines, WorkingDir = workingDir });
+            }
+            else
+            {
+                string target = parts[1].Trim().Trim('"').Trim('\'');
+                string newPath;
+                if (Path.IsPathRooted(target))
+                {
+                    newPath = target;
+                }
+                else
+                {
+                    newPath = Path.GetFullPath(Path.Combine(workingDir, target));
+                }
+
+                if (Directory.Exists(newPath))
+                {
+                    workingDir = newPath;
+                }
+                else
+                {
+                    outputLines.Add($"bash: cd: {target}: No such file or directory");
+                    return Ok(new TerminalResponse { Output = outputLines, WorkingDir = workingDir });
+                }
+            }
+            _userWorkingDirs[userIdStr] = workingDir;
+            return Ok(new TerminalResponse { Output = outputLines, WorkingDir = workingDir });
+        }
+
         try
         {
             ProcessStartInfo psi;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (isWindows)
             {
                 psi = new ProcessStartInfo
                 {
@@ -285,7 +342,8 @@ public class SystemController : ControllerBase
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
+                    WorkingDirectory = workingDir
                 };
             }
             else
@@ -297,7 +355,8 @@ public class SystemController : ControllerBase
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
+                    WorkingDirectory = workingDir
                 };
             }
 
@@ -327,11 +386,28 @@ public class SystemController : ControllerBase
             outputLines.Add($"Komut yürütülürken hata oluştu: {ex.Message}");
         }
 
-        return Ok(outputLines);
+        return Ok(new TerminalResponse { Output = outputLines, WorkingDir = workingDir });
+    }
+
+    [HttpPost("terminal/reset")]
+    public IActionResult ResetTerminalSession()
+    {
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrEmpty(userIdStr))
+        {
+            _userWorkingDirs.TryRemove(userIdStr, out _);
+        }
+        return Ok();
     }
 
     public class RunCommandRequest
     {
         public string Command { get; set; } = string.Empty;
+    }
+
+    public class TerminalResponse
+    {
+        public List<string> Output { get; set; } = new();
+        public string WorkingDir { get; set; } = string.Empty;
     }
 }

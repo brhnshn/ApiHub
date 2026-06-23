@@ -1000,7 +1000,7 @@ else
                     }
 
                     <!-- SAYFA İÇERİĞİ -->
-                    <div class="flex-grow @(IsWebmailPage ? "overflow-hidden h-full w-full relative" : "overflow-y-auto overflow-x-hidden p-4 md:p-5") @(!_desktopSidebarOpen && !IsWebmailPage ? "pt-16 md:pt-5 md:pl-5 pl-4" : "") @(!_mobileSidebarOpen && !IsWebmailPage ? "pt-16 md:pt-5" : "")" style="min-width: 0; max-width: 100%;">
+                    <div class="flex-grow @(IsWebmailPage ? "overflow-hidden h-full w-full relative" : "overflow-y-auto overflow-x-hidden p-4 md:p-5") @(!_desktopSidebarOpen && !IsWebmailPage ? "pt-16 md:pt-5 md:pl-5 pl-4" : "") @(!_mobileSidebarOpen && !IsWebmailPage ? "pt-16 md:pt-5" : "")" style="min-width: 0; max-width: 100%; @(IsHomePage && !IsWebmailPage ? "padding-top: 0 !important;" : "")">
                         @Body
                     </div>
                 </main>
@@ -1253,6 +1253,7 @@ else
     }
 
     private bool IsWebmailPage => NavigationManager.ToBaseRelativePath(NavigationManager.Uri).StartsWith("webmail", StringComparison.OrdinalIgnoreCase);
+    private bool IsHomePage => NavigationManager.ToBaseRelativePath(NavigationManager.Uri) == "" || NavigationManager.ToBaseRelativePath(NavigationManager.Uri) == "/";
     private int _containerCount = 0;
     private int _unreadMailCount = 0;
     private double _topCpu = 12.5;
