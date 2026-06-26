@@ -12,3 +12,193 @@ body {
 .mud-dialog-container {
     max-width: 100vw;
 }
+
+/* ==========================================================================
+   MOBILE APP SPECIFIC STYLE OVERRIDES (Scoped to .mobile-app to prevent leaks)
+   ========================================================================== */
+
+/* 1. Global tag overrides in mobile dark context */
+.mobile-app h1, 
+.mobile-app h2, 
+.mobile-app h3, 
+.mobile-app h4, 
+.mobile-app th, 
+.mobile-app td, 
+.mobile-app label,
+.mobile-app .mud-typography {
+    color: #f1f5f9 !important;
+}
+
+.mobile-app span:not(.bg-emerald-50):not(.bg-rose-50):not(.bg-indigo-50):not(.bg-slate-100), 
+.mobile-app p:not(.bg-emerald-50):not(.bg-rose-50):not(.bg-indigo-50):not(.bg-slate-100) {
+    color: #f1f5f9 !important;
+}
+
+/* 2. Glass panel and card styling overrides */
+.mobile-app .glass-panel,
+.mobile-app .glass-card {
+    background: rgba(23, 26, 33, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: #f1f5f9 !important;
+}
+
+.mobile-app .glass-card {
+    background: rgba(29, 32, 39, 0.6) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* 3. Tables & Lists in mobile view */
+.mobile-app .mud-table {
+    background-color: transparent !important;
+    color: #f1f5f9 !important;
+}
+
+.mobile-app .mud-table-cell {
+    color: #e2e8f0 !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.mobile-app .mud-th {
+    color: #94a3b8 !important;
+}
+
+.mobile-app tr {
+    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.mobile-app .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 4. Controls, Inputs and Dialogs */
+.mobile-app select {
+    background-color: #0b0e15 !important;
+    color: #f1f5f9 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.mobile-app .mud-dialog {
+    background-color: #171a21 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.mobile-app .mud-dialog-title .mud-typography {
+    color: #4edea3 !important;
+}
+
+.mobile-app .mud-input-control .mud-input {
+    color: #f1f5f9 !important;
+}
+
+.mobile-app .mud-chip {
+    background-color: rgba(78, 222, 163, 0.1) !important;
+    color: #4edea3 !important;
+}
+
+.mobile-app .mud-button-outlined {
+    color: #4edea3 !important;
+    border-color: rgba(78, 222, 163, 0.3) !important;
+}
+
+.mobile-app .mud-button-text {
+    color: #adc6ff !important;
+}
+
+.mobile-app .mud-menu .mud-button {
+    color: #f1f5f9 !important;
+}
+
+/* 5. Custom Background & Contrast Rules */
+.mobile-app .bg-white, 
+.mobile-app .hover\:bg-slate-50\/50,
+.mobile-app .hover\:bg-slate-50 {
+    background-color: rgba(23, 26, 33, 0.6) !important;
+    background: rgba(23, 26, 33, 0.6) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.mobile-app .bg-slate-50, 
+.mobile-app .bg-indigo-50, 
+.mobile-app .bg-emerald-50, 
+.mobile-app .bg-slate-100 {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.mobile-app .border-\[\#bbcabf\]\/30, 
+.mobile-app .border-slate-200, 
+.mobile-app .border-slate-150,
+.mobile-app .border-slate-100, 
+.mobile-app .border-indigo-100, 
+.mobile-app .border-emerald-100 {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.mobile-app .bg-slate-900 {
+    background-color: #0d1016 !important;
+}
+
+.mobile-app .bg-slate-100, 
+.mobile-app .bg-emerald-50, 
+.mobile-app .bg-rose-50, 
+.mobile-app .bg-indigo-50, 
+.mobile-app .bg-emerald-100, 
+.mobile-app .bg-rose-100, 
+.mobile-app .bg-indigo-100,
+.mobile-app .bg-slate-100 *, 
+.mobile-app .bg-emerald-50 *, 
+.mobile-app .bg-rose-50 *, 
+.mobile-app .bg-indigo-50 *, 
+.mobile-app .bg-emerald-100 *, 
+.mobile-app .bg-rose-100 *, 
+.mobile-app .bg-indigo-100 * {
+    color: #000000 !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* 6. Color Utility Overrides */
+.mobile-app .text-indigo-600, 
+.mobile-app .text-emerald-600 {
+    color: #4edea3 !important;
+}
+
+.mobile-app .text-slate-700, 
+.mobile-app .text-slate-500, 
+.mobile-app .text-slate-400 {
+    color: #adc6ff !important;
+}
+
+/* 7. Status dots and indicators */
+.mobile-app .status-glow-green {
+    box-shadow: 0 0 8px rgba(78, 222, 163, 0.4);
+}
+
+.mobile-app .status-glow-red {
+    box-shadow: 0 0 8px rgba(255, 180, 171, 0.4);
+}
+
+/* 8. Dialog Overlays */
+.mobile-app .z-50 .bg-white {
+    background-color: #171a21 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.mobile-app .z-50 .bg-slate-50 {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 9. Scrollbar utility scoped to mobile view container */
+.mobile-app ::-webkit-scrollbar {
+    width: 4px;
+}
+.mobile-app ::-webkit-scrollbar-track {
+    background: transparent;
+}
+.mobile-app ::-webkit-scrollbar-thumb {
+    background: #32353c;
+    border-radius: 10px;
+}

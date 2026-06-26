@@ -7,53 +7,7 @@
 @implements IDisposable
 @using System.Text.Json
 
-@if (PlatformInfo.IsMobileApp)
-{
-    <style>
-        h2, h3, h4, th, td, span:not(.bg-emerald-50):not(.bg-rose-50):not(.bg-indigo-50):not(.bg-slate-100), p:not(.bg-emerald-50):not(.bg-rose-50):not(.bg-indigo-50):not(.bg-slate-100), label, .text-\[\#0b1c30\] {
-            color: #f1f5f9 !important;
-        }
-        .bg-white, .hover\:bg-slate-50\/50 {
-            background-color: rgba(23, 26, 33, 0.6) !important;
-            background: rgba(23, 26, 33, 0.6) !important;
-            border-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        .bg-slate-50, .bg-indigo-50, .bg-emerald-50, .bg-slate-100 {
-            background-color: rgba(255, 255, 255, 0.05) !important;
-            background: rgba(255, 255, 255, 0.05) !important;
-            border-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        .border-\[\#bbcabf\]\/30, .border-slate-200, .border-slate-100, .border-indigo-100, .border-emerald-100 {
-            border-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        select {
-            background-color: #0b0e15 !important;
-            color: #f1f5f9 !important;
-            border-color: rgba(255, 255, 255, 0.1) !important;
-        }
-        .text-indigo-600, .text-emerald-600 {
-            color: #4edea3 !important;
-        }
-        .text-slate-700, .text-slate-500, .text-slate-400 {
-            color: #adc6ff !important;
-        }
-        tr {
-            border-bottom-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
-            border-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        .bg-slate-900 {
-            background-color: #0d1016 !important;
-        }
-        /* Açık renkli kutularda yazı renginin siyah olması kuralı */
-        .bg-slate-100, .bg-emerald-50, .bg-rose-50, .bg-indigo-50, .bg-emerald-100, .bg-rose-100, .bg-indigo-100,
-        .bg-slate-100 *, .bg-emerald-50 *, .bg-rose-50 *, .bg-indigo-50 *, .bg-emerald-100 *, .bg-rose-100 *, .bg-indigo-100 * {
-            color: #000000 !important;
-            background-color: rgba(255, 255, 255, 0.9) !important; /* Açık renkli kutu arka planı da belirginleştirilir */
-        }
-    </style>
-}
+
 
 <PageTitle>Denetim Kayıtları - ApiHub</PageTitle>
 

@@ -1,0 +1,13 @@
+::deep .mud-input-label {
+    color: #94a3b8 !important;
+}
+::deep .mud-input-label-active {
+    color: #4edea3 !important;
+}
+::deep .mud-select .mud-input {
+    color: #f1f5f9 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+::deep .mud-input-control:hover ::deep .mud-input-outlined-border {
+    border-color: #4edea3 !important;
+}

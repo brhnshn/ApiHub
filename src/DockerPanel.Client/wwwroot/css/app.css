@@ -116,7 +116,7 @@ p { font-size: 0.825rem !important; line-height: 1.5 !important; }
     color: var(--text-muted) !important;
 }
 /* Beyaz metin ezmesi (Beyaz kart üzerindeki beyaz metin körlüğünü engeller) */
-.text-white:not(button):not(a):not(.btn):not(.badge):not(.bg-[#006c49]):not(.bg-emerald-500):not(.bg-rose-500):not(.bg-rose-600):not(.bg-indigo-600):not(.bg-gradient-to-tr) {
+:not(.mobile-app) .text-white:not(button):not(a):not(.btn):not(.badge):not(.bg-[#006c49]):not(.bg-emerald-500):not(.bg-rose-500):not(.bg-rose-600):not(.bg-indigo-600):not(.bg-gradient-to-tr) {
     color: var(--text-main) !important;
 }
 

@@ -10,49 +10,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
 
-@if (PlatformInfo.IsMobileApp)
-{
-    <style>
-        h2, h3, h4, th, td, span, p, .text-\[\#0b1c30\], .text-slate-600 {
-            color: #f1f5f9 !important;
-        }
-        .bg-white, .hover\:bg-slate-50, .hover\:bg-slate-50\/50 {
-            background-color: rgba(23, 26, 33, 0.6) !important;
-            background: rgba(23, 26, 33, 0.6) !important;
-            border-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        .bg-slate-50, .bg-slate-100 {
-            background-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        .border-\[\#bbcabf\]\/30, .border-slate-200, .border-slate-150 {
-            border-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
-            border-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        tr {
-            border-bottom-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        .mud-menu .mud-button {
-            color: #f1f5f9 !important;
-        }
-        .mud-typography {
-            color: #f1f5f9 !important;
-        }
-        /* Custom modal override for recovery guide/restore dialog */
-        .z-50 .bg-white {
-            background-color: #171a21 !important;
-            border-color: rgba(255, 255, 255, 0.08) !important;
-        }
-        .z-50 .bg-slate-50 {
-            background-color: rgba(255, 255, 255, 0.02) !important;
-            border-bottom-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        .mud-input-control .mud-input {
-            color: #f1f5f9 !important;
-        }
-    </style>
-}
+
 
 <PageTitle>Yedekleme Yönetimi - ApiHub</PageTitle>
 
