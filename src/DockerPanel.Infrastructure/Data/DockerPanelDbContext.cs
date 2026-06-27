@@ -399,6 +399,10 @@ public class DockerPanelDbContext : DbContext
                 .HasMaxLength(50)
                 .IsRequired();
 
+            entity.Property(e => e.EncryptedKey)
+                .HasMaxLength(512)
+                .IsRequired();
+
             entity.Property(e => e.IsActive)
                 .HasDefaultValue(true)
                 .IsRequired();

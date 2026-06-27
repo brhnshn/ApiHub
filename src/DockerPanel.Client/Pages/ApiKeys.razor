@@ -150,12 +150,12 @@
                             <tr class="text-xs hover:bg-slate-500/5">
                                 <td class="py-3.5 font-bold">@key.Name</td>
                                 <td class="py-3.5 font-mono text-slate-400 select-all">@key.MaskedKey</td>
-                                <td class="py-3.5 text-slate-400">@key.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                                <td class="py-3.5 text-slate-400">@key.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
                                 <td class="py-3.5 text-slate-400">
-                                    @(key.LastUsedAt.HasValue ? key.LastUsedAt.Value.ToString("dd.MM.yyyy HH:mm") : "Hiç kullanılmadı")
+                                    @(key.LastUsedAt.HasValue ? key.LastUsedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "Hiç kullanılmadı")
                                 </td>
                                 <td class="py-3.5 text-slate-400">
-                                    @(key.ExpiresAt.HasValue ? key.ExpiresAt.Value.ToString("dd.MM.yyyy HH:mm") : "Süresiz")
+                                    @(key.ExpiresAt.HasValue ? key.ExpiresAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "Süresiz")
                                 </td>
                                 <td class="py-3.5 text-center">
                                     <div class="flex items-center justify-center">
@@ -163,9 +163,14 @@
                                     </div>
                                 </td>
                                 <td class="py-3.5 text-right">
-                                    <button @onclick="() => ConfirmDeleteKey(key)" class="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center justify-center ml-auto" title="Anahtarı Sil (Revoke)">
-                                        <span class="material-symbols-outlined text-[18px]">delete</span>
-                                    </button>
+                                    <div class="flex gap-1.5 justify-end">
+                                        <button @onclick="() => RevealKey(key)" class="p-1.5 text-[#4edea3] hover:bg-[#4edea3]/10 rounded-lg transition-colors flex items-center justify-center" title="Anahtarı Göster">
+                                            <span class="material-symbols-outlined text-[18px]">visibility</span>
+                                        </button>
+                                        <button @onclick="() => ConfirmDeleteKey(key)" class="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center justify-center" title="Anahtarı Sil (Revoke)">
+                                            <span class="material-symbols-outlined text-[18px]">delete</span>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -205,6 +210,37 @@
     </div>
 }
 
+<!-- Anahtarı Göster Modalı -->
+@if (!string.IsNullOrEmpty(_revealedRawKey))
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 animate-fade-in">
+        <div class="glass max-w-sm w-full rounded-2xl p-6 text-left relative space-y-4 shadow-2xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/95 border border-white/10 text-white" : "bg-white border border-slate-200 text-[#0b1c30]")" style="border-radius: 16px;">
+            <div class="flex items-center gap-3 text-[#4edea3]">
+                <div class="p-3 bg-[#4edea3]/10 rounded-xl text-[#4edea3] flex-shrink-0" style="border-radius: 12px;">
+                    <span class="material-symbols-outlined text-2xl">vpn_key</span>
+                </div>
+                <div>
+                    <h3 class="text-base font-extrabold" style="margin:0;">API Anahtarı Çözüldü</h3>
+                    <p class="text-[10px] text-slate-400" style="margin:2px 0 0 0;">@_revealedKeyName</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
+                <span class="font-mono text-xs select-all text-[#4edea3] break-all">@_revealedRawKey</span>
+                <button @onclick="CopyRevealedKey" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Kopyala">
+                    <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                </button>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button @onclick="() => { _revealedRawKey = null; _revealedKeyName = null; }" class="w-full text-xs font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all" style="border-radius: 8px;">
+                    Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<ApiKeyDto> _keys = new();
     private bool _isLoading = true;
@@ -214,6 +250,8 @@
     private int? _durationDays = null;
     private string _generatedRawKey = "";
     private ApiKeyDto? _keyToDelete = null;
+    private string? _revealedRawKey = null;
+    private string? _revealedKeyName = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -352,8 +390,49 @@
         }
     }
 
+    private async Task RevealKey(ApiKeyDto key)
+    {
+        try
+        {
+            var result = await Http.GetFromJsonAsync<RevealKeyResponse>($"api/apikeys/{key.Id}/reveal");
+            if (result != null)
+            {
+                _revealedRawKey = result.RawKey;
+                _revealedKeyName = key.Name;
+                Snackbar.Add("API Anahtarı başarıyla çözüldü.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("API Anahtarı alınamadı!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task CopyRevealedKey()
+    {
+        if (string.IsNullOrEmpty(_revealedRawKey)) return;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _revealedRawKey);
+            Snackbar.Add("API Anahtarı panoya kopyalandı!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Kopyalama başarısız oldu, lütfen manuel kopyalayın.", Severity.Warning);
+        }
+    }
+
     public void Dispose()
     {
+    }
+
+    public class RevealKeyResponse
+    {
+        public string RawKey { get; set; } = "";
     }
 
     public class ApiKeyDto

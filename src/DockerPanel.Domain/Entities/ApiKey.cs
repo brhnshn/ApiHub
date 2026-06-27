@@ -8,6 +8,7 @@ public class ApiKey
     public string Name { get; set; } = string.Empty;
     public string KeyHash { get; set; } = string.Empty; // SHA-256 Hashed representation
     public string MaskedKey { get; set; } = string.Empty; // e.g., "dp_xyz...7890"
+    public string EncryptedKey { get; set; } = string.Empty; // AES encrypted key
     public Guid UserId { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace DockerPanel.API.Helpers;
 
@@ -71,5 +73,46 @@ public static class SecurityHelper
                 entry.ExtractToFile(fileDestPath, overwrite: true);
             }
         }
+    }
+
+    public static string Encrypt(string plainText, string secretKey)
+    {
+        using var sha256 = SHA256.Create();
+        var key = sha256.ComputeHash(Encoding.UTF8.GetBytes(secretKey));
+        
+        using var aes = Aes.Create();
+        aes.Key = key;
+        aes.GenerateIV();
+        var iv = aes.IV;
+
+        using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+        using var ms = new MemoryStream();
+        ms.Write(iv, 0, iv.Length); // Prepend IV
+        using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+        using (var sw = new StreamWriter(cs))
+        {
+            sw.Write(plainText);
+        }
+        return Convert.ToBase64String(ms.ToArray());
+    }
+
+    public static string Decrypt(string cipherText, string secretKey)
+    {
+        var cipherBytes = Convert.FromBase64String(cipherText);
+        using var sha256 = SHA256.Create();
+        var key = sha256.ComputeHash(Encoding.UTF8.GetBytes(secretKey));
+
+        using var aes = Aes.Create();
+        aes.Key = key;
+
+        var iv = new byte[aes.BlockSize / 8];
+        Array.Copy(cipherBytes, 0, iv, 0, iv.Length);
+        aes.IV = iv;
+
+        using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+        using var ms = new MemoryStream(cipherBytes, iv.Length, cipherBytes.Length - iv.Length);
+        using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+        using var sr = new StreamReader(cs);
+        return sr.ReadToEnd();
     }
 }

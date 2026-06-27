@@ -53,7 +53,7 @@ public class ApiKeysController : ControllerBase
     }
 
     [HttpPost("generate")]
-    public async Task<IActionResult> Generate([FromBody] GenerateKeyRequest request)
+    public async Task<IActionResult> Generate([FromBody] GenerateKeyRequest request, [FromServices] IConfiguration configuration)
     {
         if (request.Name != null) request.Name = request.Name.Trim();
         
@@ -79,11 +79,17 @@ public class ApiKeysController : ControllerBase
         // Mask the key
         var maskedKey = $"{rawKey.Substring(0, 7)}...{rawKey.Substring(rawKey.Length - 4)}";
 
+        // Encrypt the key
+        var jwtSettings = configuration.GetSection("JwtSettings");
+        var secretKey = jwtSettings["SecretKey"] ?? "DockerPanelVerySecureSuperSecretKey2026!AwesomeDev";
+        var encryptedKey = Helpers.SecurityHelper.Encrypt(rawKey, secretKey);
+
         var apiKey = new ApiKey
         {
             Name = request.Name,
             KeyHash = hashedKey,
             MaskedKey = maskedKey,
+            EncryptedKey = encryptedKey,
             UserId = userId,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -134,6 +140,30 @@ public class ApiKeysController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok(new { Message = $"API Anahtarı {(key.IsActive ? "aktif edildi" : "pasifleştirildi")}." });
+    }
+
+    [HttpGet("{id}/reveal")]
+    public async Task<IActionResult> Reveal(Guid id, [FromServices] IConfiguration configuration)
+    {
+        var userId = GetUserId();
+        var key = await _context.ApiKeys.FirstOrDefaultAsync(k => k.Id == id && k.UserId == userId);
+        if (key == null)
+        {
+            return NotFound(new { Message = "API Anahtarı bulunamadı!" });
+        }
+
+        var jwtSettings = configuration.GetSection("JwtSettings");
+        var secretKey = jwtSettings["SecretKey"] ?? "DockerPanelVerySecureSuperSecretKey2026!AwesomeDev";
+        
+        try
+        {
+            var rawKey = Helpers.SecurityHelper.Decrypt(key.EncryptedKey, secretKey);
+            return Ok(new { RawKey = rawKey });
+        }
+        catch
+        {
+            return BadRequest(new { Message = "API Anahtarı çözülemedi!" });
+        }
     }
 }
 
