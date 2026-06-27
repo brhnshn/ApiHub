@@ -226,6 +226,7 @@ app.UseCors("BlazorCorsPolicy");
 app.UseRateLimiter();
 
 app.UseAuthentication();
+app.UseMiddleware<DockerPanel.API.Helpers.ApiKeyMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

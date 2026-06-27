@@ -484,6 +484,13 @@ else
                             <span class="font-bold text-[9px] text-white leading-tight">Canlı Log</span>
                         </button>
 
+                        <button @onclick='() => NavigateToMobilePage("/apikeys")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#4edea3]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
+                            <div class="p-2 bg-[#4edea3]/10 rounded-xl text-[#4edea3] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">key</span>
+                            </div>
+                            <span class="font-bold text-[9px] text-white leading-tight">API Anahtarları</span>
+                        </button>
+
                         <button @onclick='() => NavigateToMobilePage("/guide")' class="glass aspect-square rounded-2xl bg-[#20232a]/60 hover:bg-[#c9e6ff]/10 border border-white/5 flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-95 text-center">
                             <div class="p-2 bg-[#c9e6ff]/10 rounded-xl text-[#c9e6ff] flex items-center justify-center">
                                 <span class="material-symbols-outlined text-lg">menu_book</span>
@@ -668,6 +675,13 @@ else
                                      title="Yedekleme Yönetimi">
                                 <i class="fa-solid fa-cloud-arrow-down w-5 text-center text-sm"></i>
                                 <span class="cyber-nav-text">Yedekleme Yönetimi</span>
+                            </NavLink>
+                            
+                            <NavLink Href="apikeys" ActiveClass="active-link"
+                                     class="cyber-navlink"
+                                     title="API Anahtarları">
+                                <i class="fa-solid fa-key w-5 text-center text-sm"></i>
+                                <span class="cyber-nav-text">API Anahtarları</span>
                             </NavLink>
                         </nav>
                     </div>
@@ -1072,6 +1086,7 @@ else
         "email" => "E-Posta Sunucusu",
         "webmail" => "Webmail İstemcisi",
         "terminal" => "Canlı Log Akışı",
+        "apikeys" => "API Anahtarları",
         _ => "Kontrol Paneli"
     };
 
@@ -1129,6 +1144,7 @@ else
             new() { Title = "Mobil Cihazlar", Category = "Sistem Sayfası", Icon = "devices", Url = "/devices" },
             new() { Title = "Denetim Kayıtları", Category = "Sistem Sayfası", Icon = "history", Url = "/audit-logs" },
             new() { Title = "Yedekleme Yönetimi", Category = "Sistem Sayfası", Icon = "backup", Url = "/backups" },
+            new() { Title = "API Anahtarları", Category = "Sistem Sayfası", Icon = "key", Url = "/apikeys" },
             new() { Title = "Uygulama Ayarları", Category = "Sistem Sayfası", Icon = "settings", Url = "/settings" }
         };
 

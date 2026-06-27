@@ -20,6 +20,7 @@ public class DockerPanelDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<PushNotification> PushNotifications => Set<PushNotification>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -372,6 +373,45 @@ public class DockerPanelDbContext : DbContext
             // Foreign Key: User -> PushNotifications (Cascade Delete)
             entity.HasOne(e => e.User)
                 .WithMany(u => u.PushNotifications)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 11. ApiKey Entity Configuration
+        modelBuilder.Entity<ApiKey>(entity =>
+        {
+            entity.ToTable("ApiKeys");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.KeyHash)
+                .HasMaxLength(256)
+                .IsRequired();
+
+            entity.HasIndex(e => e.KeyHash)
+                .IsUnique();
+
+            entity.Property(e => e.MaskedKey)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .IsRequired();
+
+            entity.Property(e => e.CreatedAt)
+                .IsRequired();
+
+            entity.Property(e => e.LastUsedAt);
+            entity.Property(e => e.ExpiresAt);
+
+            // Foreign Key: User -> ApiKeys (Cascade Delete)
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ApiKeys)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

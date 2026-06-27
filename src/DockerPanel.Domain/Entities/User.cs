@@ -22,4 +22,5 @@ public class User
     public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
     public virtual ICollection<DeviceToken> DeviceTokens { get; set; } = new List<DeviceToken>();
     public virtual ICollection<PushNotification> PushNotifications { get; set; } = new List<PushNotification>();
+    public virtual ICollection<ApiKey> ApiKeys { get; set; } = new List<ApiKey>();
 }

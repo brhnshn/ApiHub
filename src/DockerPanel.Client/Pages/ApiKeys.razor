@@ -1,0 +1,384 @@
+@page "/apikeys"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject DockerPanel.Client.Services.AppState AppState
+@inject PlatformInfo PlatformInfo
+@implements IDisposable
+
+<PageTitle>API Anahtarları - ApiHub</PageTitle>
+
+<div class="space-y-6 @(PlatformInfo.IsMobileApp ? "text-[#e1e2ec]" : "text-[#0b1c30]")">
+    <!-- Üst Başlık -->
+    <div class="flex justify-between items-start gap-4">
+        <div>
+            <h2 class="text-2xl font-extrabold tracking-tight @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">API Anahtarları</h2>
+            <p class="text-xs font-medium mt-1 @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-400")">Mobil uygulamanız veya dış servisleriniz için güvenli erişim anahtarları oluşturun ve yönetin.</p>
+        </div>
+        <button @onclick="LoadKeys" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all active:scale-95 @(PlatformInfo.IsMobileApp ? "bg-white/5 border-white/10 text-white hover:bg-white/10" : "bg-white border-slate-200 text-[#0b1c30] hover:bg-slate-50")">
+            <span class="material-symbols-outlined text-[16px] @(_isRefreshing ? "animate-spin" : "")">sync</span>
+            Yenile
+        </button>
+    </div>
+
+    <!-- Bento Grid İstatistikler -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bento-card-custom rounded-xl p-5 border shadow-md flex justify-between items-center @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5" : "bg-white border-slate-100")">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Toplam Anahtar</p>
+                <h3 class="text-2xl font-black mt-1 @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">@_keys.Count</h3>
+            </div>
+            <div class="p-3 rounded-xl @(PlatformInfo.IsMobileApp ? "bg-[#4edea3]/10 text-[#4edea3]" : "bg-[#006c49]/10 text-[#006c49]")">
+                <span class="material-symbols-outlined text-2xl">key</span>
+            </div>
+        </div>
+
+        <div class="bento-card-custom rounded-xl p-5 border shadow-md flex justify-between items-center @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5" : "bg-white border-slate-100")">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Aktif Anahtarlar</p>
+                <h3 class="text-2xl font-black mt-1 text-[#4edea3]">@_keys.Count(k => k.IsActive)</h3>
+            </div>
+            <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
+                <span class="material-symbols-outlined text-2xl">vpn_key</span>
+            </div>
+        </div>
+
+        <div class="bento-card-custom rounded-xl p-5 border shadow-md flex justify-between items-center @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5" : "bg-white border-slate-100")">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Güvenlik Sınırı</p>
+                <h3 class="text-xs font-bold mt-2 text-slate-400">SHA-256 Korumalı</h3>
+            </div>
+            <div class="p-3 rounded-xl bg-[#3b82f6]/10 text-[#3b82f6]">
+                <span class="material-symbols-outlined text-2xl">security</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Yeni Anahtar Üretme Formu -->
+    <div class="bento-card-custom rounded-xl p-6 border shadow-xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")">
+        <h4 class="text-sm font-black uppercase tracking-wider mb-4 text-[#4edea3]">Yeni API Anahtarı Oluştur</h4>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div class="md:col-span-5">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Anahtar Adı</label>
+                <input @bind="_newKeyName" class="w-full text-xs px-3 py-2.5 rounded-lg outline-none transition-all @(PlatformInfo.IsMobileApp ? "bg-white/5 border border-white/10 text-white focus:border-[#4edea3]" : "bg-slate-50 border border-slate-200 text-[#0b1c30] focus:border-[#006c49]")" placeholder="Örn: Mobil Telefonum" />
+            </div>
+            <div class="md:col-span-4">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Geçerlilik Süresi</label>
+                <select @bind="_durationDays" class="w-full text-xs px-3 py-2.5 rounded-lg outline-none transition-all @(PlatformInfo.IsMobileApp ? "bg-[#171a21] border border-white/10 text-white focus:border-[#4edea3]" : "bg-white border border-slate-200 text-[#0b1c30] focus:border-[#006c49]")">
+                    <option value="">Süresiz (Sonsuz)</option>
+                    <option value="7">7 Gün</option>
+                    <option value="30">30 Gün</option>
+                    <option value="90">90 Gün</option>
+                    <option value="365">1 Yıl</option>
+                </select>
+            </div>
+            <div class="md:col-span-3">
+                <button @onclick="GenerateKey" disabled="@_isGenerating" class="w-full py-2.5 rounded-lg text-xs font-bold text-white transition-all active:scale-95 flex items-center justify-center gap-2 @(PlatformInfo.IsMobileApp ? "bg-[#006c49] hover:bg-[#006c49]/90" : "bg-[#006c49] hover:bg-[#006c49]/90")">
+                    @if (_isGenerating)
+                    {
+                        <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    }
+                    else
+                    {
+                        <span class="material-symbols-outlined text-[16px]">add_circle</span>
+                    }
+                    Anahtar Üret
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_generatedRawKey))
+        {
+            <!-- Oluşturulan Anahtar Bölümü -->
+            <div class="mt-6 p-4 rounded-xl border bg-amber-500/10 border-amber-500/20 text-white space-y-3">
+                <div class="flex items-start gap-3">
+                    <span class="material-symbols-outlined text-amber-400 text-2xl animate-pulse">warning</span>
+                    <div>
+                        <h5 class="text-xs font-bold text-amber-400">Önemli Güvenlik Uyarısı</h5>
+                        <p class="text-[10px] text-slate-300 mt-0.5 leading-relaxed">Bu API anahtarını güvenli bir yere kaydedin. Güvenliğiniz için bu anahtar veritabanımızda **şifrelenmiş olarak** saklanır ve size **YALNIZCA BİR KEZ** gösterilecektir. Bu sayfayı kapattıktan sonra anahtarı tekrar görüntüleyemezsiniz.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
+                    <span class="font-mono text-xs select-all text-[#4edea3] break-all">@_generatedRawKey</span>
+                    <button @onclick="CopyGeneratedKey" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Kopyala">
+                        <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Mevcut Anahtarlar Tablosu -->
+    <div class="bento-card-custom rounded-xl p-6 border shadow-xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")">
+        <h4 class="text-sm font-black uppercase tracking-wider mb-4 @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">Aktif API Anahtarlarınız</h4>
+        
+        @if (_isLoading)
+        {
+            <div class="flex flex-col justify-center items-center py-12">
+                <div class="w-8 h-8 border-3 border-[#006c49] border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-xs text-slate-400 mt-2">Anahtarlar yükleniyor...</p>
+            </div>
+        }
+        else if (!_keys.Any())
+        {
+            <div class="text-center py-12 text-slate-500">
+                <span class="material-symbols-outlined text-4xl block mb-2 text-slate-600">key_off</span>
+                <p class="text-xs font-bold">Kayıtlı API anahtarı bulunamadı.</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Mobil uygulamanızdan erişmek için yukarıdaki formu kullanarak yeni bir anahtar oluşturabilirsiniz.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto w-full no-scrollbar">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b @(PlatformInfo.IsMobileApp ? "border-white/5 text-slate-400" : "border-slate-100 text-slate-500")">
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">İsim</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">API Anahtarı</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">Oluşturma</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">Son Kullanım</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">Bitiş</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider text-center">Durum</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider text-right">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y @(PlatformInfo.IsMobileApp ? "divide-white/5" : "divide-slate-100")">
+                        @foreach (var key in _keys)
+                        {
+                            <tr class="text-xs hover:bg-slate-500/5">
+                                <td class="py-3.5 font-bold">@key.Name</td>
+                                <td class="py-3.5 font-mono text-slate-400 select-all">@key.MaskedKey</td>
+                                <td class="py-3.5 text-slate-400">@key.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                                <td class="py-3.5 text-slate-400">
+                                    @(key.LastUsedAt.HasValue ? key.LastUsedAt.Value.ToString("dd.MM.yyyy HH:mm") : "Hiç kullanılmadı")
+                                </td>
+                                <td class="py-3.5 text-slate-400">
+                                    @(key.ExpiresAt.HasValue ? key.ExpiresAt.Value.ToString("dd.MM.yyyy HH:mm") : "Süresiz")
+                                </td>
+                                <td class="py-3.5 text-center">
+                                    <div class="flex items-center justify-center">
+                                        <input type="checkbox" checked="@key.IsActive" @onchange="() => ToggleKey(key)" class="ios-toggle-custom" />
+                                    </div>
+                                </td>
+                                <td class="py-3.5 text-right">
+                                    <button @onclick="() => ConfirmDeleteKey(key)" class="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center justify-center ml-auto" title="Anahtarı Sil (Revoke)">
+                                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Silme Onay Modalı -->
+@if (_keyToDelete != null)
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 animate-fade-in">
+        <div class="glass max-w-sm w-full rounded-2xl p-6 text-left relative space-y-4 shadow-2xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/95 border border-white/10 text-white" : "bg-white border border-slate-200 text-[#0b1c30]")" style="border-radius: 16px;">
+            <div class="flex items-center gap-3 text-rose-500">
+                <span class="material-symbols-outlined text-3xl">warning</span>
+                <div>
+                    <h3 class="text-base font-extrabold" style="margin:0;">Anahtarı İptal Et?</h3>
+                    <p class="text-[10px] text-rose-500" style="margin:2px 0 0 0;">Bu işlem geri alınamaz</p>
+                </div>
+            </div>
+
+            <p class="text-xs text-slate-300 leading-relaxed">
+                <strong>@_keyToDelete.Name</strong> isimli API anahtarı tamamen silinecektir. Bu anahtarı kullanan tüm mobil uygulamalar sunucuya erişimini **anında kaybedecektir.**
+            </p>
+
+            <div class="flex gap-2 pt-2">
+                <button @onclick="() => _keyToDelete = null" class="flex-1 text-xs font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2 rounded-xl transition-all" style="border-radius: 8px;">
+                    İptal
+                </button>
+                <button @onclick="DeleteKey" class="flex-1 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 py-2 rounded-xl transition-all shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2" style="border-radius: 8px;">
+                    Evet, Sil!
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ApiKeyDto> _keys = new();
+    private bool _isLoading = true;
+    private bool _isRefreshing = false;
+    private bool _isGenerating = false;
+    private string _newKeyName = "";
+    private int? _durationDays = null;
+    private string _generatedRawKey = "";
+    private ApiKeyDto? _keyToDelete = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadKeys();
+    }
+
+    private async Task LoadKeys()
+    {
+        _isRefreshing = true;
+        StateHasChanged();
+        try
+        {
+            _keys = await Http.GetFromJsonAsync<List<ApiKeyDto>>("api/apikeys") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Anahtarlar yüklenirken hata oluştu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            _isRefreshing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GenerateKey()
+    {
+        if (string.IsNullOrWhiteSpace(_newKeyName))
+        {
+            Snackbar.Add("Lütfen API anahtarı için açıklayıcı bir isim yazın!", Severity.Warning);
+            return;
+        }
+
+        _isGenerating = true;
+        _generatedRawKey = "";
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/apikeys/generate", new { Name = _newKeyName, DurationDays = _durationDays });
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<GenerateKeyResponse>();
+                if (result != null)
+                {
+                    _generatedRawKey = result.RawKey;
+                    _newKeyName = "";
+                    _durationDays = null;
+                    Snackbar.Add("API Anahtarı başarıyla üretildi!", Severity.Success);
+                    await LoadKeys();
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                Snackbar.Add(error?.Message ?? "Anahtar oluşturulamadı!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isGenerating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleKey(ApiKeyDto key)
+    {
+        try
+        {
+            var response = await Http.PostAsync($"api/apikeys/{key.Id}/toggle", null);
+            if (response.IsSuccessStatusCode)
+            {
+                key.IsActive = !key.IsActive;
+                Snackbar.Add($"Anahtar başarıyla {(key.IsActive ? "aktif edildi" : "pasifleştirildi")}.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("İşlem gerçekleştirilemedi!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ConfirmDeleteKey(ApiKeyDto key)
+    {
+        _keyToDelete = key;
+    }
+
+    private async Task DeleteKey()
+    {
+        if (_keyToDelete == null) return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/apikeys/{_keyToDelete.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("API Anahtarı silindi.", Severity.Success);
+                _keys.Remove(_keyToDelete);
+                _keyToDelete = null;
+            }
+            else
+            {
+                Snackbar.Add("Silme işlemi başarısız!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task CopyGeneratedKey()
+    {
+        if (string.IsNullOrEmpty(_generatedRawKey)) return;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _generatedRawKey);
+            Snackbar.Add("API Anahtarı panoya kopyalandı!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Kopyalama başarısız oldu, lütfen manuel kopyalayın.", Severity.Warning);
+        }
+    }
+
+    public void Dispose()
+    {
+    }
+
+    public class ApiKeyDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = "";
+        public string MaskedKey { get; set; } = "";
+        public bool IsActive { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset? LastUsedAt { get; set; }
+        public DateTimeOffset? ExpiresAt { get; set; }
+    }
+
+    public class GenerateKeyResponse
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = "";
+        public string MaskedKey { get; set; } = "";
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset? ExpiresAt { get; set; }
+        public string RawKey { get; set; } = "";
+    }
+
+    public class ErrorResponse
+    {
+        public string Message { get; set; } = "";
+    }
+}
