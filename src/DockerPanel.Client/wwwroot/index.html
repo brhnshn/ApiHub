@@ -773,7 +773,24 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-    </style>
+    <!-- QR Code Generator Library (QRious) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script>
+        window.renderQrCode = (canvasId, text) => {
+            setTimeout(() => {
+                const el = document.getElementById(canvasId);
+                if (!el) return;
+                new QRious({
+                    element: el,
+                    value: text,
+                    size: 200,
+                    background: '#ffffff',
+                    foreground: '#000000',
+                    level: 'H'
+                });
+            }, 50);
+        };
+    </script>
 </body>
 
 </html>

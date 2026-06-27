@@ -91,20 +91,46 @@
         @if (!string.IsNullOrEmpty(_generatedRawKey))
         {
             <!-- Oluşturulan Anahtar Bölümü -->
-            <div class="mt-6 p-4 rounded-xl border bg-amber-500/10 border-amber-500/20 text-white space-y-3">
+            <div class="mt-6 p-4 rounded-xl border bg-amber-500/10 border-amber-500/20 text-white space-y-4">
                 <div class="flex items-start gap-3">
                     <span class="material-symbols-outlined text-amber-400 text-2xl animate-pulse">warning</span>
                     <div>
                         <h5 class="text-xs font-bold text-amber-400">Önemli Güvenlik Uyarısı</h5>
-                        <p class="text-[10px] text-slate-300 mt-0.5 leading-relaxed">Bu API anahtarını güvenli bir yere kaydedin. Güvenliğiniz için bu anahtar veritabanımızda **şifrelenmiş olarak** saklanır ve size **YALNIZCA BİR KEZ** gösterilecektir. Bu sayfayı kapattıktan sonra anahtarı tekrar görüntüleyemezsiniz.</p>
+                        <p class="text-[10px] text-slate-300 mt-0.5 leading-relaxed">Bu API anahtarını güvenli bir yere kaydedin. API anahtarınız veritabanımızda güvenli şifreleme algoritmalarıyla saklanmaktadır. Dilerseniz bu sayfadan veya aşağıdaki listeden göz simgesine tıklayarak anahtarınızı daha sonra da görüntüleyebilirsiniz.</p>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
-                    <span class="font-mono text-xs select-all text-[#4edea3] break-all">@_generatedRawKey</span>
-                    <button @onclick="CopyGeneratedKey" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Kopyala">
-                        <span class="material-symbols-outlined text-[18px]">content_copy</span>
-                    </button>
+                <div class="space-y-1.5">
+                    <span class="text-[10px] font-black uppercase text-amber-400 tracking-wider">Ham API Anahtarı</span>
+                    <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
+                        <span class="font-mono text-xs select-all text-[#4edea3] break-all">@_generatedRawKey</span>
+                        <button @onclick="CopyGeneratedKey" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Kopyala">
+                            <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Mobil Hızlı Kurulum Bağlantısı -->
+                <div class="p-4 rounded-xl border border-white/5 bg-[#1a211d]/50 space-y-3">
+                    <h5 class="text-xs font-bold text-[#4edea3] flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+                        Mobil Hızlı Kurulum
+                    </h5>
+                    <p class="text-[10px] text-slate-300">Mobil uygulamanızdan bu QR kodu taratarak veya bağlantı yapılandırmasını kopyalayarak hızlıca sunucunuza bağlanabilirsiniz.</p>
+                    <div class="flex flex-col sm:flex-row items-center gap-4 py-2">
+                        <div class="p-3 bg-white rounded-xl shadow-lg flex-shrink-0">
+                            <canvas id="generated-qr-canvas" class="w-[120px] h-[120px]"></canvas>
+                        </div>
+                        <div class="flex-1 w-full space-y-2">
+                            <span class="text-[9px] font-black uppercase text-slate-400 tracking-wider">Hızlı Bağlantı Yapılandırması (JSON)</span>
+                            <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
+                                <span class="font-mono text-[10px] select-all text-slate-300 truncate max-w-[200px]" title="@GetConfigString(_generatedRawKey)">@GetConfigString(_generatedRawKey)</span>
+                                <button @onclick="() => CopyConfigString(_generatedRawKey)" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Yapılandırmayı Kopyala">
+                                    <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         }
@@ -225,11 +251,32 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
-                <span class="font-mono text-xs select-all text-[#4edea3] break-all">@_revealedRawKey</span>
-                <button @onclick="CopyRevealedKey" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Kopyala">
-                    <span class="material-symbols-outlined text-[18px]">content_copy</span>
-                </button>
+            <div class="space-y-1.5">
+                <span class="text-[9px] font-black uppercase tracking-wider @(PlatformInfo.IsMobileApp ? "text-slate-400" : "text-slate-500")">API Anahtarı</span>
+                <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
+                    <span class="font-mono text-xs select-all text-[#4edea3] break-all">@_revealedRawKey</span>
+                    <button @onclick="CopyRevealedKey" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Kopyala">
+                        <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobil Hızlı Kurulum -->
+            <div class="p-3.5 rounded-xl border border-white/5 bg-black/20 space-y-2">
+                <h5 class="text-[11px] font-bold text-[#4edea3] flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[15px]">qr_code_2</span>
+                    Mobil Hızlı Kurulum
+                </h5>
+                <p class="text-[9px] text-slate-300">QR kodu kameranıza okutarak veya bağlantı metnini kopyalayarak uygulamanızı hızla yapılandırın.</p>
+                <div class="flex flex-col items-center gap-3 pt-1.5">
+                    <div class="p-2 bg-white rounded-xl shadow-md flex-shrink-0">
+                        <canvas id="revealed-qr-canvas" class="w-[120px] h-[120px]"></canvas>
+                    </div>
+                    <button @onclick="() => CopyConfigString(_revealedRawKey)" class="w-full text-[11px] font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5" style="border-radius: 8px;">
+                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                        Bağlantı Yapılandırmasını Kopyala
+                    </button>
+                </div>
             </div>
 
             <div class="flex gap-2 pt-2">
@@ -303,6 +350,9 @@
                     _durationDays = null;
                     Snackbar.Add("API Anahtarı başarıyla üretildi!", Severity.Success);
                     await LoadKeys();
+                    
+                    // Render QR Code via JS
+                    await JSRuntime.InvokeVoidAsync("renderQrCode", "generated-qr-canvas", GetConfigString(_generatedRawKey));
                 }
             }
             else
@@ -400,6 +450,9 @@
                 _revealedRawKey = result.RawKey;
                 _revealedKeyName = key.Name;
                 Snackbar.Add("API Anahtarı başarıyla çözüldü.", Severity.Success);
+                
+                // Render QR Code via JS
+                await JSRuntime.InvokeVoidAsync("renderQrCode", "revealed-qr-canvas", GetConfigString(_revealedRawKey));
             }
             else
             {
@@ -409,6 +462,31 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GetConfigString(string rawKey)
+    {
+        var serverUrl = Http.BaseAddress?.ToString().TrimEnd('/') ?? "";
+        var config = new
+        {
+            serverUrl = serverUrl,
+            apiKey = rawKey
+        };
+        return System.Text.Json.JsonSerializer.Serialize(config);
+    }
+
+    private async Task CopyConfigString(string rawKey)
+    {
+        var configStr = GetConfigString(rawKey);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", configStr);
+            Snackbar.Add("Bağlantı yapılandırması panoya kopyalandı!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Kopyalama başarısız oldu, lütfen manuel kopyalayın.", Severity.Warning);
         }
     }
 
