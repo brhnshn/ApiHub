@@ -55,9 +55,15 @@ public class ApiKeysController : ControllerBase
     [HttpPost("generate")]
     public async Task<IActionResult> Generate([FromBody] GenerateKeyRequest request)
     {
+        if (request.Name != null) request.Name = request.Name.Trim();
+        
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return BadRequest(new { Message = "Anahtar ismi boş olamaz!" });
+        }
+        if (request.Name.Length > 100)
+        {
+            return BadRequest(new { Message = "Anahtar ismi 100 karakterden uzun olamaz!" });
         }
 
         var userId = GetUserId();
