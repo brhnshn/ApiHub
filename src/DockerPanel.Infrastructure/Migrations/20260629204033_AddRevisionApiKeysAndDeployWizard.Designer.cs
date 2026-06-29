@@ -3,6 +3,7 @@ using System;
 using DockerPanel.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DockerPanel.Infrastructure.Migrations
 {
     [DbContext(typeof(DockerPanelDbContext))]
-    partial class DockerPanelDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260629204033_AddRevisionApiKeysAndDeployWizard")]
+    partial class AddRevisionApiKeysAndDeployWizard
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
