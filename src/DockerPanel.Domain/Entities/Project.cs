@@ -21,25 +21,6 @@ public class Project
 
     public bool EnablePhp { get; set; } = false;
 
-    // Revision Fields
-    public string? Description { get; set; }
-    public string? Logo { get; set; }
-    public string? RuntimeType { get; set; }
-    public string? FrameworkVersion { get; set; }
-    public bool AutoRestart { get; set; } = true;
-    public string? HealthCheckEndpoint { get; set; }
-    public string? RunUser { get; set; } = "root";
-    public string? WorkingDirectory { get; set; }
-    public string? Environment { get; set; } = "Production";
-    public string? EntryFile { get; set; }
-    public string? StartCommand { get; set; }
-    public string EnvVariablesJson { get; set; } = "{}"; // JSON dictionary
-
-    // PostgreSQL connection info if created for project
-    public string? DatabaseName { get; set; }
-    public string? DatabaseUser { get; set; }
-    public string? DatabasePassword { get; set; }
-
     // Navigation Properties
     public virtual User User { get; set; } = null!;
     public virtual ICollection<Subdomain> Subdomains { get; set; } = new List<Subdomain>();

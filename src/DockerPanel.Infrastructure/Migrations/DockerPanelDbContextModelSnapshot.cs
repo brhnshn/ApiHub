@@ -28,40 +28,16 @@ namespace DockerPanel.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<double>("AverageResponseTimeMs")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("BaseUrl")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Category")
-                        .HasColumnType("text");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("DailyLimit")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("DefaultModel")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
 
                     b.Property<string>("EncryptedKey")
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
-                    b.Property<DateTimeOffset?>("EndDate")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTimeOffset?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("FailedRequests")
-                        .HasColumnType("integer");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
@@ -73,15 +49,6 @@ namespace DockerPanel.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
-                    b.Property<string>("LastError")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("LastErrorDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
                     b.Property<DateTimeOffset?>("LastUsedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -90,34 +57,10 @@ namespace DockerPanel.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<int?>("MonthlyLimit")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Provider")
-                        .HasColumnType("text");
-
-                    b.Property<int>("RemainingQuota")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("StartDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("SuccessfulRequests")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TotalRequests")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("UsedQuota")
-                        .HasColumnType("integer");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -130,58 +73,6 @@ namespace DockerPanel.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ApiKeys", (string)null);
-                });
-
-            modelBuilder.Entity("DockerPanel.Domain.Entities.ApiKeyProjectPermission", b =>
-                {
-                    b.Property<Guid>("ApiKeyId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("ApiKeyId", "ProjectId");
-
-                    b.HasIndex("ProjectId");
-
-                    b.ToTable("ApiKeyProjectPermissions", (string)null);
-                });
-
-            modelBuilder.Entity("DockerPanel.Domain.Entities.ApiKeyUsageLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApiKeyId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal?>("Cost")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("Endpoint")
-                        .HasColumnType("text");
-
-                    b.Property<int>("HttpStatus")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ProjectName")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("RequestDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double>("ResponseTimeMs")
-                        .HasColumnType("double precision");
-
-                    b.Property<int?>("TokenUsage")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApiKeyId");
-
-                    b.ToTable("ApiKeyUsageLogs", (string)null);
                 });
 
             modelBuilder.Entity("DockerPanel.Domain.Entities.AuditLog", b =>
@@ -395,26 +286,11 @@ namespace DockerPanel.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("AutoRestart")
-                        .HasColumnType("boolean");
-
                     b.Property<double>("CpuCount")
                         .HasColumnType("double precision");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DatabaseName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DatabasePassword")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DatabaseUser")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
 
                     b.Property<string>("DockerContainerId")
                         .HasMaxLength(128)
@@ -425,22 +301,6 @@ namespace DockerPanel.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
-                    b.Property<string>("EntryFile")
-                        .HasColumnType("text");
-
-                    b.Property<string>("EnvVariablesJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Environment")
-                        .HasColumnType("text");
-
-                    b.Property<string>("FrameworkVersion")
-                        .HasColumnType("text");
-
-                    b.Property<string>("HealthCheckEndpoint")
-                        .HasColumnType("text");
-
                     b.Property<string>("ImageOrPath")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -449,9 +309,6 @@ namespace DockerPanel.Infrastructure.Migrations
                     b.Property<int>("InternalPort")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Logo")
-                        .HasColumnType("text");
-
                     b.Property<long>("MemoryLimitBytes")
                         .HasColumnType("bigint");
 
@@ -459,15 +316,6 @@ namespace DockerPanel.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
-
-                    b.Property<string>("RunUser")
-                        .HasColumnType("text");
-
-                    b.Property<string>("RuntimeType")
-                        .HasColumnType("text");
-
-                    b.Property<string>("StartCommand")
-                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset?>("StartedAt")
                         .HasColumnType("timestamp with time zone");
@@ -484,9 +332,6 @@ namespace DockerPanel.Infrastructure.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("WorkingDirectory")
-                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -657,36 +502,6 @@ namespace DockerPanel.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("DockerPanel.Domain.Entities.ApiKeyProjectPermission", b =>
-                {
-                    b.HasOne("DockerPanel.Domain.Entities.ApiKey", "ApiKey")
-                        .WithMany()
-                        .HasForeignKey("ApiKeyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DockerPanel.Domain.Entities.Project", "Project")
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ApiKey");
-
-                    b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("DockerPanel.Domain.Entities.ApiKeyUsageLog", b =>
-                {
-                    b.HasOne("DockerPanel.Domain.Entities.ApiKey", "ApiKey")
-                        .WithMany()
-                        .HasForeignKey("ApiKeyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ApiKey");
                 });
 
             modelBuilder.Entity("DockerPanel.Domain.Entities.AuditLog", b =>

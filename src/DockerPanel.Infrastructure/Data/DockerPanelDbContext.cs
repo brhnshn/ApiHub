@@ -21,8 +21,6 @@ public class DockerPanelDbContext : DbContext
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<PushNotification> PushNotifications => Set<PushNotification>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
-    public DbSet<ApiKeyProjectPermission> ApiKeyProjectPermissions => Set<ApiKeyProjectPermission>();
-    public DbSet<ApiKeyUsageLog> ApiKeyUsageLogs => Set<ApiKeyUsageLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -419,37 +417,6 @@ public class DockerPanelDbContext : DbContext
             entity.HasOne(e => e.User)
                 .WithMany(u => u.ApiKeys)
                 .HasForeignKey(e => e.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // 12. ApiKeyProjectPermission Configuration
-        modelBuilder.Entity<ApiKeyProjectPermission>(entity =>
-        {
-            entity.ToTable("ApiKeyProjectPermissions");
-
-            entity.HasKey(e => new { e.ApiKeyId, e.ProjectId });
-
-            entity.HasOne(e => e.ApiKey)
-                .WithMany()
-                .HasForeignKey(e => e.ApiKeyId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.Project)
-                .WithMany()
-                .HasForeignKey(e => e.ProjectId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // 13. ApiKeyUsageLog Configuration
-        modelBuilder.Entity<ApiKeyUsageLog>(entity =>
-        {
-            entity.ToTable("ApiKeyUsageLogs");
-
-            entity.HasKey(e => e.Id);
-
-            entity.HasOne(e => e.ApiKey)
-                .WithMany()
-                .HasForeignKey(e => e.ApiKeyId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

@@ -1,4 +1,4 @@
-@page "/apikeys"
+﻿@page "/apikeys"
 @attribute [Authorize]
 @inject HttpClient Http
 @inject ISnackbar Snackbar
@@ -7,416 +7,204 @@
 @inject PlatformInfo PlatformInfo
 @implements IDisposable
 
-<PageTitle>Integration Center (API Keys) - ApiHub</PageTitle>
+<PageTitle>API AnahtarlarÄ± - ApiHub</PageTitle>
 
 <div class="space-y-6 @(PlatformInfo.IsMobileApp ? "text-[#e1e2ec]" : "text-[#0b1c30]")">
-    <!-- Üst Başlık -->
+    <!-- Ãœst BaÅŸlÄ±k -->
     <div class="flex justify-between items-start gap-4">
         <div>
-            <h2 class="text-2xl font-extrabold tracking-tight @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">
-                <i class="fa-solid fa-circle-nodes text-indigo-400 mr-1.5 animate-pulse"></i> Integration Center & API Keys
-            </h2>
-            <p class="text-xs font-medium mt-1 @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-400")">
-                Proje ve üçüncü parti (OpenAI, Anthropic, Custom vb.) API entegrasyonlarını, kimlik doğrulamalarını ve kotalarını merkezi olarak yönetin.
-            </p>
+            <h2 class="text-2xl font-extrabold tracking-tight @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">API AnahtarlarÄ±</h2>
+            <p class="text-xs font-medium mt-1 @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-400")">Mobil uygulamanÄ±z veya dÄ±ÅŸ servisleriniz iÃ§in gÃ¼venli eriÅŸim anahtarlarÄ± oluÅŸturun ve yÃ¶netin.</p>
         </div>
-        <button @onclick="LoadKeys" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all active:scale-95 bg-slate-900 border-slate-800 text-white hover:bg-slate-800">
+        <button @onclick="LoadKeys" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all active:scale-95 @(PlatformInfo.IsMobileApp ? "bg-white/5 border-white/10 text-white hover:bg-white/10" : "bg-white border-slate-200 text-[#0b1c30] hover:bg-slate-50")">
             <span class="material-symbols-outlined text-[16px] @(_isRefreshing ? "animate-spin" : "")">sync</span>
             Yenile
         </button>
     </div>
 
-    <!-- Ana Panel Düzeni (Çift Kolon: Sol Liste, Sağ Detay & Dashboard) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        <!-- SOL KOLON: ANAHTAR LİSTESİ VE YENİ ANAHTAR EKLEME -->
-        <div class="lg:col-span-4 space-y-6">
-            
-            <!-- Yeni Anahtar Ekleme Formu -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-                <h4 class="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                    <i class="fa-solid fa-plus-circle"></i> Yeni Entegrasyon Ekle
-                </h4>
-                
-                <div class="space-y-3">
-                    <div>
-                        <label class="block text-[9px] font-bold uppercase text-slate-400 mb-1">İsim / Açıklama</label>
-                        <input @bind="_newKeyName" class="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-850 rounded-lg text-white outline-none focus:border-indigo-500" placeholder="Örn: OpenAI Anahtarım" />
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[9px] font-bold uppercase text-slate-400 mb-1">Sağlayıcı</label>
-                            <select @bind="_provider" class="w-full text-xs px-2.5 py-2 bg-slate-950 border border-slate-850 rounded-lg text-white outline-none">
-                                <option value="OpenAI">OpenAI</option>
-                                <option value="Anthropic">Anthropic</option>
-                                <option value="GoogleGemini">Google Gemini</option>
-                                <option value="Groq">Groq</option>
-                                <option value="Custom">Özel API (Custom)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[9px] font-bold uppercase text-slate-400 mb-1">Kategori</label>
-                            <select @bind="_category" class="w-full text-xs px-2.5 py-2 bg-slate-950 border border-slate-850 rounded-lg text-white outline-none">
-                                <option value="AI Services">Yapay Zeka (AI)</option>
-                                <option value="Database">Veritabanı</option>
-                                <option value="SMS/Mail">SMS / E-posta</option>
-                                <option value="Payment">Ödeme Ağ Geçidi</option>
-                                <option value="Other">Diğer Entegrasyonlar</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-[9px] font-bold uppercase text-slate-400 mb-1">Base URL (İsteğe Bağlı)</label>
-                        <input @bind="_baseUrl" class="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-850 rounded-lg text-white outline-none focus:border-indigo-500 font-mono" placeholder="https://api.openai.com/v1" />
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[9px] font-bold uppercase text-slate-400 mb-1">Varsayılan Model</label>
-                            <input @bind="_defaultModel" class="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-850 rounded-lg text-white outline-none focus:border-indigo-500" placeholder="gpt-4o" />
-                        </div>
-                        <div>
-                            <label class="block text-[9px] font-bold uppercase text-slate-400 mb-1">Aylık Limit</label>
-                            <input type="number" @bind="_monthlyLimit" class="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-850 rounded-lg text-white outline-none focus:border-indigo-500" placeholder="100000" />
-                        </div>
-                    </div>
-
-                    <button @onclick="GenerateKey" disabled="@_isGenerating" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold text-white transition-all active:scale-95 flex items-center justify-center gap-1.5">
-                        @if (_isGenerating)
-                        {
-                            <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        }
-                        else
-                        {
-                            <span class="material-symbols-outlined text-[16px]">add_circle</span>
-                        }
-                        Entegrasyon Anahtarı Üret
-                    </button>
-                </div>
+    <!-- Bento Grid Ä°statistikler -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bento-card-custom rounded-xl p-5 border shadow-md flex justify-between items-center @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5" : "bg-white border-slate-100")">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Toplam Anahtar</p>
+                <h3 class="text-2xl font-black mt-1 @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">@_keys.Count</h3>
             </div>
+            <div class="p-3 rounded-xl @(PlatformInfo.IsMobileApp ? "bg-[#4edea3]/10 text-[#4edea3]" : "bg-[#006c49]/10 text-[#006c49]")">
+                <span class="material-symbols-outlined text-2xl">key</span>
+            </div>
+        </div>
 
-            <!-- Mevcut Entegrasyonların Listesi -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
-                <h4 class="text-xs font-black uppercase tracking-wider text-slate-300">Kayıtlı Entegrasyonlar</h4>
-                
-                <div class="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                    @if (!_keys.Any())
+        <div class="bento-card-custom rounded-xl p-5 border shadow-md flex justify-between items-center @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5" : "bg-white border-slate-100")">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Aktif Anahtarlar</p>
+                <h3 class="text-2xl font-black mt-1 text-[#4edea3]">@_keys.Count(k => k.IsActive)</h3>
+            </div>
+            <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
+                <span class="material-symbols-outlined text-2xl">vpn_key</span>
+            </div>
+        </div>
+
+        <div class="bento-card-custom rounded-xl p-5 border shadow-md flex justify-between items-center @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5" : "bg-white border-slate-100")">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">GÃ¼venlik SÄ±nÄ±rÄ±</p>
+                <h3 class="text-xs font-bold mt-2 text-slate-400">SHA-256 KorumalÄ±</h3>
+            </div>
+            <div class="p-3 rounded-xl bg-[#3b82f6]/10 text-[#3b82f6]">
+                <span class="material-symbols-outlined text-2xl">security</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Yeni Anahtar Ãœretme Formu -->
+    <div class="bento-card-custom rounded-xl p-6 border shadow-xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")">
+        <h4 class="text-sm font-black uppercase tracking-wider mb-4 text-[#4edea3]">Yeni API AnahtarÄ± OluÅŸtur</h4>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div class="md:col-span-5">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Anahtar AdÄ±</label>
+                <input @bind="_newKeyName" class="w-full text-xs px-3 py-2.5 rounded-lg outline-none transition-all @(PlatformInfo.IsMobileApp ? "bg-white/5 border border-white/10 text-white focus:border-[#4edea3]" : "bg-slate-50 border border-slate-200 text-[#0b1c30] focus:border-[#006c49]")" placeholder="Ã–rn: Mobil Telefonum" />
+            </div>
+            <div class="md:col-span-4">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">GeÃ§erlilik SÃ¼resi</label>
+                <select @bind="_durationDays" class="w-full text-xs px-3 py-2.5 rounded-lg outline-none transition-all @(PlatformInfo.IsMobileApp ? "bg-[#171a21] border border-white/10 text-white focus:border-[#4edea3]" : "bg-white border border-slate-200 text-[#0b1c30] focus:border-[#006c49]")">
+                    <option value="">SÃ¼resiz (Sonsuz)</option>
+                    <option value="7">7 GÃ¼n</option>
+                    <option value="30">30 GÃ¼n</option>
+                    <option value="90">90 GÃ¼n</option>
+                    <option value="365">1 YÄ±l</option>
+                </select>
+            </div>
+            <div class="md:col-span-3">
+                <button @onclick="GenerateKey" disabled="@_isGenerating" class="w-full py-2.5 rounded-lg text-xs font-bold text-white transition-all active:scale-95 flex items-center justify-center gap-2 @(PlatformInfo.IsMobileApp ? "bg-[#006c49] hover:bg-[#006c49]/90" : "bg-[#006c49] hover:bg-[#006c49]/90")">
+                    @if (_isGenerating)
                     {
-                        <div class="p-8 text-center text-slate-500 text-xs">
-                            Kayıtlı entegrasyon bulunamadı.
-                        </div>
+                        <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     }
                     else
                     {
-                        @foreach (var key in _keys)
-                        {
-                            <div @onclick="() => SelectKey(key)" 
-                                class="p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between @(_selectedKey?.Id == key.Id ? "bg-indigo-950/20 border-indigo-500/40 text-white" : "bg-slate-950 border-slate-850 text-slate-300 hover:bg-slate-900/60")">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full @(key.IsActive ? "bg-emerald-400" : "bg-slate-600")"></span>
-                                    <div>
-                                        <div class="text-xs font-bold">@key.Name</div>
-                                        <div class="text-[8px] text-slate-400 font-mono">@key.Provider | @key.MaskedKey</div>
-                                    </div>
-                                </div>
-                                <span class="material-symbols-outlined text-xs">chevron_right</span>
-                            </div>
-                        }
+                        <span class="material-symbols-outlined text-[16px]">add_circle</span>
                     }
-                </div>
+                    Anahtar Ãœret
+                </button>
             </div>
         </div>
 
-        <!-- SAĞ KOLON: SEÇİLİ ANAHTAR PANEL DETAYI -->
-        <div class="lg:col-span-8">
-            @if (_selectedKey == null)
-            {
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center text-slate-500 flex flex-col items-center justify-center min-h-[550px] shadow-xl">
-                    <span class="material-symbols-outlined text-5xl mb-3 text-indigo-400 animate-pulse">hub</span>
-                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">Entegrasyon Seçilmedi</h3>
-                    <p class="text-[10px] text-slate-400 max-w-sm mt-1">Detaylı kullanım istatistiklerini görmek, proje izinlerini yönetmek veya bağlantıyı test etmek için soldaki listeden bir API anahtarı seçin.</p>
-                </div>
-            }
-            else
-            {
-                <!-- DETAY PANELİ -->
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 flex flex-col justify-between min-h-[550px]">
+        @if (!string.IsNullOrEmpty(_generatedRawKey))
+        {
+            <!-- OluÅŸturulan Anahtar BÃ¶lÃ¼mÃ¼ -->
+            <div class="mt-6 p-4 rounded-xl border bg-amber-500/10 border-amber-500/20 text-white space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="material-symbols-outlined text-amber-400 text-2xl animate-pulse">warning</span>
                     <div>
-                        <!-- Header / Başlık -->
-                        <div class="flex justify-between items-start border-b border-slate-850 pb-3 mb-4">
-                            <div>
-                                <h3 class="text-base font-black text-white">@_selectedKey.Name</h3>
-                                <p class="text-[10px] text-slate-400 font-mono mt-0.5">ID: @_selectedKey.Id | Maskeli: @_selectedKey.MaskedKey</p>
-                            </div>
-                            <div class="flex gap-2">
-                                <button @onclick="() => RevealKey(_selectedKey)" class="px-2.5 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold rounded-lg flex items-center gap-1 transition-colors">
-                                    <span class="material-symbols-outlined text-[14px]">visibility</span> Anahtarı Çöz
-                                </button>
-                                <button @onclick="() => ToggleKey(_selectedKey)" class="px-2.5 py-1.5 bg-slate-950 hover:bg-slate-850 text-white text-[10px] font-bold rounded-lg flex items-center gap-1 transition-colors">
-                                    <span class="material-symbols-outlined text-[14px]">power_settings_new</span> @(_selectedKey.IsActive ? "Pasifleştir" : "Aktifleştir")
-                                </button>
-                                <button @onclick="() => ConfirmDeleteKey(_selectedKey)" class="px-2.5 py-1.5 bg-rose-950/20 hover:bg-rose-950/30 text-rose-500 border border-rose-500/20 text-[10px] font-bold rounded-lg flex items-center gap-1 transition-colors">
-                                    <span class="material-symbols-outlined text-[14px]">delete</span> Sil
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Sekme Seçici (Tab Controller) -->
-                        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-850 mb-5">
-                            <button @onclick='() => SetActiveTab("dashboard")' class="flex-1 py-1.5 text-center text-xs font-bold rounded-lg transition-all @(GetTabClass("dashboard"))">
-                                Dashboard (Özet)
-                            </button>
-                            <button @onclick='() => SetActiveTab("general")' class="flex-1 py-1.5 text-center text-xs font-bold rounded-lg transition-all @(GetTabClass("general"))">
-                                Genel & Güvenlik
-                            </button>
-                            <button @onclick='() => SetActiveTab("permissions")' class="flex-1 py-1.5 text-center text-xs font-bold rounded-lg transition-all @(GetTabClass("permissions"))">
-                                Proje İzinleri
-                            </button>
-                            <button @onclick='() => SetActiveTab("logs")' class="flex-1 py-1.5 text-center text-xs font-bold rounded-lg transition-all @(GetTabClass("logs"))">
-                                İstek Geçmişi
-                            </button>
-                            <button @onclick='() => SetActiveTab("test")' class="flex-1 py-1.5 text-center text-xs font-bold rounded-lg transition-all @(GetTabClass("test"))">
-                                Bağlantı Testi
-                            </button>
-                        </div>
-
-                        <!-- TAB CONTENT 1: DASHBOARD -->
-                        @if (_activeTab == "dashboard")
-                        {
-                            <div class="space-y-4 animate-fade-in">
-                                <div class="grid grid-cols-3 gap-4">
-                                    <div class="p-3 bg-slate-950/50 rounded-xl border border-slate-850">
-                                        <div class="text-[9px] font-bold text-slate-400 uppercase">Toplam İstek</div>
-                                        <div class="text-xl font-extrabold text-white mt-0.5">@_selectedKey.TotalRequests</div>
-                                    </div>
-                                    <div class="p-3 bg-slate-950/50 rounded-xl border border-slate-850">
-                                        <div class="text-[9px] font-bold text-slate-400 uppercase">Başarı Oranı</div>
-                                        <div class="text-xl font-extrabold text-emerald-400 mt-0.5">
-                                            @(_selectedKey.TotalRequests > 0 ? ((double)_selectedKey.SuccessfulRequests * 100 / _selectedKey.TotalRequests).ToString("F1") + "%" : "0%")
-                                        </div>
-                                    </div>
-                                    <div class="p-3 bg-slate-950/50 rounded-xl border border-slate-850">
-                                        <div class="text-[9px] font-bold text-slate-400 uppercase">Ort. Gecikme</div>
-                                        <div class="text-xl font-extrabold text-indigo-400 mt-0.5">@_selectedKey.AverageResponseTimeMs.ToString("F0") ms</div>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div class="p-4 bg-slate-950/50 rounded-xl border border-slate-850 space-y-2 text-xs">
-                                        <h5 class="font-bold text-white uppercase text-[9px] tracking-wider border-b border-slate-850 pb-1.5">Kota Bilgileri</h5>
-                                        <div class="flex justify-between">
-                                            <span class="text-slate-400">Kalan Kota:</span>
-                                            <span class="text-emerald-400 font-bold">@_selectedKey.RemainingQuota</span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-slate-400">Kullanılan Kota:</span>
-                                            <span class="text-white font-semibold">@_selectedKey.UsedQuota</span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-slate-400">Aylık Limit:</span>
-                                            <span class="text-white">@(_selectedKey.MonthlyLimit?.ToString() ?? "Sınırsız")</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="p-4 bg-slate-950/50 rounded-xl border border-slate-850 space-y-2 text-xs">
-                                        <h5 class="font-bold text-white uppercase text-[9px] tracking-wider border-b border-slate-850 pb-1.5">Son İstek ve Senkronizasyon</h5>
-                                        <div class="flex justify-between">
-                                            <span class="text-slate-400">Son İstek:</span>
-                                            <span class="text-white">@(_selectedKey.LastUsedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "Hiç yok")</span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-slate-400">Son Güncelleme:</span>
-                                            <span class="text-white">@(_selectedKey.UpdatedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "Girilmedi")</span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-slate-400">Son Hata:</span>
-                                            <span class="text-rose-400 font-medium truncate max-w-[150px]" title="@_selectedKey.LastError">@(_selectedKey.LastError ?? "Temiz")</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-
-                        <!-- TAB CONTENT 2: GENERAL & SECURITY -->
-                        else if (_activeTab == "general")
-                        {
-                            <div class="space-y-3 text-xs animate-fade-in">
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div class="p-3 bg-slate-950/40 rounded-lg border border-slate-850">
-                                        <span class="text-[9px] text-slate-400 uppercase block mb-0.5">Sağlayıcı</span>
-                                        <span class="text-white font-bold">@_selectedKey.Provider</span>
-                                    </div>
-                                    <div class="p-3 bg-slate-950/40 rounded-lg border border-slate-850">
-                                        <span class="text-[9px] text-slate-400 uppercase block mb-0.5">Kategori</span>
-                                        <span class="text-white font-bold">@_selectedKey.Category</span>
-                                    </div>
-                                </div>
-                                <div class="p-3 bg-slate-950/40 rounded-lg border border-slate-850">
-                                    <span class="text-[9px] text-slate-400 uppercase block mb-0.5">Base URL</span>
-                                    <span class="text-white font-mono break-all">@(_selectedKey.BaseUrl ?? "Varsayılan API Uç Noktası")</span>
-                                </div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div class="p-3 bg-slate-950/40 rounded-lg border border-slate-850">
-                                        <span class="text-[9px] text-slate-400 uppercase block mb-0.5">Varsayılan Model</span>
-                                        <span class="text-indigo-300 font-mono font-bold">@(_selectedKey.DefaultModel ?? "Belirtilmedi")</span>
-                                    </div>
-                                    <div class="p-3 bg-slate-950/40 rounded-lg border border-slate-850">
-                                        <span class="text-[9px] text-slate-400 uppercase block mb-0.5">Bitiş Tarihi</span>
-                                        <span class="text-white">@(_selectedKey.ExpiresAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "Süresiz")</span>
-                                    </div>
-                                </div>
-                                <div class="p-3.5 bg-indigo-950/15 border border-indigo-500/10 rounded-xl space-y-1.5">
-                                    <h5 class="text-[10px] font-black uppercase text-indigo-400 tracking-wider">Güvenlik Yapılandırması</h5>
-                                    <p class="text-[9px] text-slate-400">Bu entegrasyon anahtarı veritabanımızda AES-256-GCM ile şifrelenmiştir. Çözümlemek için yukarıdaki 'Anahtarı Çöz' butonuna tıklayabilirsiniz.</p>
-                                </div>
-                            </div>
-                        }
-
-                        <!-- TAB CONTENT 3: PROJECT PERMISSIONS -->
-                        else if (_activeTab == "permissions")
-                        {
-                            <div class="space-y-4 animate-fade-in text-xs">
-                                <p class="text-slate-400 text-[10px]">Aşağıdan bu API anahtarını kullanmaya yetkili kılınacak projeleri seçin. İzin verilmeyen projeler bu anahtarla entegrasyon yapamaz.</p>
-                                
-                                <div class="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
-                                    @foreach (var proj in _allProjects)
-                                    {
-                                        <div class="flex items-center justify-between p-2.5 bg-slate-950 rounded-lg border border-slate-850">
-                                            <span class="font-bold text-white">@proj.Name</span>
-                                            <input type="checkbox" checked="@_permittedProjectIds.Contains(proj.Id)"
-                                                @onchange="(e) => ToggleProjectPermission(proj.Id, e.Value)"
-                                                class="w-4 h-4 rounded border-slate-800 text-indigo-600 focus:ring-indigo-500">
-                                        </div>
-                                    }
-                                </div>
-
-                                <button @onclick="SaveProjectPermissions" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold float-right">
-                                    İzinleri Kaydet
-                                </button>
-                            </div>
-                        }
-
-                        <!-- TAB CONTENT 4: USAGE LOGS -->
-                        else if (_activeTab == "logs")
-                        {
-                            <div class="space-y-3 animate-fade-in">
-                                <div class="overflow-x-auto w-full max-h-[250px] overflow-y-auto border border-slate-850 rounded-xl">
-                                    <table class="w-full text-left border-collapse text-[10px]">
-                                        <thead>
-                                            <tr class="bg-slate-950 border-b border-slate-850 text-slate-400">
-                                                <th class="p-2">Tarih / Saat</th>
-                                                <th class="p-2">Proje</th>
-                                                <th class="p-2">Uç Nokta</th>
-                                                <th class="p-2">Süre (ms)</th>
-                                                <th class="p-2">HTTP</th>
-                                                <th class="p-2">Token</th>
-                                                <th class="p-2 text-right">Maliyet</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-850 text-slate-300">
-                                            @if (!_usageLogs.Any())
-                                            {
-                                                <tr>
-                                                    <td colspan="7" class="p-4 text-center text-slate-500">Bu anahtar için istek geçmişi bulunmamaktadır.</td>
-                                                </tr>
-                                            }
-                                            else
-                                            {
-                                                @foreach (var log in _usageLogs)
-                                                {
-                                                    <tr class="hover:bg-slate-900">
-                                                        <td class="p-2">@log.RequestDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
-                                                        <td class="p-2 font-bold text-white">@log.ProjectName</td>
-                                                        <td class="p-2 font-mono">@log.Endpoint</td>
-                                                        <td class="p-2 text-indigo-300">@log.ResponseTimeMs ms</td>
-                                                        <td class="p-2">
-                                                            <span class="px-1.5 py-0.5 rounded text-[8px] font-bold @(log.HttpStatus == 200 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")">
-                                                                @log.HttpStatus
-                                                            </span>
-                                                        </td>
-                                                        <td class="p-2 font-mono">@(log.TokenUsage?.ToString() ?? "-")</td>
-                                                        <td class="p-2 text-right font-mono text-emerald-400">@(log.Cost.HasValue ? "$" + log.Cost.Value.ToString("F5") : "-")</td>
-                                                    </tr>
-                                                }
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        }
-
-                        <!-- TAB CONTENT 5: CONNECTION TEST -->
-                        else if (_activeTab == "test")
-                        {
-                            <div class="space-y-4 animate-fade-in text-xs">
-                                <p class="text-slate-400 text-[10px]">API servis bağlantısını tek tıkla simüle edin. Erişim durumunu, kimlik doğrulamayı ve gecikmeyi ölçün.</p>
-
-                                <div class="p-4 bg-slate-950/40 rounded-xl border border-slate-850 flex items-center justify-between">
-                                    <div>
-                                        <h5 class="font-bold text-white">Entegrasyon Durumu</h5>
-                                        <p class="text-[10px] text-slate-400 mt-0.5">Uç Nokta: @(_selectedKey.BaseUrl ?? "https://api.openai.com/v1")</p>
-                                    </div>
-                                    <button @onclick="RunConnectionTest" disabled="@_isTestingConnection" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold flex items-center gap-1.5">
-                                        @if (_isTestingConnection)
-                                        {
-                                            <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                        }
-                                        <span>Bağlantıyı Test Et</span>
-                                    </button>
-                                </div>
-
-                                @if (_testResult != null)
-                                {
-                                    <div class="p-4 rounded-xl border space-y-2 animate-fade-in @(_testResult.Success ? "bg-emerald-950/10 border-emerald-500/20" : "bg-rose-950/10 border-rose-500/20")">
-                                        <div class="flex items-center justify-between font-bold">
-                                            <span class="text-white">Bağlantı Sonucu:</span>
-                                            <span class="@(_testResult.Success ? "text-emerald-400" : "text-rose-400")">
-                                                @(_testResult.Success ? "BAŞARILI" : "BAŞARISIZ")
-                                            </span>
-                                        </div>
-                                        <div class="text-[11px] text-slate-300 leading-relaxed font-medium">@_testResult.Message</div>
-                                        <div class="grid grid-cols-2 gap-3 text-[10px] pt-1">
-                                            <div>Gecikme Süresi: <span class="text-indigo-400 font-bold">@_testResult.LatencyMs ms</span></div>
-                                            <div>Test Zamanı: <span class="text-slate-400 font-bold">@_testResult.ConnectionTime.ToLocalTime().ToString("HH:mm:ss")</span></div>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        }
+                        <h5 class="text-xs font-bold text-amber-400">Ã–nemli GÃ¼venlik UyarÄ±sÄ±</h5>
+                        <p class="text-[10px] text-slate-300 mt-0.5 leading-relaxed">Bu API anahtarÄ±nÄ± gÃ¼venli bir yere kaydedin. API anahtarÄ±nÄ±z veritabanÄ±mÄ±zda gÃ¼venli ÅŸifreleme algoritmalarÄ±yla saklanmaktadÄ±r. Dilerseniz bu sayfadan veya aÅŸaÄŸÄ±daki listeden gÃ¶z simgesine tÄ±klayarak anahtarÄ±nÄ±zÄ± daha sonra da gÃ¶rÃ¼ntÃ¼leyebilirsiniz.</p>
                     </div>
-
-                    <button type="button" @onclick="() => _selectedKey = null" class="w-full mt-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg">
-                        Paneli Kapat
-                    </button>
                 </div>
-            }
-        </div>
 
+                <div class="space-y-1.5">
+                    <span class="text-[10px] font-black uppercase text-amber-400 tracking-wider">Ham API AnahtarÄ±</span>
+                    <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
+                        <span class="font-mono text-xs select-all text-[#4edea3] break-all">@_generatedRawKey</span>
+                        <button @onclick="CopyGeneratedKey" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Kopyala">
+                            <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        }
+    </div>
+
+    <!-- Mevcut Anahtarlar Tablosu -->
+    <div class="bento-card-custom rounded-xl p-6 border shadow-xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")">
+        <h4 class="text-sm font-black uppercase tracking-wider mb-4 @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">Aktif API AnahtarlarÄ±nÄ±z</h4>
+
+        @if (_isLoading)
+        {
+            <div class="flex flex-col justify-center items-center py-12">
+                <div class="w-8 h-8 border-3 border-[#006c49] border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-xs text-slate-400 mt-2">Anahtarlar yÃ¼kleniyor...</p>
+            </div>
+        }
+        else if (!_keys.Any())
+        {
+            <div class="text-center py-12 text-slate-500">
+                <span class="material-symbols-outlined text-4xl block mb-2 text-slate-600">key_off</span>
+                <p class="text-xs font-bold">KayÄ±tlÄ± API anahtarÄ± bulunamadÄ±.</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Mobil uygulamanÄ±zdan eriÅŸmek iÃ§in yukarÄ±daki formu kullanarak yeni bir anahtar oluÅŸturabilirsiniz.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto w-full no-scrollbar">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b @(PlatformInfo.IsMobileApp ? "border-white/5 text-slate-400" : "border-slate-100 text-slate-500")">
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">Ä°sim</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">API AnahtarÄ±</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">OluÅŸturma</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">Son KullanÄ±m</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">BitiÅŸ</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider text-center">Durum</th>
+                            <th class="py-3 text-[10px] font-black uppercase tracking-wider text-right">Ä°ÅŸlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y @(PlatformInfo.IsMobileApp ? "divide-white/5" : "divide-slate-100")">
+                        @foreach (var key in _keys)
+                        {
+                            <tr class="text-xs hover:bg-slate-500/5">
+                                <td class="py-3.5 font-bold">@key.Name</td>
+                                <td class="py-3.5 font-mono text-slate-400 select-all">@key.MaskedKey</td>
+                                <td class="py-3.5 text-slate-400">@key.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                <td class="py-3.5 text-slate-400">
+                                    @(key.LastUsedAt.HasValue ? key.LastUsedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "HiÃ§ kullanÄ±lmadÄ±")
+                                </td>
+                                <td class="py-3.5 text-slate-400">
+                                    @(key.ExpiresAt.HasValue ? key.ExpiresAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "SÃ¼resiz")
+                                </td>
+                                <td class="py-3.5 text-center">
+                                    <div class="flex items-center justify-center">
+                                        <input type="checkbox" checked="@key.IsActive" @onchange="() => ToggleKey(key)" class="ios-toggle-custom" />
+                                    </div>
+                                </td>
+                                <td class="py-3.5 text-right">
+                                    <div class="flex gap-1.5 justify-end">
+                                        <button @onclick="() => RevealKey(key)" class="p-1.5 text-[#4edea3] hover:bg-[#4edea3]/10 rounded-lg transition-colors flex items-center justify-center" title="AnahtarÄ± GÃ¶ster">
+                                            <span class="material-symbols-outlined text-[18px]">visibility</span>
+                                        </button>
+                                        <button @onclick="() => ConfirmDeleteKey(key)" class="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center justify-center" title="AnahtarÄ± Sil (Revoke)">
+                                            <span class="material-symbols-outlined text-[18px]">delete</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
 </div>
 
-<!-- Silme Onay Modalı -->
+<!-- Silme Onay ModalÄ± -->
 @if (_keyToDelete != null)
 {
     <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 animate-fade-in">
-        <div class="glass max-w-sm w-full rounded-2xl p-6 text-left relative space-y-4 shadow-2xl bg-slate-900 border border-slate-800 text-white" style="border-radius: 16px;">
+        <div class="glass max-w-sm w-full rounded-2xl p-6 text-left relative space-y-4 shadow-2xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/95 border border-white/10 text-white" : "bg-white border border-slate-200 text-[#0b1c30]")" style="border-radius: 16px;">
             <div class="flex items-center gap-3 text-rose-500">
                 <span class="material-symbols-outlined text-3xl">warning</span>
                 <div>
-                    <h3 class="text-base font-extrabold" style="margin:0;">Anahtarı Sil?</h3>
-                    <p class="text-[10px] text-rose-500" style="margin:2px 0 0 0;">Bu işlem geri alınamaz</p>
+                    <h3 class="text-base font-extrabold" style="margin:0;">AnahtarÄ± Ä°ptal Et?</h3>
+                    <p class="text-[10px] text-rose-500" style="margin:2px 0 0 0;">Bu iÅŸlem geri alÄ±namaz</p>
                 </div>
             </div>
 
             <p class="text-xs text-slate-300 leading-relaxed">
-                <strong>@_keyToDelete.Name</strong> entegrasyonu tamamen silinecektir. Bu anahtarı kullanan projeleriniz entegrasyon erişimini **anında kaybedecektir.**
+                <strong>@_keyToDelete.Name</strong> isimli API anahtarÄ± tamamen silinecektir. Bu anahtarÄ± kullanan tÃ¼m mobil uygulamalar sunucuya eriÅŸimini **anÄ±nda kaybedecektir.**
             </p>
 
             <div class="flex gap-2 pt-2">
                 <button @onclick="() => _keyToDelete = null" class="flex-1 text-xs font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2 rounded-xl transition-all" style="border-radius: 8px;">
-                    İptal
+                    Ä°ptal
                 </button>
                 <button @onclick="DeleteKey" class="flex-1 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 py-2 rounded-xl transition-all shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2" style="border-radius: 8px;">
                     Evet, Sil!
@@ -426,45 +214,27 @@
     </div>
 }
 
-<!-- Anahtarı Göster Modalı -->
+<!-- AnahtarÄ± GÃ¶ster ModalÄ± -->
 @if (!string.IsNullOrEmpty(_revealedRawKey))
 {
     <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 animate-fade-in">
-        <div class="glass max-w-sm w-full rounded-2xl p-6 text-left relative space-y-4 shadow-2xl bg-slate-900 border border-slate-850 text-white" style="border-radius: 16px;">
+        <div class="glass max-w-sm w-full rounded-2xl p-6 text-left relative space-y-4 shadow-2xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/95 border border-white/10 text-white" : "bg-white border border-slate-200 text-[#0b1c30]")" style="border-radius: 16px;">
             <div class="flex items-center gap-3 text-[#4edea3]">
                 <div class="p-3 bg-[#4edea3]/10 rounded-xl text-[#4edea3] flex-shrink-0" style="border-radius: 12px;">
                     <span class="material-symbols-outlined text-2xl">vpn_key</span>
                 </div>
                 <div>
-                    <h3 class="text-base font-extrabold" style="margin:0;">API Anahtarı Çözüldü</h3>
+                    <h3 class="text-base font-extrabold" style="margin:0;">API AnahtarÄ± Ã‡Ã¶zÃ¼ldÃ¼</h3>
                     <p class="text-[10px] text-slate-400" style="margin:2px 0 0 0;">@_revealedKeyName</p>
                 </div>
             </div>
 
             <div class="space-y-1.5">
-                <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">Ham API Anahtarı</span>
+                <span class="text-[9px] font-black uppercase tracking-wider @(PlatformInfo.IsMobileApp ? "text-slate-400" : "text-slate-500")">API AnahtarÄ±</span>
                 <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
                     <span class="font-mono text-xs select-all text-[#4edea3] break-all">@_revealedRawKey</span>
                     <button @onclick="CopyRevealedKey" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Kopyala">
                         <span class="material-symbols-outlined text-[18px]">content_copy</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Mobil Hızlı Kurulum -->
-            <div class="p-3.5 rounded-xl border border-white/5 bg-black/20 space-y-2">
-                <h5 class="text-[11px] font-bold text-[#4edea3] flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[15px]">qr_code_2</span>
-                    Mobil Hızlı Kurulum
-                </h5>
-                <p class="text-[9px] text-slate-300">QR kodu kameranıza okutarak veya bağlantı metnini kopyalayarak uygulamanızı hızla yapılandırın.</p>
-                <div class="flex flex-col items-center gap-3 pt-1.5">
-                    <div class="p-2 bg-white rounded-xl shadow-md flex-shrink-0">
-                        <canvas id="revealed-qr-canvas" class="w-[120px] h-[120px]"></canvas>
-                    </div>
-                    <button @onclick="() => CopyConfigString(_revealedRawKey)" class="w-full text-[11px] font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5" style="border-radius: 8px;">
-                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
-                        Bağlantı Yapılandırmasını Kopyala
                     </button>
                 </div>
             </div>
@@ -479,38 +249,20 @@
 }
 
 @code {
-    private List<ApiKeyDetailDto> _keys = new();
+    private List<ApiKeyDto> _keys = new();
     private bool _isLoading = true;
     private bool _isRefreshing = false;
     private bool _isGenerating = false;
-    
-    // New Key details
     private string _newKeyName = "";
-    private string _provider = "OpenAI";
-    private string _category = "AI Services";
-    private string _baseUrl = "";
-    private string _defaultModel = "gpt-4o";
-    private int? _monthlyLimit = 100000;
-
-    // Selection
-    private ApiKeyDetailDto? _selectedKey;
-    private string _activeTab = "dashboard";
-
-    private ApiKeyDetailDto? _keyToDelete;
-    private string? _revealedRawKey;
-    private string? _revealedKeyName;
-
-    // Lists
-    private List<ProjectItemDto> _allProjects = new();
-    private List<Guid> _permittedProjectIds = new();
-    private List<UsageLogDto> _usageLogs = new();
-    private ConnectionTestResult? _testResult;
-    private bool _isTestingConnection = false;
+    private int? _durationDays = null;
+    private string _generatedRawKey = "";
+    private ApiKeyDto? _keyToDelete = null;
+    private string? _revealedRawKey = null;
+    private string? _revealedKeyName = null;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadKeys();
-        await LoadProjects();
     }
 
     private async Task LoadKeys()
@@ -519,11 +271,11 @@
         StateHasChanged();
         try
         {
-            _keys = await Http.GetFromJsonAsync<List<ApiKeyDetailDto>>("api/apikeys") ?? new();
+            _keys = await Http.GetFromJsonAsync<List<ApiKeyDto>>("api/apikeys") ?? new();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Entegrasyon anahtarları yüklenirken hata: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Anahtarlar yÃ¼klenirken hata oluÅŸtu: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -533,89 +285,38 @@
         }
     }
 
-    private async Task LoadProjects()
-    {
-        try
-        {
-            _allProjects = await Http.GetFromJsonAsync<List<ProjectItemDto>>("api/projects") ?? new();
-        }
-        catch { }
-    }
-
-    private async Task SelectKey(ApiKeyDetailDto key)
-    {
-        _selectedKey = key;
-        _activeTab = "dashboard";
-        _testResult = null;
-        await LoadPermissionsAndLogs(key.Id);
-    }
-
-    private async Task LoadPermissionsAndLogs(Guid keyId)
-    {
-        try
-        {
-            _permittedProjectIds = await Http.GetFromJsonAsync<List<Guid>>($"api/apikeys/{keyId}/permissions") ?? new();
-            _usageLogs = await Http.GetFromJsonAsync<List<UsageLogDto>>($"api/apikeys/{keyId}/logs") ?? new();
-        }
-        catch { }
-    }
-
-    private void SetActiveTab(string tab)
-    {
-        _activeTab = tab;
-    }
-
-    private string GetTabClass(string tab)
-    {
-        return _activeTab == tab 
-            ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20" 
-            : "text-slate-400 hover:text-slate-200";
-    }
-
     private async Task GenerateKey()
     {
         if (string.IsNullOrWhiteSpace(_newKeyName))
         {
-            Snackbar.Add("Lütfen açıklayıcı bir isim yazın!", Severity.Warning);
+            Snackbar.Add("LÃ¼tfen API anahtarÄ± iÃ§in aÃ§Ä±klayÄ±cÄ± bir isim yazÄ±n!", Severity.Warning);
             return;
         }
 
         _isGenerating = true;
-        _revealedRawKey = "";
+        _generatedRawKey = "";
         StateHasChanged();
 
         try
         {
-            var payload = new
-            {
-                Name = _newKeyName,
-                Provider = _provider,
-                Category = _category,
-                BaseUrl = _baseUrl,
-                DefaultModel = _defaultModel,
-                MonthlyLimit = _monthlyLimit
-            };
-
-            var response = await Http.PostAsJsonAsync("api/apikeys/generate", payload);
+            var response = await Http.PostAsJsonAsync("api/apikeys/generate", new { Name = _newKeyName, DurationDays = _durationDays });
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<GenerateKeyResponse>();
                 if (result != null)
                 {
-                    _revealedRawKey = result.RawKey;
-                    _revealedKeyName = result.Name;
+                    _generatedRawKey = result.RawKey;
                     _newKeyName = "";
-                    Snackbar.Add("Entegrasyon API Anahtarı başarıyla üretildi!", Severity.Success);
+                    _durationDays = null;
+                    Snackbar.Add("API AnahtarÄ± baÅŸarÄ±yla Ã¼retildi!", Severity.Success);
                     await LoadKeys();
-                    
-                    // Render QR Code via JS
-                    await Task.Delay(100);
-                    await JSRuntime.InvokeVoidAsync("renderQrCode", "revealed-qr-canvas", GetConfigString(_revealedRawKey));
+
                 }
             }
             else
             {
-                Snackbar.Add("API Anahtarı oluşturulamadı!", Severity.Error);
+                var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                Snackbar.Add(error?.Message ?? "Anahtar oluÅŸturulamadÄ±!", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -629,7 +330,7 @@
         }
     }
 
-    private async Task ToggleKey(ApiKeyDetailDto key)
+    private async Task ToggleKey(ApiKeyDto key)
     {
         try
         {
@@ -637,7 +338,11 @@
             if (response.IsSuccessStatusCode)
             {
                 key.IsActive = !key.IsActive;
-                Snackbar.Add($"Anahtar başarıyla {(key.IsActive ? "aktif edildi" : "pasifleştirildi")}.", Severity.Success);
+                Snackbar.Add($"Anahtar baÅŸarÄ±yla {(key.IsActive ? "aktif edildi" : "pasifleÅŸtirildi")}.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Ä°ÅŸlem gerÃ§ekleÅŸtirilemedi!", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -646,7 +351,7 @@
         }
     }
 
-    private void ConfirmDeleteKey(ApiKeyDetailDto key)
+    private void ConfirmDeleteKey(ApiKeyDto key)
     {
         _keyToDelete = key;
     }
@@ -660,13 +365,13 @@
             var response = await Http.DeleteAsync($"api/apikeys/{_keyToDelete.Id}");
             if (response.IsSuccessStatusCode)
             {
-                Snackbar.Add("API Anahtarı başarıyla iptal edildi ve silindi.", Severity.Success);
+                Snackbar.Add("API AnahtarÄ± silindi.", Severity.Success);
                 _keys.Remove(_keyToDelete);
-                if (_selectedKey?.Id == _keyToDelete.Id)
-                {
-                    _selectedKey = null;
-                }
                 _keyToDelete = null;
+            }
+            else
+            {
+                Snackbar.Add("Silme iÅŸlemi baÅŸarÄ±sÄ±z!", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -679,111 +384,40 @@
         }
     }
 
-    private async Task RevealKey(ApiKeyDetailDto key)
+    private async Task CopyGeneratedKey()
+    {
+        if (string.IsNullOrEmpty(_generatedRawKey)) return;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _generatedRawKey);
+            Snackbar.Add("API AnahtarÄ± panoya kopyalandÄ±!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Kopyalama baÅŸarÄ±sÄ±z oldu, lÃ¼tfen manuel kopyalayÄ±n.", Severity.Warning);
+        }
+    }
+
+    private async Task RevealKey(ApiKeyDto key)
     {
         try
         {
-            var result = await Http.GetFromJsonAsync<RevealKeyResponseDto>($"api/apikeys/{key.Id}/reveal");
+            var result = await Http.GetFromJsonAsync<RevealKeyResponse>($"api/apikeys/{key.Id}/reveal");
             if (result != null)
             {
                 _revealedRawKey = result.RawKey;
                 _revealedKeyName = key.Name;
-                Snackbar.Add("Anahtar şifresi başarıyla çözüldü.", Severity.Success);
-                
-                await Task.Delay(100);
-                await JSRuntime.InvokeVoidAsync("renderQrCode", "revealed-qr-canvas", GetConfigString(_revealedRawKey));
+                Snackbar.Add("API AnahtarÄ± baÅŸarÄ±yla Ã§Ã¶zÃ¼ldÃ¼.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("API AnahtarÄ± alÄ±namadÄ±!", Severity.Error);
             }
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
         }
-    }
-
-    private async Task RunConnectionTest()
-    {
-        if (_selectedKey == null) return;
-
-        _isTestingConnection = true;
-        StateHasChanged();
-
-        try
-        {
-            var response = await Http.PostAsync($"api/apikeys/{_selectedKey.Id}/test-connection", null);
-            if (response.IsSuccessStatusCode)
-            {
-                _testResult = await response.Content.ReadFromJsonAsync<ConnectionTestResult>();
-                if (_testResult != null && _testResult.Success)
-                {
-                    Snackbar.Add("Bağlantı testi başarılı!", Severity.Success);
-                }
-                else
-                {
-                    Snackbar.Add("Bağlantı testi başarısız oldu.", Severity.Warning);
-                }
-                await LoadKeys(); // Refresh limits & counts
-                await LoadPermissionsAndLogs(_selectedKey.Id);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isTestingConnection = false;
-            StateHasChanged();
-        }
-    }
-
-    private void ToggleProjectPermission(Guid projectId, object? isChecked)
-    {
-        var checkedState = isChecked is bool b && b;
-        if (checkedState)
-        {
-            if (!_permittedProjectIds.Contains(projectId))
-            {
-                _permittedProjectIds.Add(projectId);
-            }
-        }
-        else
-        {
-            _permittedProjectIds.Remove(projectId);
-        }
-    }
-
-    private async Task SaveProjectPermissions()
-    {
-        if (_selectedKey == null) return;
-
-        try
-        {
-            var response = await Http.PostAsJsonAsync($"api/apikeys/{_selectedKey.Id}/permissions", _permittedProjectIds);
-            if (response.IsSuccessStatusCode)
-            {
-                Snackbar.Add("Proje yetkileri başarıyla güncellendi.", Severity.Success);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private string GetConfigString(string rawKey)
-    {
-        var serverUrl = Http.BaseAddress?.ToString().TrimEnd('/') ?? "";
-        return System.Text.Json.JsonSerializer.Serialize(new { serverUrl, apiKey = rawKey });
-    }
-
-    private async Task CopyConfigString(string rawKey)
-    {
-        try
-        {
-            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GetConfigString(rawKey));
-            Snackbar.Add("Bağlantı yapılandırması panoya kopyalandı!", Severity.Success);
-        }
-        catch { }
     }
 
     private async Task CopyRevealedKey()
@@ -792,14 +426,24 @@
         try
         {
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _revealedRawKey);
-            Snackbar.Add("API Anahtarı panoya kopyalandı!", Severity.Success);
+            Snackbar.Add("API AnahtarÄ± panoya kopyalandÄ±!", Severity.Success);
         }
-        catch { }
+        catch
+        {
+            Snackbar.Add("Kopyalama baÅŸarÄ±sÄ±z oldu, lÃ¼tfen manuel kopyalayÄ±n.", Severity.Warning);
+        }
     }
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+    }
 
-    public class ApiKeyDetailDto
+    public class RevealKeyResponse
+    {
+        public string RawKey { get; set; } = "";
+    }
+
+    public class ApiKeyDto
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = "";
@@ -808,54 +452,6 @@
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset? LastUsedAt { get; set; }
         public DateTimeOffset? ExpiresAt { get; set; }
-        public string? Provider { get; set; }
-        public string? Description { get; set; }
-        public string? Category { get; set; }
-        public string? BaseUrl { get; set; }
-        public string? DefaultModel { get; set; }
-        public string? LastModifiedBy { get; set; }
-        public DateTimeOffset? UpdatedAt { get; set; }
-
-        public int TotalRequests { get; set; }
-        public int SuccessfulRequests { get; set; }
-        public int FailedRequests { get; set; }
-        public double AverageResponseTimeMs { get; set; }
-        public string? LastError { get; set; }
-        public DateTimeOffset? LastErrorDate { get; set; }
-
-        public DateTimeOffset? StartDate { get; set; }
-        public DateTimeOffset? EndDate { get; set; }
-        public int? DailyLimit { get; set; }
-        public int? MonthlyLimit { get; set; }
-        public int UsedQuota { get; set; }
-        public int RemainingQuota { get; set; }
-    }
-
-    public class ProjectItemDto
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = "";
-    }
-
-    public class UsageLogDto
-    {
-        public Guid Id { get; set; }
-        public DateTimeOffset RequestDate { get; set; }
-        public string? ProjectName { get; set; }
-        public string? Endpoint { get; set; }
-        public double ResponseTimeMs { get; set; }
-        public int HttpStatus { get; set; }
-        public int? TokenUsage { get; set; }
-        public decimal? Cost { get; set; }
-    }
-
-    public class ConnectionTestResult
-    {
-        public bool Success { get; set; }
-        public double LatencyMs { get; set; }
-        public string Message { get; set; } = "";
-        public string[] ModelList { get; set; } = Array.Empty<string>();
-        public DateTimeOffset ConnectionTime { get; set; }
     }
 
     public class GenerateKeyResponse
@@ -863,11 +459,13 @@
         public Guid Id { get; set; }
         public string Name { get; set; } = "";
         public string MaskedKey { get; set; } = "";
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset? ExpiresAt { get; set; }
         public string RawKey { get; set; } = "";
     }
 
-    public class RevealKeyResponseDto
+    public class ErrorResponse
     {
-        public string RawKey { get; set; } = "";
+        public string Message { get; set; } = "";
     }
 }

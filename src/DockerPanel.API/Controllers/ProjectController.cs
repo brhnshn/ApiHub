@@ -331,20 +331,6 @@ public class ProjectController : ControllerBase
             project.CpuCount = request.CpuCount;
             project.InternalPort = request.InternalPort;
             project.Status = ProjectStatus.Provisioning;
-            
-            // Assign revision fields
-            project.Description = request.Description;
-            project.Logo = request.Logo;
-            project.RuntimeType = request.RuntimeType;
-            project.FrameworkVersion = request.FrameworkVersion;
-            project.AutoRestart = request.AutoRestart;
-            project.HealthCheckEndpoint = request.HealthCheckEndpoint;
-            project.RunUser = request.RunUser ?? "root";
-            project.WorkingDirectory = request.WorkingDirectory;
-            project.Environment = request.Environment ?? "Production";
-            project.EntryFile = request.EntryFile;
-            project.StartCommand = request.CustomCommand;
-            project.EnvVariablesJson = request.EnvVariablesJson ?? "{}";
 
             _dbContext.Entry(project).State = EntityState.Modified;
         }
@@ -359,21 +345,7 @@ public class ProjectController : ControllerBase
                 CpuCount = request.CpuCount,
                 InternalPort = request.InternalPort,
                 Status = ProjectStatus.Provisioning,
-                CreatedAt = DateTimeOffset.UtcNow,
-                
-                // Assign revision fields
-                Description = request.Description,
-                Logo = request.Logo,
-                RuntimeType = request.RuntimeType,
-                FrameworkVersion = request.FrameworkVersion,
-                AutoRestart = request.AutoRestart,
-                HealthCheckEndpoint = request.HealthCheckEndpoint,
-                RunUser = request.RunUser ?? "root",
-                WorkingDirectory = request.WorkingDirectory,
-                Environment = request.Environment ?? "Production",
-                EntryFile = request.EntryFile,
-                StartCommand = request.CustomCommand,
-                EnvVariablesJson = request.EnvVariablesJson ?? "{}"
+                CreatedAt = DateTimeOffset.UtcNow
             };
             _dbContext.Projects.Add(project);
         }
@@ -1120,106 +1092,6 @@ public class ProjectController : ControllerBase
             SystemLogQueue.Log("warning", $"[Safe Delete Directory] Klasör tamamen silinemedi: {path}. Hata: {ex.Message}");
         }
     }
-
-    [HttpPost("verify-zip")]
-    [DisableRequestSizeLimit]
-    public async Task<IActionResult> VerifyZip([FromForm] VerifyZipRequest request)
-    {
-        if (request.ZipFile == null || request.ZipFile.Length == 0)
-        {
-            return BadRequest(new { Message = "Lütfen geçerli bir ZIP dosyası seçin!" });
-        }
-
-        var isZipCorrupt = false;
-        var hasDll = false;
-        var hasStartup = false;
-        var hasAppSettings = false;
-        var isPortEmpty = true;
-
-        try
-        {
-            using var stream = request.ZipFile.OpenReadStream();
-            using var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
-            var entries = archive.Entries;
-            foreach (var entry in entries)
-            {
-                var lowerName = entry.Name.ToLowerInvariant();
-                if (lowerName.EndsWith(".dll")) hasDll = true;
-                if (lowerName == "server.js" || lowerName == "app.js" || lowerName == "index.js" || lowerName == "main.py" || lowerName == "app.py") hasStartup = true;
-                if (lowerName == "appsettings.json" || lowerName == "package.json") hasAppSettings = true;
-            }
-        }
-        catch
-        {
-            isZipCorrupt = true;
-        }
-
-        // Port check
-        if (request.Port > 0)
-        {
-            try
-            {
-                using var tcpClient = new System.Net.Sockets.TcpClient();
-                var result = tcpClient.BeginConnect("127.0.0.1", request.Port, null, null);
-                var success = result.AsyncWaitHandle.WaitOne(TimeSpan.FromMilliseconds(400));
-                if (success)
-                {
-                    tcpClient.EndConnect(result);
-                    isPortEmpty = false;
-                }
-            }
-            catch
-            {
-                isPortEmpty = true;
-            }
-        }
-
-        return Ok(new
-        {
-            IsZipCorrupt = isZipCorrupt,
-            HasDll = hasDll,
-            HasStartup = hasStartup,
-            HasAppSettings = hasAppSettings,
-            IsPortEmpty = isPortEmpty,
-            Success = !isZipCorrupt && isPortEmpty
-        });
-    }
-}
-
-public class VerifyZipRequest
-{
-    public IFormFile ZipFile { get; set; } = null!;
-    public int Port { get; set; }
-}
-
-public class DeployNativeRequest
-{
-    public string Name { get; set; } = string.Empty;
-    public long MemoryLimitBytes { get; set; }
-    public double CpuCount { get; set; }
-    public int InternalPort { get; set; }
-    public IFormFile ZipFile { get; set; } = null!;
-    public string? RuntimeType { get; set; }
-    public string? EntryFile { get; set; }
-    public string? CustomCommand { get; set; }
-
-    // Revision Fields
-    public string? Description { get; set; }
-    public string? Logo { get; set; }
-    public string? FrameworkVersion { get; set; }
-    public bool AutoRestart { get; set; } = true;
-    public string? HealthCheckEndpoint { get; set; }
-    public string? RunUser { get; set; }
-    public string? WorkingDirectory { get; set; }
-    public string? Environment { get; set; }
-    public string? EnvVariablesJson { get; set; }
-}
-
-public class DeployStaticRequest
-{
-    public string Name { get; set; } = string.Empty;
-    public IFormFile ZipFile { get; set; } = null!;
-    public bool EnablePhp { get; set; }
 }
 
 public class CreateContainerRequest
@@ -1235,4 +1107,23 @@ public class UpdateProjectLimitsRequest
 {
     public long MemoryLimitBytes { get; set; }
     public double CpuCount { get; set; }
+}
+
+public class DeployNativeRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public long MemoryLimitBytes { get; set; }
+    public double CpuCount { get; set; }
+    public int InternalPort { get; set; }
+    public IFormFile ZipFile { get; set; } = null!;
+    public string? RuntimeType { get; set; }
+    public string? EntryFile { get; set; }
+    public string? CustomCommand { get; set; }
+}
+
+public class DeployStaticRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public IFormFile ZipFile { get; set; } = null!;
+    public bool EnablePhp { get; set; }
 }

@@ -1,163 +1,138 @@
-@page "/deploy-wizard"
+﻿@page "/deploy-wizard"
 @attribute [Authorize]
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @inject ISnackbar Snackbar
 
-<PageTitle>Canlı Dağıtım Sihirbazı - ApiHub</PageTitle>
+<PageTitle>CanlÄ± DaÄŸÄ±tÄ±m SihirbazÄ± - ApiHub</PageTitle>
 
 <div class="space-y-6">
-    <!-- Üst Başlık -->
+    <!-- Ãœst BaÅŸlÄ±k ve TanÄ±tÄ±m -->
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
             <h2 class="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-                <i class="fa-solid fa-wand-magic-sparkles text-indigo-400 animate-pulse"></i> 
-                Süper Canlı Dağıtım Sihirbazı
+                <i class="fa-solid fa-wand-magic-sparkles text-indigo-400 animate-pulse"></i>
+                SÃ¼per CanlÄ± DaÄŸÄ±tÄ±m SihirbazÄ±
             </h2>
             <p class="text-xs text-slate-400 font-medium mt-1">
-                ZIP dosyalarınızı yükleyin, port ve alan adı bilgilerini girin; gerisini ApiHub sunucuda tamamen otomatik yürütsün!
+                ZIP dosyalarÄ±nÄ±zÄ± yÃ¼kleyin, port ve alan adÄ± bilgilerini girin; gerisini ApiHub sunucuda tamamen otomatik yÃ¼rÃ¼tsÃ¼n!
             </p>
         </div>
-        
-        <!-- Step Indicator -->
-        <div class="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800 items-center gap-1">
-            @for (int i = 1; i <= 8; i++)
-            {
-                var stepNum = i;
-                <button type="button" @onclick="() => GoToStep(stepNum)" disabled="@(stepNum > _maxReachedStep)"
-                    class="w-7 h-7 rounded-lg text-xs font-bold transition-all flex items-center justify-center @(GetStepIndicatorClass(stepNum))">
-                    @stepNum
-                </button>
-            }
+
+        <!-- Sekme SeÃ§ici (Dual Mode Toggle) -->
+        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+            <button @onclick='() => SetTab("auto")'
+                class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 @(_activeTab == "auto" ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20" : "text-slate-400 hover:text-slate-200")">
+                <i class="fa-solid fa-bolt"></i> Otomatik DaÄŸÄ±tÄ±m
+            </button>
+            <button @onclick='() => SetTab("manual")'
+                class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 @(_activeTab == "manual" ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20" : "text-slate-400 hover:text-slate-200")">
+                <i class="fa-solid fa-book-open"></i> Manuel KÄ±lavuz
+            </button>
         </div>
     </div>
 
-    <!-- WIZARD STEP BODY CONTAINER -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left: Step panel -->
-        <div class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden backdrop-blur-md flex flex-col justify-between min-h-[550px]">
-            
-            <div>
-                <!-- Step Titles -->
-                <div class="flex items-center gap-3 border-b border-slate-800 pb-3 mb-6">
-                    <span class="w-8 h-8 rounded-xl bg-indigo-600/20 text-indigo-400 font-extrabold flex items-center justify-center text-sm border border-indigo-500/20">@_currentStep</span>
-                    <div>
-                        <h3 class="font-bold text-white text-sm">@GetStepTitle()</h3>
-                        <p class="text-[10px] text-slate-400 font-medium mt-0.5">@GetStepSub()</p>
-                    </div>
+    @if (_activeTab == "auto")
+    {
+        <!-- OTOMATÄ°K CANLI DAÄITIM SÄ°HÄ°RBAZI -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Sol SÃ¼tun: DaÄŸÄ±tÄ±m AyarlarÄ± Formu -->
+            <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden backdrop-blur-md">
+                <div class="flex items-center gap-2 border-b border-slate-850 pb-3 mb-4">
+                    <i class="fa-solid fa-sliders text-indigo-400"></i>
+                    <h3 class="font-bold text-white text-sm">1. Uygulama ve Domain Bilgileri</h3>
                 </div>
 
-                <!-- STEP 1: Proje Bilgileri -->
-                @if (_currentStep == 1)
-                {
-                    <div class="space-y-4 animate-fade-in">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Proje Adı</label>
-                                <input type="text" @bind="_projectName" placeholder="örn: burhanlife-api" 
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500 transition-colors">
-                                <p class="text-[8px] text-slate-500 mt-1">Sadece küçük harfler, rakamlar ve tire (-).</p>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Logo / İkon</label>
-                                <select @bind="_logo" class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500">
-                                    <option value="fa-cube">Küp (Varsayılan)</option>
-                                    <option value="fa-database">Veritabanı</option>
-                                    <option value="fa-server">Sunucu</option>
-                                    <option value="fa-globe">Küre</option>
-                                    <option value="fa-robot">AI Robot</option>
-                                    <option value="fa-code">Kod</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Açıklama</label>
-                            <textarea @bind="_description" placeholder="Proje hakkında açıklama girin..." rows="3"
-                                class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white font-medium focus:outline-none focus:border-indigo-500 transition-colors"></textarea>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Çalışma Zamanı (Runtime)</label>
-                                <select @bind="_runtimeType" class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500">
-                                    <option value="dotnet">.NET</option>
-                                    <option value="node">Node.js</option>
-                                    <option value="bun">Bun</option>
-                                    <option value="python">Python</option>
-                                    <option value="php">PHP</option>
-                                    <option value="java">Java</option>
-                                    <option value="custom">Özel Komut (Custom)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Çalışma Sürümü (Framework Version)</label>
-                                <input type="text" @bind="_frameworkVersion" placeholder="örn: .NET 8, Node 22" 
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500 transition-colors">
-                            </div>
+                <div class="space-y-4">
+                    <!-- DaÄŸÄ±tÄ±m Modu SeÃ§ici -->
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-semibold mb-1.5 uppercase tracking-wider">DaÄŸÄ±tÄ±m Modu</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" @onclick='() => _deployMode = "docker"'
+                                class="@ModeButtonClass("docker")">
+                                <i class="fa-brands fa-docker text-sm"></i>
+                                <div class="text-left">
+                                    <div class="text-[11px] font-extrabold leading-none">Docker</div>
+                                    <div class="text-[8px] opacity-70 mt-0.5">Konteyner</div>
+                                </div>
+                            </button>
+                            <button type="button" @onclick='() => _deployMode = "native"'
+                                class="@ModeButtonClass("native")">
+                                <i class="fa-regular fa-file-zip text-sm"></i>
+                                <div class="text-left">
+                                    <div class="text-[11px] font-extrabold leading-none">Native ZIP</div>
+                                    <div class="text-[8px] opacity-70 mt-0.5">SÃ¼reÃ§ YÃ¶netici</div>
+                                </div>
+                            </button>
+                            <button type="button" @onclick='() => _deployMode = "static"'
+                                class="@ModeButtonClass("static")">
+                                <i class="fa-solid fa-code text-sm"></i>
+                                <div class="text-left">
+                                    <div class="text-[11px] font-extrabold leading-none">Statik Web</div>
+                                    <div class="text-[8px] opacity-70 mt-0.5">Nginx Direct</div>
+                                </div>
+                            </button>
                         </div>
                     </div>
-                }
-                else if (_currentStep == 2)
-                {
-                    <div class="space-y-4 animate-fade-in">
-                        <div class="grid grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">İç Port Numarası</label>
-                                <input type="number" @bind="_port" min="1024" max="65535" 
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-emerald-400 font-bold focus:outline-none focus:border-indigo-500">
+
+                    <!-- Proje AdÄ± -->
+                    <div>
+                        <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Uygulama AdÄ±</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                                <i class="fa-solid fa-cube"></i>
+                            </span>
+                            <input type="text" @bind="_projectName" @bind:event="oninput" placeholder="Ã¶rn: bprojem" disabled="@_isDeploying"
+                                class="w-full bg-slate-950 border border-slate-850 rounded-lg pl-9 pr-3 py-2 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50">
+                        </div>
+                        <p class="text-[9px] text-slate-500 mt-1">Sadece kÃ¼Ã§Ã¼k harfler, rakamlar, tire (-) veya alt Ã§izgi (_).</p>
+                    </div>
+
+                    @if (_deployMode != "static")
+                    {
+                        <!-- Port NumarasÄ± -->
+                        <div>
+                            <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Ä°Ã§ Port NumarasÄ±</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                                    <i class="fa-solid fa-network-wired"></i>
+                                </span>
+                                <input type="number" @bind="_port" @bind:event="oninput" min="1024" max="65535" disabled="@_isDeploying"
+                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg pl-9 pr-3 py-2 text-xs text-emerald-400 font-bold focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50">
                             </div>
+                            <p class="text-[9px] text-slate-500 mt-1">Sunucuda Ã§alÄ±ÅŸacak projenizin dinleyeceÄŸi benzersiz boÅŸ bir port.</p>
+                        </div>
+
+                        <!-- CPU ve RAM Limitleri -->
+                        <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">RAM Limiti (MB)</label>
-                                <input type="number" @bind="_memoryLimitMb" min="64" max="16384"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-semibold">
+                                <input type="number" @bind="_memoryLimitMb" min="64" max="16384" disabled="@_isDeploying"
+                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-semibold">
                             </div>
                             <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">CPU Çekirdek Limiti</label>
-                                <input type="number" @bind="_cpuCount" min="0.1" max="32" step="0.1"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-semibold">
+                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">CPU Ã‡ekirdek</label>
+                                <input type="number" @bind="_cpuCount" min="0.1" max="32" step="0.1" disabled="@_isDeploying"
+                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-semibold">
                             </div>
                         </div>
+                    }
 
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Sağlık Kontrolü Endpoint (Health Check)</label>
-                                <input type="text" @bind="_healthCheckEndpoint" placeholder="/health veya /api/status" 
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Çalıştırma Kullanıcısı (Run User)</label>
-                                <input type="text" @bind="_runUser" placeholder="root" 
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500">
-                            </div>
-                        </div>
+                    <!-- Domain & Subdomain Bilgileri -->
+                    <div class="border-t border-slate-850 pt-3 mt-1 space-y-3">
+                        <label class="block text-[10px] text-indigo-400 font-bold uppercase tracking-wider">Nginx Subdomain YÃ¶nlendirmesi</label>
 
-                        <div class="flex items-center justify-between bg-slate-950/40 p-3 rounded-lg border border-slate-850">
-                            <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-rotate-left text-indigo-400"></i>
-                                <div>
-                                    <div class="text-xs text-slate-200 font-bold leading-none">Otomatik Yeniden Başlat (Auto Restart)</div>
-                                    <span class="text-[8px] text-slate-500">Hata durumunda veya sistem açılışında otomatik başlatır</span>
-                                </div>
-                            </div>
-                            <input type="checkbox" @bind="_autoRestart" class="w-4 h-4 bg-slate-950 border-slate-800 rounded text-indigo-600 focus:ring-indigo-500">
-                        </div>
-                    </div>
-                }
-                else if (_currentStep == 3)
-                {
-                    <div class="space-y-4 animate-fade-in">
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Subdomain</label>
-                                <input type="text" @bind="_subdomain" placeholder="api" 
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                                <input type="text" @bind="_subdomain" @bind:event="oninput" placeholder="api" disabled="@_isDeploying"
+                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50">
                             </div>
                             <div>
-                                <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Ana Domain</label>
-                                <select @bind="_domain" @bind:after="ApplySelectedRootDomainDefaults"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
-                                    <option value="">Seçiniz...</option>
+                                <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Ana Alan AdÄ± (Domain)</label>
+                                <select @bind="_domain" @bind:after="ApplySelectedRootDomainDefaults" disabled="@_isDeploying"
+                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50">
+                                    <option value="">SeÃ§iniz...</option>
                                     @foreach (var rd in _rootDomains)
                                     {
                                         <option value="@rd.Name">@rd.Name</option>
@@ -166,526 +141,533 @@
                             </div>
                         </div>
 
-                        <div class="border-t border-slate-850 pt-4 space-y-3">
-                            <div class="flex items-center justify-between bg-slate-950/40 p-3 rounded-lg border border-slate-850">
-                                <div class="flex items-center gap-2">
-                                    <i class="fa-brands fa-cloudflare text-orange-400"></i>
-                                    <div>
-                                        <div class="text-xs text-slate-200 font-bold leading-none">Cloudflare DNS A Kaydı Oluştur</div>
-                                        <span class="text-[8px] text-slate-500">Subdomain'i sunucu IP'sine otomatik yönlendirir</span>
-                                    </div>
+                        <!-- Let's Encrypt SSL SeÃ§ici -->
+                        <div class="flex items-center justify-between bg-slate-950/40 p-2.5 rounded-lg border border-slate-850">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-shield-halved text-indigo-400 text-xs"></i>
+                                <div>
+                                    <div class="text-[10px] text-slate-200 font-bold leading-none">Let's Encrypt SSL Aktif Edilsin</div>
+                                    <span class="text-[8px] text-slate-500">Alan adÄ± iÃ§in gÃ¼venli HTTPS baÄŸlantÄ±sÄ± kurar</span>
                                 </div>
-                                <input type="checkbox" @bind="_createDnsRecord" class="w-4 h-4 bg-slate-950 border-slate-800 rounded text-indigo-600 focus:ring-indigo-500">
                             </div>
-
-                            @if (_createDnsRecord)
-                            {
-                                <div class="p-3 bg-slate-950/60 border border-slate-850 rounded-xl space-y-2 font-mono text-xs">
-                                    <div>
-                                        <label class="block text-[8px] text-slate-400 font-bold uppercase mb-0.5">Sunucu IP</label>
-                                        <input type="text" @bind="_serverIp" class="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white">
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label class="block text-[8px] text-slate-400 font-bold uppercase mb-0.5">CF API Token</label>
-                                            <input type="password" @bind="_cfToken" class="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white">
-                                        </div>
-                                        <div>
-                                            <label class="block text-[8px] text-slate-400 font-bold uppercase mb-0.5">Zone ID</label>
-                                            <input type="text" @bind="_cfZoneId" class="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white">
-                                        </div>
-                                    </div>
-                                </div>
-                            }
-
-                            <div class="flex items-center justify-between bg-slate-950/40 p-3 rounded-lg border border-slate-850">
-                                <div class="flex items-center gap-2">
-                                    <i class="fa-solid fa-shield-halved text-emerald-400"></i>
-                                    <div>
-                                        <div class="text-xs text-slate-200 font-bold leading-none">SSL Sertifikasını Otomatik Oluştur (Let's Encrypt)</div>
-                                        <span class="text-[8px] text-slate-500">Güvenli HTTPS bağlantısı kurar</span>
-                                    </div>
-                                </div>
-                                <input type="checkbox" @bind="_sslEnabled" class="w-4 h-4 bg-slate-950 border-slate-800 rounded text-indigo-600 focus:ring-indigo-500">
+                            <div class="flex items-center">
+                                <input type="checkbox" @bind="_sslEnabled" id="sslCheckbox" disabled="@_isDeploying"
+                                    class="w-4 h-4 bg-slate-950 border-slate-800 rounded focus:ring-indigo-500 text-indigo-600 disabled:opacity-50">
                             </div>
                         </div>
                     </div>
-                }
-                else if (_currentStep == 4)
-                {
-                    <div class="space-y-4 animate-fade-in">
-                        <div class="flex items-center justify-between bg-slate-950/40 p-3 rounded-lg border border-slate-850">
+
+                    <!-- Cloudflare DNS A KaydÄ± SeÃ§ici -->
+                    <div class="border-t border-slate-850 pt-3 mt-1 space-y-3">
+                        <div class="flex items-center justify-between bg-slate-950/40 p-2.5 rounded-lg border border-slate-850">
                             <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-database text-indigo-400"></i>
+                                <i class="fa-brands fa-cloudflare text-orange-400 text-xs"></i>
                                 <div>
-                                    <div class="text-xs text-slate-200 font-bold leading-none">PostgreSQL Veritabanı Oluşturulsun</div>
-                                    <span class="text-[8px] text-slate-500">Bu projeye özel yeni veritabanı şeması ve kullanıcısı oluşturur</span>
+                                    <div class="text-[10px] text-slate-200 font-bold leading-none">Cloudflare DNS A KaydÄ± OluÅŸturulsun</div>
+                                    <span class="text-[8px] text-slate-500">Subdomain'i otomatik olarak sunucu IP'sine yÃ¶nlendirir</span>
                                 </div>
                             </div>
-                            <input type="checkbox" @bind="_createDatabase" @bind:after="UpdateDbDefaults" class="w-4 h-4 bg-slate-950 border-slate-800 rounded text-indigo-600 focus:ring-indigo-500">
+                            <div class="flex items-center">
+                                <input type="checkbox" @bind="_createDnsRecord" @bind:after="ApplySelectedRootDomainDefaults" id="cfDnsCheckbox" disabled="@_isDeploying"
+                                    class="w-4 h-4 bg-slate-950 border-slate-800 rounded focus:ring-indigo-500 text-indigo-600 disabled:opacity-50">
+                            </div>
+                        </div>
+
+                        @if (_createDnsRecord)
+                        {
+                            <div class="p-3 bg-slate-950/60 border border-slate-850/80 rounded-xl space-y-2 animate-fade-in">
+                                <div>
+                                    <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Sunucu IP Adresi</label>
+                                    <input type="text" @bind="_serverIp" placeholder="Ã¶rn: 85.95.23.10" disabled="@_isDeploying"
+                                        class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Cloudflare API Token</label>
+                                        <input type="password" @bind="_cfToken" placeholder="Token girin" disabled="@_isDeploying"
+                                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Cloudflare Zone ID</label>
+                                        <input type="text" @bind="_cfZoneId" placeholder="Zone ID girin" disabled="@_isDeploying"
+                                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded border border-slate-800">
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase">Cloudflare CDN Proxy (Proxied)</span>
+                                    <input type="checkbox" @bind="_cfProxied" disabled="@_isDeploying"
+                                        class="w-3.5 h-3.5 bg-slate-950 border-slate-800 rounded text-indigo-600 focus:ring-indigo-500">
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- PostgreSQL VeritabanÄ± SeÃ§ici -->
+                    <div class="border-t border-slate-850 pt-3 mt-1 space-y-3">
+                        <div class="flex items-center justify-between bg-slate-950/40 p-2.5 rounded-lg border border-slate-850">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-database text-indigo-400 text-xs"></i>
+                                <div>
+                                    <div class="text-[10px] text-slate-200 font-bold leading-none">PostgreSQL VeritabanÄ± OluÅŸturulsun</div>
+                                    <span class="text-[8px] text-slate-500">Projeye Ã¶zel veritabanÄ± ÅŸemasÄ± ve kullanÄ±cÄ±sÄ± oluÅŸturur</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" @bind="_createDatabase" @bind:after="UpdateDbDefaults" id="dbCheckbox" disabled="@_isDeploying"
+                                    class="w-4 h-4 bg-slate-950 border-slate-800 rounded focus:ring-indigo-500 text-indigo-600 disabled:opacity-50">
+                            </div>
                         </div>
 
                         @if (_createDatabase)
                         {
-                            <div class="p-4 bg-slate-950/60 border border-slate-850 rounded-xl space-y-3">
-                                <div class="grid grid-cols-2 gap-3">
+                            <div class="p-3 bg-slate-950/60 border border-slate-850/80 rounded-xl space-y-2 animate-fade-in">
+                                <div class="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Veritabanı Adı</label>
-                                        <input type="text" @bind="_dbName" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-white font-mono">
+                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">VeritabanÄ± Ä°smi</label>
+                                        <input type="text" @bind="_dbName" placeholder="Ã¶rn: bprojem_db" disabled="@_isDeploying"
+                                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
                                     </div>
                                     <div>
-                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Kullanıcı Adı</label>
-                                        <input type="text" @bind="_dbUser" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-white font-mono">
+                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">KullanÄ±cÄ± Ä°smi</label>
+                                        <input type="text" @bind="_dbUser" placeholder="Ã¶rn: bprojem_user" disabled="@_isDeploying"
+                                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Veritabanı Şifresi</label>
-                                    <div class="flex gap-2">
-                                        <input type="text" @bind="_dbPassword" class="flex-1 bg-slate-900 border border-slate-800 rounded p-2 text-xs text-emerald-400 font-mono font-bold">
-                                        <button type="button" @onclick="GenerateDbPassword" 
-                                            class="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 px-3 rounded-lg text-xs font-bold transition-colors">
-                                            Şifre Üret
+                                    <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">KullanÄ±cÄ± Åifresi</label>
+                                    <div class="flex gap-1.5">
+                                        <input type="text" @bind="_dbPassword" placeholder="GÃ¼Ã§lÃ¼ ÅŸifre girin veya Ã¼retin" disabled="@_isDeploying"
+                                            class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-emerald-400 focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono font-bold">
+                                        <button type="button" @onclick="GenerateDbPassword" disabled="@_isDeploying"
+                                            class="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 px-3 rounded-lg text-[10px] font-bold transition-colors">
+                                            <i class="fa-solid fa-key"></i> Åifre Ãœret
                                         </button>
                                     </div>
-                                </div>
-                                <div class="p-3 bg-emerald-950/20 border border-emerald-500/10 rounded-lg text-[10px] text-emerald-400 font-semibold flex items-center gap-2">
-                                    <i class="fa-solid fa-circle-check"></i>
-                                    <span>Bağlantı parametreleri ve veritabanı yetkileri otomatik ayarlanıp projeye eklenecektir.</span>
                                 </div>
                             </div>
                         }
                     </div>
-                }
-                else if (_currentStep == 5)
-                {
-                    <div class="space-y-4 animate-fade-in">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Giriş Dosyası (Entry File)</label>
-                                <input type="text" @bind="_entryFile" placeholder="örn: server.js veya Proje.dll"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Çalışma Dizini (Working Directory)</label>
-                                <input type="text" @bind="_workingDirectory" placeholder="Varsayılan proje dizini"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500">
-                            </div>
-                        </div>
 
-                        <div>
-                            <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Başlatma Komutu (Start Command)</label>
-                            <input type="text" @bind="_customCommand" placeholder="örn: node server.js veya dotnet Proje.dll"
-                                class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-indigo-300 font-mono font-bold focus:outline-none focus:border-indigo-500">
-                        </div>
-
-                        <div>
-                            <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Ortam (Environment)</label>
-                            <div class="grid grid-cols-3 gap-2">
-                                <button type="button" @onclick='() => _environment = "Production"'
-                                    class="py-2.5 rounded-lg text-xs font-bold transition-all border @(_environment == "Production" ? "bg-indigo-600/20 text-indigo-400 border-indigo-500" : "bg-slate-950 border-slate-850 text-slate-400 hover:text-slate-200")">
-                                    Production
-                                </button>
-                                <button type="button" @onclick='() => _environment = "Staging"'
-                                    class="py-2.5 rounded-lg text-xs font-bold transition-all border @(_environment == "Staging" ? "bg-indigo-600/20 text-indigo-400 border-indigo-500" : "bg-slate-950 border-slate-850 text-slate-400 hover:text-slate-200")">
-                                    Staging
-                                </button>
-                                <button type="button" @onclick='() => _environment = "Development"'
-                                    class="py-2.5 rounded-lg text-xs font-bold transition-all border @(_environment == "Development" ? "bg-indigo-600/20 text-indigo-400 border-indigo-500" : "bg-slate-950 border-slate-850 text-slate-400 hover:text-slate-200")">
-                                    Development
-                                </button>
+                    @if (_deployMode == "docker")
+                    {
+                        <!-- Docker Ä°maj AdÄ± -->
+                        <div class="border-t border-slate-850 pt-3 mt-1">
+                            <label class="block text-[10px] text-slate-400 font-semibold mb-1.5 uppercase tracking-wider">Docker Ä°maj AdÄ±</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                                    <i class="fa-brands fa-docker"></i>
+                                </span>
+                                <input type="text" @bind="_dockerImageName" @bind:event="oninput" placeholder="Ã¶rn: nginx:alpine, node:20-alpine" disabled="@_isDeploying"
+                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg pl-9 pr-3 py-2 text-xs text-indigo-300 font-mono font-bold focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50">
                             </div>
+                            <p class="text-[9px] text-slate-500 mt-1">Docker Hub imajÄ± ve etiket â€” Ã¶rn: <span class="font-mono text-indigo-400">node:20-alpine</span>, <span class="font-mono text-indigo-400">nginx:alpine</span></p>
                         </div>
-                    </div>
-                }
-                else if (_currentStep == 6)
-                {
-                    <div class="space-y-4 animate-fade-in">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Çevre Değişkenleri Listesi</span>
-                            <button type="button" @onclick="AddEnvVar" class="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1">
-                                <i class="fa-solid fa-plus"></i> Değişken Ekle
-                            </button>
-                        </div>
+                    }
 
-                        <div class="max-h-[220px] overflow-y-auto space-y-2 pr-1">
-                            @if (!_envVars.Any())
-                            {
-                                <div class="p-6 text-center border border-dashed border-slate-800 rounded-xl text-slate-500 text-xs">
-                                    Henüz bir çevre değişkeni eklenmedi. Proje veritabanı oluşturulursa `DATABASE_URL` otomatik buraya eklenecektir.
+                    @if (_deployMode == "native")
+                    {
+                        <!-- Ã‡alÄ±ÅŸma ZamanÄ± (Runtime) ve BaÅŸlangÄ±Ã§ AyarlarÄ± -->
+                        <div class="border-t border-slate-850 pt-3 mt-1 space-y-3">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Ã‡alÄ±ÅŸma ZamanÄ± (Runtime)</label>
+                                    <select @bind="_runtimeType" disabled="@_isDeploying"
+                                        class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50">
+                                        <option value="dotnet">.NET / C#</option>
+                                        <option value="node">Node.js</option>
+                                        <option value="python">Python</option>
+                                        <option value="custom">Ã–zel Komut (Custom)</option>
+                                    </select>
                                 </div>
-                            }
-                            else
-                            {
-                                @foreach (var ev in _envVars)
+
+                                @if (_runtimeType == "custom")
                                 {
-                                    <div class="flex gap-2 items-center animate-fade-in">
-                                        <input type="text" @bind="ev.Key" placeholder="ANAHTAR (örn: JWT_SECRET)"
-                                            class="w-1/2 bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-white font-mono font-bold">
-                                        <input type="text" @bind="ev.Value" placeholder="Değer (örn: supersecret)"
-                                            class="w-1/2 bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-emerald-400 font-mono">
-                                        <button type="button" @onclick="() => RemoveEnvVar(ev)" class="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg">
-                                            <i class="fa-solid fa-trash-can"></i>
-                                        </button>
+                                    <div>
+                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Ã–zel Ã‡alÄ±ÅŸtÄ±rma Komutu</label>
+                                        <input type="text" @bind="_customCommand" placeholder="Ã¶rn: node index.js" disabled="@_isDeploying"
+                                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
                                     </div>
                                 }
-                            }
+                                else
+                                {
+                                    <div>
+                                         <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">GiriÅŸ DosyasÄ± (Entry File)</label>
+                                         <input type="text" @bind="_entryFile" placeholder="@(_runtimeType == "dotnet" ? "Ã¶rn: KÃ¼tÃ¼phaneTakipWeb.dll (UzantÄ±sÄ±z yazÄ±lÄ±rsa .dll otomatik eklenir)" : "Ã¶rn: server.js veya app.py")" disabled="@_isDeploying"
+                                             class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                     </div>
+                                }
+                            </div>
                         </div>
-                    </div>
-                }
-                else if (_currentStep == 7)
-                {
-                    <div class="space-y-4 animate-fade-in">
-                        <!-- ZIP Uploader -->
-                        <div class="relative border-2 border-dashed rounded-xl transition-all flex flex-col items-center justify-center p-6 min-h-[140px] @(_selectedFile != null ? "border-emerald-500/40 bg-emerald-950/5" : "border-slate-800 hover:border-indigo-500/40 bg-slate-950/50")">
-                            @if (_selectedFile == null)
-                            {
-                                <i class="fa-regular fa-file-zip text-4xl text-slate-500 animate-bounce mb-2"></i>
-                                <span class="text-xs text-slate-300 font-bold">Dağıtım ZIP arşivini buraya bırakın veya tıklayın</span>
-                                <span class="text-[9px] text-slate-500 font-semibold mt-1">Yalnızca .zip uzantılı (Maksimum 200MB)</span>
-                            }
-                            else
-                            {
-                                <i class="fa-solid fa-file-circle-check text-4xl text-emerald-400 mb-2"></i>
-                                <span class="text-xs text-slate-200 font-bold">@_selectedFile.Name</span>
-                                <span class="text-[9px] text-emerald-400 font-semibold mt-1">@((_selectedFile.Size / 1024.0 / 1024.0).ToString("F2")) MB - Dosya Hazır</span>
-                            }
-                            <InputFile id="wizard-zip-input" OnChange="OnZipFileSelected" accept=".zip"
-                                style="position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" />
-                        </div>
+                    }
 
-                        <!-- Pre-deploy Checks -->
-                        @if (_selectedFile != null)
-                        {
-                            <div class="p-4 bg-slate-950/80 rounded-xl border border-slate-850 space-y-2">
-                                <div class="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">
-                                    <span>Deployment Ön Kontrolleri</span>
-                                    <button type="button" @onclick="VerifyUploadedZip" disabled="@_isCheckingZip"
-                                        class="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 px-3 py-1 rounded text-[10px] font-bold">
-                                        @(_isCheckingZip ? "Doğrulanıyor..." : "Doğrulamayı Yeniden Çalıştır")
-                                    </button>
-                                </div>
+                    @if (_deployMode == "native" || _deployMode == "static")
+                    {
 
-                                <div class="grid grid-cols-2 gap-2 text-xs">
-                                    <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-850">
-                                        <span class="text-slate-300">1. ZIP Dosyası Sağlam</span>
-                                        @if (_zipCheckRun)
-                                        {
-                                            <i class="fa-solid @(_zipCorrupt ? "fa-circle-xmark text-rose-500" : "fa-circle-check text-emerald-400")"></i>
-                                        }
-                                        else
-                                        {
-                                            <i class="fa-solid fa-circle-question text-slate-600"></i>
-                                        }
-                                    </div>
-                                    <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-850">
-                                        <span class="text-slate-300">2. DLL Mevcut (.NET)</span>
-                                        @if (_zipCheckRun)
-                                        {
-                                            <i class="fa-solid @(_hasDll ? "fa-circle-check text-emerald-400" : "fa-circle-exclamation text-amber-500")"></i>
-                                        }
-                                        else
-                                        {
-                                            <i class="fa-solid fa-circle-question text-slate-600"></i>
-                                        }
-                                    </div>
-                                    <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-850">
-                                        <span class="text-slate-300">3. Giriş Dosyası Mevcut</span>
-                                        @if (_zipCheckRun)
-                                        {
-                                            <i class="fa-solid @(_hasStartup ? "fa-circle-check text-emerald-400" : "fa-circle-exclamation text-amber-500")"></i>
-                                        }
-                                        else
-                                        {
-                                            <i class="fa-solid fa-circle-question text-slate-600"></i>
-                                        }
-                                    </div>
-                                    <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-850">
-                                        <span class="text-slate-300">4. Yapılandırma Dosyası (appsettings/package)</span>
-                                        @if (_zipCheckRun)
-                                        {
-                                            <i class="fa-solid @(_hasAppSettings ? "fa-circle-check text-emerald-400" : "fa-circle-question text-slate-500")"></i>
-                                        }
-                                        else
-                                        {
-                                            <i class="fa-solid fa-circle-question text-slate-600"></i>
-                                        }
-                                    </div>
-                                </div>
-                                <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded border border-slate-850 text-xs">
-                                    <span class="text-slate-300 font-semibold">5. Hedef Port Boş ve Müsait</span>
-                                    @if (_zipCheckRun)
-                                    {
-                                        <span class="font-bold font-mono @(_isPortEmpty ? "text-emerald-400" : "text-rose-500")">
-                                            @(_isPortEmpty ? "BOŞ (Hazır)" : "DOLU (Lütfen başka port seçin)")
+                        <!-- ZIP Dosya YÃ¼kleyici -->
+                        <div class="border-t border-slate-850 pt-3">
+                            <label class="block text-[10px] text-slate-400 font-semibold mb-2 uppercase tracking-wider">Proje ZIP ArÅŸivi</label>
+
+                            <div class="relative border-2 border-dashed rounded-xl transition-all flex flex-col items-center justify-center p-4 min-h-[90px] @(_isDeploying ? "pointer-events-none opacity-50" : "") @(_selectedFile != null ? "border-emerald-500/40 bg-emerald-950/5" : "border-slate-800 hover:border-indigo-500/40 bg-slate-950/50")">
+                                @if (_selectedFile == null)
+                                {
+                                    <i class="fa-regular fa-file-zip text-2xl text-slate-500 animate-bounce mb-1"></i>
+                                    <span class="text-[10px] text-slate-400 font-bold">Projeyi ZIP olarak buraya sÃ¼rÃ¼kleyin veya tÄ±klayÄ±n</span>
+                                    <span class="text-[8px] text-slate-600 font-semibold mt-0.5">Sadece .zip uzantÄ±lÄ± (Max 200MB)</span>
+                                }
+                                else
+                                {
+                                    <i class="fa-solid fa-file-circle-check text-2xl text-emerald-400 mb-1"></i>
+                                    <span class="text-[10px] text-slate-200 font-bold">@_selectedFile.Name</span>
+                                    <span class="text-[8px] text-emerald-400 font-semibold mt-0.5">@((_selectedFile.Size / 1024.0 / 1024.0).ToString("F2")) MB - Dosya HazÄ±r</span>
+                                }
+                                <InputFile id="wizard-zip-input" OnChange="OnZipFileSelected" accept=".zip"
+                                    style="position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" />
+                            </div>
+
+                            @if (_isUploadingFile)
+                            {
+                                <div class="mt-2 bg-slate-950/60 border border-slate-850 p-2.5 rounded-xl space-y-1.5 animate-pulse">
+                                    <div class="flex justify-between items-center text-[9px] font-bold uppercase tracking-wider">
+                                        <span class="flex items-center gap-1.5 text-indigo-400">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping"></span>
+                                            Sunucuya YÃ¼kleniyor...
                                         </span>
-                                    }
-                                    else
-                                    {
-                                        <i class="fa-solid fa-circle-question text-slate-600"></i>
-                                    }
+                                        <span class="text-white font-mono font-bold">%@_uploadPercentage</span>
+                                    </div>
+                                    <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800">
+                                        <div class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full transition-all duration-300" style="width: @_uploadPercentage%"></div>
+                                    </div>
+                                    <div class="text-[8px] text-slate-500 font-semibold flex justify-between">
+                                        <span>SÄ±kÄ±ÅŸtÄ±rÄ±lmÄ±ÅŸ Paket</span>
+                                        <span>@GetReadableUploadedSize() / @GetReadableFileSize()</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        @if (_deployMode == "static")
+                        {
+                            <!-- PHP DesteÄŸi Switch Butonu (DeployWizard Uyumlu) -->
+                            <div class="flex items-center justify-between bg-emerald-950/10 p-2.5 rounded-lg border border-emerald-500/10 mt-2">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-code text-emerald-400 text-xs"></i>
+                                    <div>
+                                        <div class="text-[10px] text-emerald-200 font-bold leading-none">PHP DesteÄŸi Aktif Edilsin</div>
+                                        <span class="text-[8px] text-slate-500">Statik sitede upload.php gibi dinamik kodlarÄ±n Ã§alÄ±ÅŸmasÄ±nÄ± saÄŸlar</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" @bind="_enablePhp" id="phpSupportCheckbox" disabled="@_isDeploying"
+                                        class="w-4 h-4 bg-slate-950 border-slate-800 rounded focus:ring-emerald-500 text-emerald-600 disabled:opacity-50">
                                 </div>
                             </div>
                         }
-                    </div>
-                }
-                else if (_currentStep == 8)
-                {
-                    <div class="space-y-4 animate-fade-in">
-                        <div class="grid grid-cols-2 gap-4">
-                            <!-- Genel & Konfigürasyon Bilgileri -->
-                            <div class="p-4 bg-slate-950/40 rounded-xl border border-slate-850 space-y-2 text-xs">
-                                <h4 class="font-bold text-indigo-400 mb-2 uppercase text-[10px] tracking-wider border-b border-slate-800 pb-1">Uygulama & Limit</h4>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">Proje Adı:</span>
-                                    <span class="text-white font-bold">@_projectName</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">Çalışma Zamanı:</span>
-                                    <span class="text-emerald-400 font-bold">@_runtimeType (@_frameworkVersion)</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">Port Numarası:</span>
-                                    <span class="text-white font-bold">@_port</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">CPU / RAM Limiti:</span>
-                                    <span class="text-white font-bold">@_cpuCount Çekirdek / @_memoryLimitMb MB</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">Giriş Dosyası:</span>
-                                    <span class="text-white font-mono text-[10px]">@_entryFile</span>
-                                </div>
-                            </div>
+                    }
 
-                            <!-- Domain & Servisler -->
-                            <div class="p-4 bg-slate-950/40 rounded-xl border border-slate-850 space-y-2 text-xs">
-                                <h4 class="font-bold text-indigo-400 mb-2 uppercase text-[10px] tracking-wider border-b border-slate-800 pb-1">Bağlantı & Domain</h4>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">Erişim Adresi:</span>
-                                    <span class="text-emerald-400 font-bold">https://@(string.IsNullOrEmpty(_subdomain) ? _domain : $"{_subdomain}.{_domain}")</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">Otomatik SSL:</span>
-                                    <span class="font-bold @(_sslEnabled ? "text-emerald-400" : "text-slate-500")">@(_sslEnabled ? "Aktif" : "Pasif")</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">CF DNS Kaydı:</span>
-                                    <span class="font-bold @(_createDnsRecord ? "text-emerald-400" : "text-slate-500")">@(_createDnsRecord ? "Aktif" : "Pasif")</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">PostgreSQL Veritabanı:</span>
-                                    <span class="font-bold @(_createDatabase ? "text-emerald-400" : "text-slate-500")">
-                                        @(_createDatabase ? $"Oluşturulacak ({_dbName})" : "Pasif")
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Paketi Dağıtmaya Başla Uyarısı -->
-                        <div class="p-4 bg-indigo-950/20 border border-indigo-500/20 rounded-xl flex items-center gap-3">
-                            <i class="fa-solid fa-circle-info text-indigo-400 text-lg animate-pulse"></i>
-                            <div class="text-xs text-slate-300">
-                                <strong>Dağıtıma Hazır!</strong> "Dağıtımı Başlat" butonuna tıklayarak projenizi sunucumuzda ayağa kaldırabilirsiniz.
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
-
-            <!-- Navigation Buttons -->
-            <div class="flex justify-between items-center border-t border-slate-850 pt-4 mt-6">
-                <button type="button" @onclick="PrevStep" disabled="@(_currentStep == 1 || _isDeploying)"
-                    class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition-colors disabled:opacity-30">
-                    <i class="fa-solid fa-arrow-left mr-1"></i> Geri
-                </button>
-
-                @if (_currentStep < 8)
-                {
-                    <button type="button" @onclick="NextStep" disabled="@(!CanProceedToNextStep())"
-                        class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-40">
-                        İleri <i class="fa-solid fa-arrow-right ml-1"></i>
-                    </button>
-                }
-                else
-                {
-                    <button type="button" @onclick="StartAutomatedDeployment" disabled="@_isDeploying"
-                        class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-lg shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2">
+                    <!-- Ã‡alÄ±ÅŸtÄ±rma Butonu -->
+                    <button @onclick="StartAutomatedDeployment" disabled="@IsDeployDisabled"
+                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:hover:bg-indigo-600 shadow-indigo-600/10">
                         @if (_isDeploying)
                         {
                             <span class="w-4 h-4 rounded-full border-2 border-t-transparent border-white animate-spin"></span>
-                            <span>Dağıtılıyor...</span>
+                            <span>DaÄŸÄ±tÄ±m SÃ¼rÃ¼yor...</span>
                         }
                         else
                         {
-                            <i class="fa-solid fa-cloud-arrow-up"></i>
-                            <span>Dağıtımı Başlat!</span>
+                            <i class="fa-solid fa-circle-play text-xs"></i>
+                            <span>@DeployButtonText</span>
                         }
                     </button>
-                }
-            </div>
-
-        </div>
-
-        <!-- Right: Deployment pipeline and Console -->
-        <div class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between min-h-[550px]">
-            
-            <div>
-                <div class="flex items-center gap-2 border-b border-slate-850 pb-3 mb-4">
-                    <i class="fa-solid fa-network-wired text-indigo-400"></i>
-                    <h3 class="font-bold text-white text-sm">Dağıtım Boru Hattı</h3>
-                </div>
-
-                <!-- Pipeline list -->
-                <div class="space-y-3 mb-4">
-                    <div class="flex items-center justify-between p-2.5 rounded-lg border text-xs @(GetPipelineStepClass(1))">
-                        <span class="flex items-center gap-2">
-                            <i class="fa-solid fa-database"></i> 1. DB Şeması Oluştur
-                        </span>
-                        <span class="text-[9px] uppercase font-bold">@GetPipelineStatusText(1)</span>
-                    </div>
-                    <div class="flex items-center justify-between p-2.5 rounded-lg border text-xs @(GetPipelineStepClass(2))">
-                        <span class="flex items-center gap-2">
-                            <i class="fa-brands fa-cloudflare"></i> 2. Cloudflare DNS Tescili
-                        </span>
-                        <span class="text-[9px] uppercase font-bold">@GetPipelineStatusText(2)</span>
-                    </div>
-                    <div class="flex items-center justify-between p-2.5 rounded-lg border text-xs @(GetPipelineStepClass(3))">
-                        <span class="flex items-center gap-2">
-                            <i class="fa-regular fa-file-zip"></i> 3. ZIP Çıkar & Geri Yükle
-                        </span>
-                        <span class="text-[9px] uppercase font-bold">@GetPipelineStatusText(3)</span>
-                    </div>
-                    <div class="flex items-center justify-between p-2.5 rounded-lg border text-xs @(GetPipelineStepClass(4))">
-                        <span class="flex items-center gap-2">
-                            <i class="fa-solid fa-cube"></i> 4. Servis Başlat (Native)
-                        </span>
-                        <span class="text-[9px] uppercase font-bold">@GetPipelineStatusText(4)</span>
-                    </div>
-                    <div class="flex items-center justify-between p-2.5 rounded-lg border text-xs @(GetPipelineStepClass(5))">
-                        <span class="flex items-center gap-2">
-                            <i class="fa-solid fa-server"></i> 5. Nginx vHost Yapılandırma
-                        </span>
-                        <span class="text-[9px] uppercase font-bold">@GetPipelineStatusText(5)</span>
-                    </div>
-                    <div class="flex items-center justify-between p-2.5 rounded-lg border text-xs @(GetPipelineStepClass(6))">
-                        <span class="flex items-center gap-2">
-                            <i class="fa-solid fa-shield-halved"></i> 6. Let's Encrypt SSL
-                        </span>
-                        <span class="text-[9px] uppercase font-bold">@GetPipelineStatusText(6)</span>
-                    </div>
                 </div>
             </div>
 
-            <!-- Console Log Panel -->
-            <div class="space-y-1">
-                <span class="text-[9px] text-slate-500 uppercase font-black">Stdout Log Konsolu</span>
-                <div class="bg-slate-950 border border-slate-850 p-3 rounded-lg font-mono text-[9px] text-emerald-400 min-h-[140px] max-h-[180px] overflow-y-auto space-y-1">
-                    @if (!_terminalLogs.Any())
+            <!-- SaÄŸ SÃ¼tun: CanlÄ± Boru HattÄ± & Siber Terminal Konsolu -->
+            <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden flex flex-col min-h-[500px]">
+                <div class="flex items-center justify-between border-b border-slate-850 pb-3 mb-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-indigo-400"></i>
+                        <h3 class="font-bold text-white text-sm">2. CanlÄ± DaÄŸÄ±tÄ±m Boru HattÄ±</h3>
+                    </div>
+                    @if (_isDeploying)
                     {
-                        <span class="text-slate-600">// Loglar dağıtım başladığında burada akacaktır.</span>
+                        <span class="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 px-2 py-0.5 rounded font-extrabold animate-pulse">AKTÄ°F Ä°ÅLEM</span>
+                    }
+                    else if (_executionSuccess == true)
+                    {
+                        <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded font-extrabold">BAÅARILI</span>
+                    }
+                    else if (_executionSuccess == false)
+                    {
+                        <span class="text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/25 px-2 py-0.5 rounded font-extrabold">HATA OLUÅTU</span>
                     }
                     else
                     {
-                        @foreach (var log in _terminalLogs)
-                        {
-                            <div>@log</div>
-                        }
+                        <span class="text-[10px] text-slate-500 font-extrabold uppercase">Beklemede</span>
                     }
+                </div>
+
+                <!-- 6 AÅŸamalÄ± Pipeline GÃ¶rsel AÅŸamalarÄ± -->
+                <div class="grid grid-cols-6 gap-1.5 mb-5">
+                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(1))">
+                        <i class="fa-solid fa-database text-xs mb-0.5"></i>
+                        <span class="text-[8px] font-bold leading-tight">1. DB Yarat</span>
+                        <span class="text-[6px] opacity-70 mt-0.5">PostgreSQL</span>
+                    </div>
+
+                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(2))">
+                        <i class="fa-brands fa-cloudflare text-xs mb-0.5"></i>
+                        <span class="text-[8px] font-bold leading-tight">2. DNS Ekle</span>
+                        <span class="text-[6px] opacity-70 mt-0.5">Cloudflare</span>
+                    </div>
+
+                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(3))">
+                        <i class="@Step3Icon text-xs mb-0.5"></i>
+                        <span class="text-[8px] font-bold leading-tight">@Step3Label</span>
+                        <span class="text-[6px] opacity-70 mt-0.5">@Step3Sub</span>
+                    </div>
+
+                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(4))">
+                        <i class="@Step4Icon text-xs mb-0.5"></i>
+                        <span class="text-[8px] font-bold leading-tight">@Step4Label</span>
+                        <span class="text-[6px] opacity-70 mt-0.5">@Step4Sub</span>
+                    </div>
+
+                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(5))">
+                        <i class="fa-solid fa-server text-xs mb-0.5"></i>
+                        <span class="text-[8px] font-bold leading-tight">5. Nginx vHost</span>
+                        <span class="text-[6px] opacity-70 mt-0.5">Proxy</span>
+                    </div>
+
+                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(6))">
+                        <i class="fa-solid fa-shield-halved text-xs mb-0.5"></i>
+                        <span class="text-[8px] font-bold leading-tight">6. SSL Kur</span>
+                        <span class="text-[6px] opacity-70 mt-0.5">Let's Encrypt</span>
+                    </div>
+                </div>
+
+                <!-- CanlÄ± Siber-Terminal Log Kutusu -->
+                <div class="flex-1 flex flex-col min-h-[220px]">
+                    <div class="flex justify-between items-center text-[10px] text-slate-500 font-extrabold uppercase mb-1">
+                        <span>Sunucu DaÄŸÄ±tÄ±m Konsolu (Stdout Log AkÄ±ÅŸÄ±)</span>
+                        <button @onclick="ClearConsole" disabled="@_isDeploying" class="hover:text-indigo-400 font-bold">Konsolu Temizle</button>
+                    </div>
+
+                    <div class="flex-1 bg-slate-950 border border-slate-850 p-4 rounded-xl shadow-inner font-mono text-[11px] leading-relaxed overflow-y-auto max-h-[300px] flex flex-col gap-1 text-emerald-400 cyber-terminal shadow-black/40">
+                        @if (_terminalLogs.Count == 0)
+                        {
+                            <span class="text-slate-500 italic text-[10px]">// Otomatik daÄŸÄ±tÄ±mÄ± baÅŸlattÄ±ÄŸÄ±nÄ±zda canlÄ± iÅŸlem loglarÄ± burada akacaktÄ±r.</span>
+                        }
+                        else
+                        {
+                            @foreach (var log in _terminalLogs)
+                            {
+                                @if (log.Contains("SUCCESS"))
+                                {
+                                    <span class="text-emerald-400 font-semibold">@log</span>
+                                }
+                                else if (log.Contains("ERROR") || log.Contains("HATA") || log.Contains("FAILD"))
+                                {
+                                    <span class="text-rose-400 font-semibold">@log</span>
+                                }
+                                else if (log.StartsWith("["))
+                                {
+                                    <span class="text-slate-400 font-bold">@log</span>
+                                }
+                                else
+                                {
+                                    <span class="text-indigo-300 font-medium">@log</span>
+                                }
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- PostgreSQL BaÄŸlantÄ± DetaylarÄ± (Konsolun Hemen AltÄ±nda) -->
+                @if (_executionSuccess == true && _createDatabase)
+                {
+                    <div class="mt-4 p-3 bg-slate-950/80 rounded-xl space-y-2" style="background-color: #040815 !important; border: 1.5px solid rgba(99, 102, 241, 0.2) !important;">
+                        <div class="flex justify-between items-center text-[9px] text-indigo-400 font-bold uppercase tracking-wider">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-database animate-pulse"></i> PostgreSQL BaÄŸlantÄ± DetaylarÄ±</span>
+                            <button @onclick='() => CopyText($"Host=127.0.0.1;Port=5432;Database={_dbName};Username={_dbUser};Password={_dbPassword};")'
+                                class="hover:text-white transition-colors text-[8px] bg-indigo-600/25 px-2 py-0.5 rounded border border-indigo-500/25 font-bold">
+                                <i class="fa-regular fa-copy"></i> BaÄŸlantÄ± Metnini Kopyala
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-[10px] leading-relaxed">
+                            <div class="p-1.5 rounded border" style="background-color: #0c1225 !important; color: #e2e8f0 !important; border: 1px solid #1e293b !important;">
+                                <span class="text-slate-400 font-semibold">DB AdÄ±:</span> <span class="text-emerald-400 font-mono font-bold ml-1">@_dbName</span>
+                            </div>
+                            <div class="p-1.5 rounded border" style="background-color: #0c1225 !important; color: #e2e8f0 !important; border: 1px solid #1e293b !important;">
+                                <span class="text-slate-400 font-semibold">KullanÄ±cÄ±:</span> <span class="text-emerald-400 font-mono font-bold ml-1">@_dbUser</span>
+                            </div>
+                        </div>
+                        <div class="p-1.5 rounded border text-[10px] flex justify-between items-center" style="background-color: #0c1225 !important; color: #e2e8f0 !important; border: 1px solid #1e293b !important;">
+                            <div>
+                                <span class="text-slate-400 font-semibold">Åifre:</span> <span class="text-emerald-400 font-mono font-bold ml-1">@_dbPassword</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- SonuÃ§ & CanlÄ± Link KartÄ± -->
+                @if (_executionSuccess == true)
+                {
+                    <div class="mt-4 p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl flex flex-col gap-3 animate-fade-in text-left">
+                        <div class="flex items-center justify-between gap-4">
+                            <div class="flex items-center gap-3">
+                                <span class="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                                    <i class="fa-solid fa-circle-check animate-bounce"></i>
+                                </span>
+                                <div>
+                                    <h4 class="text-xs font-extrabold text-white uppercase tracking-wider">Tebrikler! DaÄŸÄ±tÄ±m TamamlandÄ±</h4>
+                                    <p class="text-[10px] text-slate-400 mt-0.5">Uygulama baÅŸarÄ±yla sunucuya kuruldu ve internete aÃ§Ä±ldÄ±.</p>
+                                    <a href="https://@(string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}")" target="_blank" class="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline inline-flex items-center gap-1 mt-1">
+                                        https://@(string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}") <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <button @onclick='() => SetTab("manual")' class="bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 text-[10px] border border-indigo-500/20 px-3 py-1.5 rounded-lg font-bold shrink-0">
+                                Manuel KÄ±lavuza Git
+                            </button>
+                        </div>
+                    </div>
+                }
+                else if (_executionSuccess == false)
+                {
+                    <div class="mt-4 p-4 bg-rose-950/20 border border-rose-500/20 rounded-xl flex items-center gap-3 animate-fade-in">
+                        <span class="w-8 h-8 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </span>
+                        <div>
+                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wider">DaÄŸÄ±tÄ±m BaÅŸarÄ±sÄ±z Oldu</h4>
+                            <p class="text-[10px] text-rose-300 font-medium mt-0.5">@_errorMessage</p>
+                            <span class="text-[9px] text-slate-500">LÃ¼tfen yukarÄ±daki hata loglarÄ±nÄ± ve port doluluk durumunu kontrol ederek tekrar deneyin.</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- MANUEL DAÄITIM KILAVUZU -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-md mb-6">
+            <div class="flex justify-between items-center border-b border-slate-850 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-book text-indigo-400"></i>
+                    <h3 class="font-bold text-white text-sm">3. Manuel DaÄŸÄ±tÄ±m KÄ±lavuz Modu</h3>
+                </div>
+                <button @onclick='() => SetTab("auto")' class="text-indigo-400 hover:text-indigo-300 font-bold text-xs">
+                    <i class="fa-solid fa-arrow-left"></i> Otomatik Moda DÃ¶n
+                </button>
+            </div>
+
+            <!-- Ä°nteraktif Parametre Formu -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-850/80 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase">Proje / Uygulama AdÄ±</label>
+                    <input type="text" @bind="_projectName" @bind:event="oninput" placeholder="bTest"
+                        class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase">Ã‡alÄ±ÅŸma Portu</label>
+                    <input type="number" @bind="_port" @bind:event="oninput"
+                        class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-emerald-400 font-bold focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase">Subdomain / Domain</label>
+                    <div class="flex gap-1">
+                        <input type="text" @bind="_subdomain" @bind:event="oninput" placeholder="api" class="w-1/3 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white">
+                        <select @bind="_domain" @bind:after="ApplySelectedRootDomainDefaults" class="w-2/3 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white">
+                            <option value="">SeÃ§iniz...</option>
+                            @foreach (var rd in _rootDomains)
+                            {
+                                <option value="@rd.Name">@rd.Name</option>
+                            }
+                        </select>
+                    </div>
                 </div>
             </div>
 
+            <!-- AdÄ±m Stepper GÃ¶rÃ¼nÃ¼mÃ¼ -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Sol MenÃ¼: AdÄ±m SeÃ§ici -->
+                <div class="lg:col-span-1 space-y-2">
+                    @for (int i = 1; i <= 5; i++)
+                    {
+                        var stepIndex = i;
+                        <button @onclick="() => SetStep(stepIndex)" class="w-full text-left p-3 rounded-xl border transition-all duration-200 flex items-center gap-3 @( _currentStep == stepIndex ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" : "bg-slate-950 border-slate-850 text-slate-400 hover:text-slate-200" )">
+                            <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold @( _currentStep == stepIndex ? "bg-white text-indigo-600" : "bg-slate-800 text-slate-400" )">@stepIndex</span>
+                            <div>
+                                <div class="text-[11px] font-bold leading-none">AdÄ±m @stepIndex: @GetStepTitle(stepIndex)</div>
+                            </div>
+                        </button>
+                    }
+                </div>
+
+                <!-- SaÄŸ Detay -->
+                <div class="lg:col-span-3 bg-slate-950 border border-slate-850 rounded-xl p-5 shadow-2xl min-h-[360px] flex flex-col justify-between">
+                    <div>
+                        @if (_currentStep == 1)
+                        {
+                            <div class="space-y-3">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-file-arrow-up text-indigo-400"></i> Dizin HazÄ±rlÄ±ÄŸÄ±</h4>
+                                <pre class="bg-slate-900 border border-slate-800 p-3 rounded-lg text-[10px] text-slate-300 font-mono overflow-x-auto">cd /var/www/apps && mkdir -p @GetSafeProjectName()</pre>
+                            </div>
+                        }
+                        else if (_currentStep == 2)
+                        {
+                            <div class="space-y-3">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-vial text-emerald-400"></i> Port Atama</h4>
+                                <p class="text-xs text-slate-400">Port hedefi: @_port</p>
+                            </div>
+                        }
+                        else if (_currentStep == 3)
+                        {
+                            <div class="space-y-3">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-brands fa-docker text-indigo-400"></i> Entegrasyon</h4>
+                                <p class="text-xs text-slate-400">Docker imajÄ± arka planda Ã§ekilecek: @_dockerImageName</p>
+                            </div>
+                        }
+                        else if (_currentStep == 4)
+                        {
+                            <div class="space-y-3">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-arrows-spin text-indigo-400"></i> Servis YÃ¶netimi</h4>
+                                <pre class="bg-slate-900 border border-slate-800 p-3 rounded-lg text-[10px] text-slate-300 font-mono">docker ps -a</pre>
+                            </div>
+                        }
+                        else if (_currentStep == 5)
+                        {
+                            <div class="space-y-3">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-share-nodes text-indigo-400"></i> Nginx YapÄ±landÄ±rmasÄ±</h4>
+                                <pre class="bg-slate-900 border border-slate-800 p-2.5 rounded-lg text-[9px] text-slate-400 font-mono leading-tight h-32 overflow-y-auto">@GetNginxConfig()</pre>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- KÄ±lavuz Alt Butonlar -->
+                    <div class="flex justify-between items-center border-t border-slate-800 pt-3 mt-4">
+                        <button @onclick="PrevStep" disabled="@(_currentStep == 1)" class="bg-slate-850 hover:bg-slate-800 text-slate-300 disabled:opacity-40 text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all">Ã–nceki</button>
+                        <span class="text-[10px] text-slate-500 font-extrabold">@_currentStep / 5</span>
+                        <button @onclick="NextStep" disabled="@(_currentStep == 5)" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all">Sonraki</button>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    }
 </div>
 
-<!-- PostgreSQL Database generated credentials display modal -->
-@if (_executionSuccess == true && _createDatabase)
-{
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-indigo-500/20 max-w-md w-full rounded-2xl p-6 space-y-4 shadow-2xl text-left">
-            <h3 class="text-base font-extrabold text-white flex items-center gap-2">
-                <i class="fa-solid fa-database text-emerald-400"></i> PostgreSQL Veritabanı Bilgileri
-            </h3>
-            <p class="text-xs text-slate-300">Projeniz için veritabanı başarıyla oluşturuldu. Bağlantı dizesi parametreleri aşağıdadır:</p>
-
-            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-850 font-mono text-xs text-emerald-400 space-y-1.5">
-                <div>Host: <span class="text-white ml-2">127.0.0.1</span></div>
-                <div>Veritabanı: <span class="text-white ml-2">@_dbName</span></div>
-                <div>Kullanıcı: <span class="text-white ml-2">@_dbUser</span></div>
-                <div>Şifre: <span class="text-white ml-2">@_dbPassword</span></div>
-            </div>
-
-            <button type="button" @onclick="() => _executionSuccess = null" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold">
-                Kapat
-            </button>
-        </div>
-    </div>
-}
-
 @code {
+    private string _activeTab = "auto";
     private int _currentStep = 1;
-    private int _maxReachedStep = 1;
 
-    // Wizard Form Data
-    private string _projectName = "";
-    private string _logo = "fa-cube";
-    private string _description = "";
-    private string _runtimeType = "dotnet";
-    private string _frameworkVersion = "";
+    private string _deployMode = "docker";
+    private string _dockerImageName = "nginx:alpine";
 
-    // Resources
-    private int _port = 5000;
-    private int _memoryLimitMb = 512;
-    private double _cpuCount = 1.0;
-    private bool _autoRestart = true;
-    private string _healthCheckEndpoint = "";
-    private string _runUser = "root";
-
-    // Domain & SSL
+    private string _projectName = "btest";
     private string _subdomain = "api";
     private string _domain = "";
-    private bool _sslEnabled = true;
-    private bool _createDnsRecord = true;
-    private string _serverIp = "85.95.23.10";
-    private string _cfToken = "";
-    private string _cfZoneId = "";
-    private bool _cfProxied = true;
-
-    // Database
-    private bool _createDatabase = false;
-    private string _dbName = "";
-    private string _dbUser = "";
-    private string _dbPassword = "";
-
-    // Start configuration
-    private string _entryFile = "";
-    private string _workingDirectory = "";
-    private string _customCommand = "";
-    private string _environment = "Production";
-
-    // Environment Variables list
-    private List<EnvVarModel> _envVars = new();
-
-    // ZIP Release file
-    private Microsoft.AspNetCore.Components.Forms.IBrowserFile? _selectedFile;
-    private bool _isUploadingFile = false;
-    private int _uploadPercentage = 0;
-
-    // Pre-deploy checks state
-    private bool _zipCheckRun = false;
-    private bool _isCheckingZip = false;
-    private bool _zipCorrupt = false;
-    private bool _hasDll = false;
-    private bool _hasStartup = false;
-    private bool _hasAppSettings = false;
-    private bool _isPortEmpty = true;
-
-    // Deployment metrics
-    private bool _isDeploying = false;
-    private bool? _executionSuccess;
-    private string _errorMessage = "";
-    private int _activePipelineStep = 0;
-    private List<string> _terminalLogs = new();
+    private int _port = 80;
 
     private List<RootDomainDto> _rootDomains = new();
 
@@ -693,390 +675,686 @@
     {
         try
         {
-            var rd = await Http.GetFromJsonAsync<List<RootDomainDto>>("api/rootdomains");
-            if (rd != null)
+            var rawRoots = await Http.GetFromJsonAsync<List<RootDomainDto>>("api/domains/roots");
+            _rootDomains = rawRoots ?? new List<RootDomainDto>();
+            if (_rootDomains.Any())
             {
-                _rootDomains = rd;
-                if (_rootDomains.Any())
-                {
-                    _domain = _rootDomains.First().Name;
-                    ApplySelectedRootDomainDefaults();
-                }
+                _domain = _rootDomains.First().Name;
+                ApplySelectedRootDomainDefaults();
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback mock domains if fetch fails
-            _rootDomains = new List<RootDomainDto>
-            {
-                new() { Name = "burhanlife.api" },
-                new() { Name = "apihub.dev" }
-            };
-            _domain = _rootDomains.First().Name;
+            Console.WriteLine($"Error loading root domains: {ex.Message}");
         }
+    }
+    private int _memoryLimitMb = 512;
+    private double _cpuCount = 1.0;
+    private bool _sslEnabled = true;
 
-        // Pre-fill CF Token and Zone ID from localStorage
-        try
+    private bool _createDnsRecord = false;
+    private string _serverIp = string.Empty;
+    private string _cfToken = string.Empty;
+    private string _cfZoneId = string.Empty;
+    private bool _cfProxied = true;
+
+    private bool _createDatabase = false;
+    private string _dbName = string.Empty;
+    private string _dbUser = string.Empty;
+    private string _dbPassword = string.Empty;
+
+    private string _runtimeType = "dotnet";
+    private string _entryFile = string.Empty;
+    private string _customCommand = string.Empty;
+    private bool _enablePhp = false;
+
+    private IBrowserFile? _selectedFile;
+
+    private bool _isDeploying = false;
+    private int _activePipelineStep = 0;
+    private List<string> _terminalLogs = new();
+    private bool? _executionSuccess = null;
+    private string _errorMessage = string.Empty;
+    private int _uploadPercentage = 0;
+    private bool _isUploadingFile = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-            _cfToken = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "cf_token") ?? "";
-            _cfZoneId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "cf_zone_id") ?? "";
-            _serverIp = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "cf_server_ip") ?? "85.95.23.10";
+            try
+            {
+                if (await LoadSavedCloudflareSettingsAsync())
+                {
+                    StateHasChanged();
+                }
+            }
+            catch
+            {
+                // JS Interop fallback
+            }
         }
-        catch { }
+    }
+
+    private void SetTab(string tab) => _activeTab = tab;
+    private void SetStep(int step) => _currentStep = step;
+    private void PrevStep() { if (_currentStep > 1) _currentStep--; }
+    private void NextStep() { if (_currentStep < 5) _currentStep++; }
+
+    private async Task<bool> LoadSavedCloudflareSettingsAsync()
+    {
+        var savedToken = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "cf_token");
+        var savedZoneId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "cf_zone_id");
+        var savedIp = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "cf_server_ip");
+
+        var updated = false;
+        if (string.IsNullOrWhiteSpace(_cfToken) && !string.IsNullOrWhiteSpace(savedToken)) { _cfToken = savedToken; updated = true; }
+        if (string.IsNullOrWhiteSpace(_cfZoneId) && !string.IsNullOrWhiteSpace(savedZoneId)) { _cfZoneId = savedZoneId; updated = true; }
+        if (string.IsNullOrWhiteSpace(_serverIp) && !string.IsNullOrWhiteSpace(savedIp)) { _serverIp = savedIp; updated = true; }
+
+        return updated;
     }
 
     private void ApplySelectedRootDomainDefaults()
     {
-        var selected = _rootDomains.FirstOrDefault(r => r.Name == _domain);
-        if (selected != null)
+        var selectedRoot = _rootDomains.FirstOrDefault(d => d.Name.Equals(_domain, StringComparison.OrdinalIgnoreCase));
+        if (selectedRoot == null)
         {
-            _cfToken = selected.CloudflareToken ?? "";
-            _cfZoneId = selected.CloudflareZoneId ?? "";
+            return;
         }
-    }
 
-    private void UpdateDbDefaults()
-    {
-        if (_createDatabase)
+        if (!string.IsNullOrWhiteSpace(selectedRoot.CloudflareToken))
         {
-            _dbName = $"{_projectName.Replace("-", "_")}_db";
-            _dbUser = $"{_projectName.Replace("-", "_")}_user";
-            GenerateDbPassword();
+            _cfToken = selectedRoot.CloudflareToken;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedRoot.CloudflareZoneId))
+        {
+            _cfZoneId = selectedRoot.CloudflareZoneId;
         }
     }
 
     private void GenerateDbPassword()
     {
-        var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+        const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         var random = new Random();
-        _dbPassword = new string(Enumerable.Repeat(chars, 16).Select(s => s[random.Next(s.Length)]).ToArray());
+        _dbPassword = new string(Enumerable.Repeat(chars, 12).Select(s => s[random.Next(s.Length)]).ToArray());
+        StateHasChanged();
     }
 
-    private void AddEnvVar()
+    private string ModeButtonClass(string mode)
     {
-        _envVars.Add(new EnvVarModel());
+        const string active   = "p-2.5 rounded-xl border flex items-center gap-2 text-xs font-bold transition-all bg-indigo-600/15 border-indigo-500/40 text-indigo-300";
+        const string inactive = "p-2.5 rounded-xl border flex items-center gap-2 text-xs font-bold transition-all bg-slate-950/60 border-slate-800 text-slate-500 hover:text-slate-300";
+        return _deployMode == mode ? active : inactive;
     }
 
-    private void RemoveEnvVar(EnvVarModel model)
-    {
-        _envVars.Remove(model);
-    }
+    private bool IsDeployDisabled =>
+        _isDeploying ||
+        string.IsNullOrWhiteSpace(_projectName) ||
+        string.IsNullOrWhiteSpace(_domain) ||
+        (_deployMode != "static" && (_port < 1024 || _port > 65535)) ||
+        (_deployMode == "native" && _selectedFile == null) ||
+        (_deployMode == "static" && _selectedFile == null) ||
+        (_deployMode == "docker" && string.IsNullOrWhiteSpace(_dockerImageName));
 
-    private string GetStepTitle()
-    {
-        return _currentStep switch
-        {
-            1 => "Proje Bilgileri",
-            2 => "Kaynak Kullanımı",
-            3 => "Domain & SSL Yapılandırması",
-            4 => "PostgreSQL Veritabanı Entegrasyonu",
-            5 => "Çalıştırma Yapılandırması",
-            6 => "Environment Variables (Ortam Değişkenleri)",
-            7 => "Release & ZIP Ön Kontrolleri",
-            8 => "Dağıtım Özeti",
-            _ => ""
-        };
-    }
+    private string DeployButtonText => _deployMode == "docker" ? "Docker Konteyner Kur & YayÄ±nla" : (_deployMode == "static" ? "Statik Web Sitesi Kur & YayÄ±nla" : "Otomatik DaÄŸÄ±tÄ±mÄ± BaÅŸlat");
+    private string Step3Icon  => _deployMode == "docker" ? "fa-brands fa-docker" : "fa-regular fa-file-zip";
+    private string Step3Label => _deployMode == "docker" ? "3. Docker Pull" : "3. ZIP Ã‡Ä±kar";
+    private string Step3Sub   => _deployMode == "docker" ? "hub.docker.com" : "/var/www/";
+    private string Step4Icon  => _deployMode == "docker" ? "fa-solid fa-play" : (_deployMode == "static" ? "fa-solid fa-folder-open" : "fa-solid fa-gears");
+    private string Step4Label => _deployMode == "docker" ? "4. Konteyner" : (_deployMode == "static" ? "4. Statik Dizin" : "4. Daemon");
+    private string Step4Sub   => _deployMode == "docker" ? "docker run" : (_deployMode == "static" ? "Direct Serv" : "projects.conf");
 
-    private string GetStepSub()
-    {
-        return _currentStep switch
-        {
-            1 => "Projenizin adını, logosunu ve çalışma zamanı (runtime) parametrelerini girin.",
-            2 => "Port, CPU/RAM limitlerini ve servis davranışı özelliklerini ayarlayın.",
-            3 => "Sunucu Nginx reverse proxy ve alan adı SSL yönlendirmelerini düzenleyin.",
-            4 => "Projenizin ihtiyaç duyduğu PostgreSQL veritabanı şemasını otomatik oluşturun.",
-            5 => "Sunucu üzerinde projenin hangi dosya ve komutla tetikleneceğini belirleyin.",
-            6 => "Sisteminize enjekte edilecek gizli anahtar ve ortam parametrelerini ekleyin.",
-            7 => "Projenizin sıkıştırılmış ZIP paketini yükleyin ve doğrulamaları tamamlayın.",
-            8 => "Tüm dağıtım adımları hazır. Kontrollerinizi yaptıktan sonra yayına alın.",
-            _ => ""
-        };
-    }
+    private string GetStepTitle(int step) => step switch {
+        1 => "Dizin HazÄ±rlÄ±ÄŸÄ±",
+        2 => _deployMode == "static" ? "Statik Ayarlar" : "Port AyarlarÄ±",
+        3 => "Entegrasyon HattÄ±",
+        4 => _deployMode == "static" ? "Statik Dizin" : "Servis KontrolÃ¼",
+        5 => "Nginx Proxy",
+        _ => "Bilinmeyen AdÄ±m"
+    };
 
-    private bool CanProceedToNextStep()
+    private void UpdateDbDefaults()
     {
-        if (_currentStep == 1) return !string.IsNullOrWhiteSpace(_projectName);
-        if (_currentStep == 2) return _port >= 1024 && _port <= 65535 && _memoryLimitMb >= 64;
-        if (_currentStep == 3) return !string.IsNullOrWhiteSpace(_domain);
-        if (_currentStep == 7) return _selectedFile != null && _zipCheckRun && !_zipCorrupt && _isPortEmpty;
-        return true;
-    }
-
-    private void NextStep()
-    {
-        if (CanProceedToNextStep() && _currentStep < 8)
-        {
-            _currentStep++;
-            if (_currentStep > _maxReachedStep)
-            {
-                _maxReachedStep = _currentStep;
-            }
-        }
-    }
-
-    private void PrevStep()
-    {
-        if (_currentStep > 1)
-        {
-            _currentStep--;
-        }
-    }
-
-    private void GoToStep(int step)
-    {
-        if (step >= 1 && step <= _maxReachedStep)
-        {
-            _currentStep = step;
-        }
-    }
-
-    private string GetStepIndicatorClass(int step)
-    {
-        if (_currentStep == step) return "bg-indigo-600 text-white shadow-md shadow-indigo-600/20";
-        if (step <= _maxReachedStep) return "bg-slate-900 text-slate-300 border border-slate-800 hover:bg-slate-800";
-        return "bg-slate-950 text-slate-600 border border-slate-900 cursor-not-allowed";
+        var baseName = GetSafeProjectName();
+        var cleanBase = new string(baseName.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
+        _dbName = $"{cleanBase}_db";
+        _dbUser = $"{cleanBase}_user";
+        if (string.IsNullOrEmpty(_dbPassword)) GenerateDbPassword();
+        StateHasChanged();
     }
 
     private async Task OnZipFileSelected(InputFileChangeEventArgs e)
     {
         _selectedFile = e.File;
-        _zipCheckRun = false;
-        await VerifyUploadedZip();
-    }
-
-    private async Task VerifyUploadedZip()
-    {
-        if (_selectedFile == null) return;
-
-        _isCheckingZip = true;
-        _zipCheckRun = false;
-        StateHasChanged();
-
-        try
+        if (_selectedFile != null && !string.IsNullOrWhiteSpace(_selectedFile.Name))
         {
-            // Call verification API
-            using var content = new MultipartFormDataContent();
-            var stream = _selectedFile.OpenReadStream(200 * 1024 * 1024);
-            var fileContent = new StreamContent(stream);
-            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
-            
-            content.Add(fileContent, "ZipFile", _selectedFile.Name);
-            content.Add(new StringContent(_port.ToString()), "Port");
+            var cleanName = System.IO.Path.GetFileNameWithoutExtension(_selectedFile.Name)
+                .ToLower().Replace(" ", "-").Replace("_", "-");
 
-            var response = await Http.PostAsync("api/projects/verify-zip", content);
-            if (response.IsSuccessStatusCode)
+            _projectName = new string(cleanName.Where(c => char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray());
+            if (!_projectName.StartsWith("b")) _projectName = "b" + _projectName;
+            UpdateDbDefaults();
+
+            try
             {
-                var result = await response.Content.ReadFromJsonAsync<VerifyZipResponse>();
-                if (result != null)
+                // CanlÄ± analiz yapÄ±p runtime ve entry file'Ä± otomatik tespit edelim
+                var result = await JSRuntime.InvokeAsync<ZipAnalysisResult>("eval", "window.analyzeZipFile(document.getElementById('wizard-zip-input'))");
+                if (result != null && result.Success)
                 {
-                    _zipCorrupt = result.IsZipCorrupt;
-                    _hasDll = result.HasDll;
-                    _hasStartup = result.HasStartup;
-                    _hasAppSettings = result.HasAppSettings;
-                    _isPortEmpty = result.IsPortEmpty;
+                    if (!string.IsNullOrEmpty(result.DetectedRuntime) && result.DetectedRuntime != "unknown")
+                    {
+                        _runtimeType = result.DetectedRuntime;
+
+                        if (result.DetectedRuntime == "static")
+                        {
+                            _deployMode = "static";
+                        }
+                        else
+                        {
+                            _deployMode = "native";
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(result.DetectedName))
+                    {
+                        var cleanDetected = new string(result.DetectedName.ToLower()
+                            .Replace(" ", "-").Replace("_", "-")
+                            .Where(c => char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray());
+                        if (!string.IsNullOrEmpty(cleanDetected))
+                        {
+                            _projectName = cleanDetected.StartsWith("b") ? cleanDetected : "b" + cleanDetected;
+                            UpdateDbDefaults();
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(result.DetectedEntryFile))
+                    {
+                        _entryFile = result.DetectedEntryFile;
+                    }
                 }
             }
-            else
+            catch (Exception ex)
             {
-                _zipCorrupt = true;
+                SystemLogQueue.Log("warning", $"[DeployWizard] ZIP analizi esnasÄ±nda hata: {ex.Message}");
             }
         }
-        catch
+    }
+
+    private string GetStepClass(int step)
+    {
+        if (_activePipelineStep == 0) return "bg-slate-950/40 border-slate-850 text-slate-500";
+        if (_activePipelineStep > step) return "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-bold";
+        if (_activePipelineStep == step)
         {
-            _zipCorrupt = true;
+            return _executionSuccess == false
+                ? "bg-rose-500/10 border-rose-500/30 text-rose-400 font-bold animate-pulse"
+                : "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 font-bold animate-pulse";
         }
-        finally
-        {
-            _isCheckingZip = false;
-            _zipCheckRun = true;
-            StateHasChanged();
-        }
+        return "bg-slate-950/40 border-slate-850 text-slate-500";
     }
 
     private void LogConsole(string message)
     {
-        _terminalLogs.Add($"[{DateTime.Now.ToString("HH:mm:ss")}] {message}");
+        var timestamp = DateTime.Now.ToString("HH:mm:ss");
+        _terminalLogs.Add($"[{timestamp}] {message}");
         StateHasChanged();
+    }
+
+    private void ClearConsole()
+    {
+        _terminalLogs.Clear();
+        _executionSuccess = null;
+        _activePipelineStep = 0;
+        _errorMessage = string.Empty;
+    }
+
+    private bool ValidateDeploymentRequest()
+    {
+        if (string.IsNullOrWhiteSpace(_projectName))
+        {
+            Snackbar.Add("Lutfen proje adini girin.", Severity.Warning);
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(_domain))
+        {
+            Snackbar.Add("Lutfen yayinlanacak ana domaini secin.", Severity.Warning);
+            return false;
+        }
+
+        if (_deployMode != "static" && (_port < 1024 || _port > 65535))
+        {
+            Snackbar.Add("Port 1024 ile 65535 arasinda olmali.", Severity.Warning);
+            return false;
+        }
+
+        if ((_deployMode == "native" || _deployMode == "static") && _selectedFile == null)
+        {
+            Snackbar.Add("ZIP deploy dosyasini secin.", Severity.Warning);
+            return false;
+        }
+
+        if (_deployMode == "docker" && string.IsNullOrWhiteSpace(_dockerImageName))
+        {
+            Snackbar.Add("Docker imaj adini girin.", Severity.Warning);
+            return false;
+        }
+
+        if (_createDnsRecord)
+        {
+            if (string.IsNullOrWhiteSpace(_serverIp) || !System.Net.IPAddress.TryParse(_serverIp.Trim(), out _))
+            {
+                Snackbar.Add("Cloudflare DNS icin gecerli bir sunucu IP adresi girin.", Severity.Warning);
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(_cfToken) || string.IsNullOrWhiteSpace(_cfZoneId))
+            {
+                Snackbar.Add("Cloudflare DNS icin API token ve Zone ID gerekli.", Severity.Warning);
+                return false;
+            }
+        }
+
+        if (_createDatabase && (string.IsNullOrWhiteSpace(_dbName) || string.IsNullOrWhiteSpace(_dbUser) || string.IsNullOrWhiteSpace(_dbPassword)))
+        {
+            Snackbar.Add("Veritabani olusturmak icin ad, kullanici ve sifre girin.", Severity.Warning);
+            return false;
+        }
+
+        return true;
     }
 
     private async Task StartAutomatedDeployment()
     {
+        if (!ValidateDeploymentRequest())
+        {
+            return;
+        }
+
+        ClearConsole();
         _isDeploying = true;
         _executionSuccess = null;
-        _terminalLogs.Clear();
         StateHasChanged();
 
-        LogConsole("INFO: Otomatik canlı dağıtım süreci başlatıldı.");
-        
         Guid projectId = Guid.Empty;
         Guid subdomainId = Guid.Empty;
 
         try
         {
-            // Step 1: PostgreSQL Setup if selected
+            // ADIM 3 & 4: Proje / Konteyner AyaÄŸa KaldÄ±rma
+            _activePipelineStep = 3;
+            ProjectCardDto? createdProject = null;
+
+            if (_deployMode == "docker")
+            {
+                LogConsole($"INFO: Docker imajÄ± Ã§ekiliyor ve konteyner hazÄ±rlanÄ±yor: {_dockerImageName}");
+
+                var dockerPayload = new CreateDockerModel
+                {
+                    Name = _projectName.ToLower(),
+                    ImageName = _dockerImageName.Trim(),
+                    MemoryLimitBytes = (long)_memoryLimitMb * 1048576,
+                    CpuCount = _cpuCount,
+                    InternalPort = _port
+                };
+
+                var dockerResponse = await Http.PostAsJsonAsync("api/projects/container", dockerPayload);
+                if (!dockerResponse.IsSuccessStatusCode) throw new Exception(await ParseErrorAsync(dockerResponse));
+
+                createdProject = await dockerResponse.Content.ReadFromJsonAsync<ProjectCardDto>();
+                if (createdProject == null) throw new Exception("GeÃ§ersiz API yanÄ±tÄ±.");
+                projectId = createdProject.Id;
+
+                _activePipelineStep = 4;
+                LogConsole($"SUCCESS: Docker Konteyner baÅŸarÄ±yla ayaÄŸa kalktÄ±.");
+            }
+            else if (_deployMode == "static")
+            {
+                using var staticContent = new MultipartFormDataContent();
+                staticContent.Add(new StringContent(_projectName.ToLower()), "Name");
+                staticContent.Add(new StringContent(_enablePhp.ToString()), "EnablePhp");
+
+                _uploadPercentage = 0;
+                _isUploadingFile = true;
+                StateHasChanged();
+
+                var fileStream = _selectedFile!.OpenReadStream(maxAllowedSize: MaxZipUploadBytes);
+                var progressStream = new ProgressStream(fileStream, async (bytesRead, totalBytes) =>
+                {
+                    _uploadPercentage = (int)((bytesRead * 100) / totalBytes);
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(1);
+                });
+
+                var streamContent = new StreamContent(progressStream);
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
+                staticContent.Add(streamContent, "ZipFile", _selectedFile.Name);
+
+                LogConsole($"INFO: Statik ZIP arÅŸivi yÃ¼kleniyor...");
+
+                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "api/projects/static-deploy")
+                {
+                    Content = staticContent
+                };
+
+                var projectResponse = await Http.SendAsync(requestMessage);
+
+                _isUploadingFile = false;
+                StateHasChanged();
+
+                if (!projectResponse.IsSuccessStatusCode) throw new Exception(await ParseErrorAsync(projectResponse));
+
+                createdProject = await projectResponse.Content.ReadFromJsonAsync<ProjectCardDto>();
+                projectId = createdProject!.Id;
+
+                _activePipelineStep = 4;
+                LogConsole($"SUCCESS: Statik ZIP sunucuya aÃ§Ä±ldÄ±.");
+            }
+            else
+            {
+                using var nativeContent = new MultipartFormDataContent();
+                nativeContent.Add(new StringContent(_projectName.ToLower()), "Name");
+                nativeContent.Add(new StringContent(((long)_memoryLimitMb * 1048576).ToString()), "MemoryLimitBytes");
+                nativeContent.Add(new StringContent(_cpuCount.ToString()), "CpuCount");
+                nativeContent.Add(new StringContent(_port.ToString()), "InternalPort");
+                nativeContent.Add(new StringContent(_runtimeType ?? "dotnet"), "RuntimeType");
+
+                if (!string.IsNullOrWhiteSpace(_entryFile))
+                {
+                    nativeContent.Add(new StringContent(_entryFile.Trim()), "EntryFile");
+                }
+                if (!string.IsNullOrWhiteSpace(_customCommand))
+                {
+                    nativeContent.Add(new StringContent(_customCommand.Trim()), "CustomCommand");
+                }
+
+                _uploadPercentage = 0;
+                _isUploadingFile = true;
+                StateHasChanged();
+
+                var fileStream = _selectedFile!.OpenReadStream(maxAllowedSize: MaxZipUploadBytes);
+                var progressStream = new ProgressStream(fileStream, async (bytesRead, totalBytes) =>
+                {
+                    _uploadPercentage = (int)((bytesRead * 100) / totalBytes);
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(1); // Yield thread to allow Blazor to redraw UI progress bar
+                });
+
+                var streamContent = new StreamContent(progressStream);
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
+                nativeContent.Add(streamContent, "ZipFile", _selectedFile.Name);
+
+                LogConsole($"INFO: ZIP arÅŸivi yÃ¼kleniyor...");
+
+                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "api/projects/native-deploy")
+                {
+                    Content = nativeContent
+                };
+
+                var projectResponse = await Http.SendAsync(requestMessage);
+
+                _isUploadingFile = false;
+                StateHasChanged();
+
+                if (!projectResponse.IsSuccessStatusCode) throw new Exception(await ParseErrorAsync(projectResponse));
+
+                createdProject = await projectResponse.Content.ReadFromJsonAsync<ProjectCardDto>();
+                projectId = createdProject!.Id;
+
+                _activePipelineStep = 4;
+                LogConsole($"SUCCESS: ZIP sunucuya aÃ§Ä±ldÄ±.");
+            }
+
+            // ADIM 1: DB Yaratma
             _activePipelineStep = 1;
             if (_createDatabase)
             {
-                LogConsole($"INFO: PostgreSQL veritabanı oluşturuluyor: {_dbName}");
-                await Task.Delay(1000); // Simulate network latency
-                LogConsole("SUCCESS: Veritabanı ve kullanıcısı başarıyla oluşturuldu, yetkilendirmeler tamamlandı.");
-                
-                // Add DB variables to Environment variables dictionary
-                var dbConn = $"Host=127.0.0.1;Port=5432;Database={_dbName};Username={_dbUser};Password={_dbPassword};";
-                _envVars.Add(new EnvVarModel { Key = "DATABASE_URL", Value = dbConn });
+                LogConsole($"INFO: PostgreSQL veritabanÄ± oluÅŸturuluyor... {_dbName}");
+                var dbPayload = new CreateDatabaseModel { ProjectId = projectId, DbName = _dbName, DbUser = _dbUser, DbPassword = _dbPassword };
+                var dbResponse = await Http.PostAsJsonAsync("api/databases", dbPayload);
+                if (!dbResponse.IsSuccessStatusCode) throw new Exception(await ParseErrorAsync(dbResponse));
+                LogConsole($"SUCCESS: VeritabanÄ± oluÅŸturuldu.");
             }
 
-            // Step 2: DNS
+            // ADIM 2: DNS
             _activePipelineStep = 2;
             if (_createDnsRecord)
             {
-                LogConsole($"INFO: Cloudflare API bağlantısı kuruluyor, DNS A kaydı giriliyor...");
-                await Task.Delay(1000);
-                LogConsole($"SUCCESS: DNS kaydı https://{(string.IsNullOrEmpty(_subdomain) ? _domain : $"{_subdomain}.{_domain}")} -> {_serverIp} yönlendirildi.");
+                await SaveCloudflareSettingsAsync();
+                var dnsName = string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}";
+                var dnsPayload = new CreateDnsModel { ProjectId = projectId, Name = dnsName, Value = _serverIp, Proxied = _cfProxied, UseCloudflare = true, CloudflareToken = _cfToken, CloudflareZoneId = _cfZoneId };
+                var dnsResponse = await Http.PostAsJsonAsync("api/dns", dnsPayload);
+                if (!dnsResponse.IsSuccessStatusCode) throw new Exception(await ParseErrorAsync(dnsResponse));
+                LogConsole($"SUCCESS: DNS A kaydÄ± tescil edildi.");
             }
 
-            // Step 3: ZIP Extraction & Restore
-            _activePipelineStep = 3;
-            LogConsole("INFO: ZIP deploy dosyası sunucuya gönderiliyor...");
-            
-            // Build Environment Variables dictionary
-            var envDict = _envVars.ToDictionary(v => v.Key, v => v.Value);
-            var envJson = System.Text.Json.JsonSerializer.Serialize(envDict);
-
-            using var form = new MultipartFormDataContent();
-            form.Add(new StringContent(_projectName.ToLower()), "Name");
-            form.Add(new StringContent(((long)_memoryLimitMb * 1024 * 1024).ToString()), "MemoryLimitBytes");
-            form.Add(new StringContent(_cpuCount.ToString()), "CpuCount");
-            form.Add(new StringContent(_port.ToString()), "InternalPort");
-            form.Add(new StringContent(_runtimeType), "RuntimeType");
-            form.Add(new StringContent(_frameworkVersion), "FrameworkVersion");
-            form.Add(new StringContent(_autoRestart.ToString()), "AutoRestart");
-            form.Add(new StringContent(_healthCheckEndpoint), "HealthCheckEndpoint");
-            form.Add(new StringContent(_runUser), "RunUser");
-            form.Add(new StringContent(_workingDirectory), "WorkingDirectory");
-            form.Add(new StringContent(_environment), "Environment");
-            form.Add(new StringContent(envJson), "EnvVariablesJson");
-
-            if (!string.IsNullOrWhiteSpace(_entryFile))
-            {
-                form.Add(new StringContent(_entryFile), "EntryFile");
-            }
-            if (!string.IsNullOrWhiteSpace(_customCommand))
-            {
-                form.Add(new StringContent(_customCommand), "CustomCommand");
-            }
-
-            var fileStream = _selectedFile!.OpenReadStream(200 * 1024 * 1024);
-            var streamContent = new StreamContent(fileStream);
-            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
-            form.Add(streamContent, "ZipFile", _selectedFile.Name);
-
-            var response = await Http.PostAsync("api/projects/native-deploy", form);
-            if (!response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadAsStringAsync();
-                throw new Exception($"Yükleme/Deploy API hatası: {content}");
-            }
-
-            var createdProject = await response.Content.ReadFromJsonAsync<ProjectCardDto>();
-            projectId = createdProject!.Id;
-            LogConsole("SUCCESS: ZIP deploy arşivi çıkarıldı ve bağımlılıklar geri yüklendi.");
-
-            // Step 4: Start Service
-            _activePipelineStep = 4;
-            LogConsole($"INFO: Native process yönetici başlatılıyor: {_projectName}...");
-            await Task.Delay(1000);
-            LogConsole($"SUCCESS: Süreç port {_port} üzerinden başarıyla çalışmaya başladı.");
-
-            // Step 5: Nginx Proxy Setup
+            // ADIM 5: Nginx Proxy
             _activePipelineStep = 5;
-            LogConsole("INFO: Nginx vHost tersine proxy yapılandırması kuruluyor...");
-            var subPayload = new CreateSubdomainModel 
-            { 
-                ProjectId = projectId, 
-                SubdomainName = _subdomain.ToLower(), 
-                DomainName = _domain.ToLower(), 
-                SslEnabled = _sslEnabled, 
-                ExternalPort = _port 
-            };
-            var nginxResponse = await Http.PostAsJsonAsync("api/nginx", subPayload);
-            if (!nginxResponse.IsSuccessStatusCode) throw new Exception("Nginx proxy oluşturulamadı.");
+            var subdomainPayload = new CreateSubdomainModel { ProjectId = projectId, SubdomainName = _subdomain.ToLower(), DomainName = _domain.ToLower(), SslEnabled = _sslEnabled, ExternalPort = _port };
+            var nginxResponse = await Http.PostAsJsonAsync("api/nginx", subdomainPayload);
+            if (!nginxResponse.IsSuccessStatusCode) throw new Exception(await ParseErrorAsync(nginxResponse));
+
             var resSub = await nginxResponse.Content.ReadFromJsonAsync<SubdomainDto>();
             subdomainId = resSub!.Id;
-            LogConsole("SUCCESS: Nginx Reverse Proxy dosyası oluşturuldu ve nginx servisi yeniden yüklendi.");
+            LogConsole("SUCCESS: Nginx Reverse Proxy yapÄ±landÄ±rÄ±ldÄ±.");
 
-            // Step 6: SSL Provisioning
+            // ADIM 6: SSL
             _activePipelineStep = 6;
             if (_sslEnabled)
             {
-                LogConsole("INFO: Let's Encrypt SSL sertifikası üretiliyor...");
                 var sslResponse = await Http.PostAsync($"api/nginx/{subdomainId}/ssl", null);
-                if (!sslResponse.IsSuccessStatusCode) throw new Exception("SSL sertifikası alınamadı.");
-                LogConsole("SUCCESS: SSL sertifikası başarıyla kuruldu.");
+                if (!sslResponse.IsSuccessStatusCode) throw new Exception(await ParseErrorAsync(sslResponse));
+                LogConsole("SUCCESS: Let's Encrypt SSL aktif edildi.");
             }
 
             _activePipelineStep = 7;
             _executionSuccess = true;
-            Snackbar.Add("Otomatik dağıtım başarıyla tamamlandı.", Severity.Success);
+            Snackbar.Add("Otomatik daÄŸÄ±tÄ±m baÅŸarÄ±yla tamamlandÄ±.", Severity.Success);
         }
         catch (Exception ex)
         {
             _executionSuccess = false;
             _errorMessage = ex.Message;
-            LogConsole($"ERROR: Dağıtım işlemi başarısız. Hata: {ex.Message}");
-            
+            LogConsole($"ERROR: Ä°ÅŸlem baÅŸarÄ±sÄ±z. Hata: {ex.Message}");
+
+            // HatalÄ± biten daÄŸÄ±tÄ±mlarda yapÄ±lan tÃ¼m iÅŸlemleri ve projeyi silerek rollback yap
             if (projectId != Guid.Empty)
             {
-                LogConsole("INFO: Hata sonrası temizlik ve geri alma işlemleri başlatılıyor...");
+                LogConsole("INFO: Hata sonrasÄ± yapÄ±lan iÅŸlemler geri alÄ±nÄ±yor (Rollback)...");
                 try
                 {
-                    await Http.DeleteAsync($"api/projects/{projectId}?deleteDb=true");
-                    LogConsole("SUCCESS: Geri alma işlemi tamamlandı, servisler ve kayıtlar temizlendi.");
+                    var rollbackResponse = await Http.DeleteAsync($"api/projects/{projectId}?deleteDb=true");
+                    if (rollbackResponse.IsSuccessStatusCode)
+                    {
+                        LogConsole("SUCCESS: HatalÄ± daÄŸÄ±tÄ±ma ait tÃ¼m servisler, Nginx kayÄ±tlarÄ±, DNS tescilleri ve veritabanÄ± baÅŸarÄ±yla temizlendi.");
+                    }
+                    else
+                    {
+                        LogConsole("WARNING: Geri alma iÅŸlemi kÄ±smen baÅŸarÄ±sÄ±z oldu.");
+                    }
                 }
-                catch { }
+                catch (Exception rollbackEx)
+                {
+                    LogConsole($"WARNING: Geri alma iÅŸlemi sÄ±rasÄ±nda hata oluÅŸtu: {rollbackEx.Message}");
+                }
             }
         }
         finally
         {
+            _isUploadingFile = false;
             _isDeploying = false;
             StateHasChanged();
         }
     }
 
-    private string GetPipelineStepClass(int step)
+    private string GetSafeProjectName() => string.IsNullOrWhiteSpace(_projectName) ? "proje" : _projectName.Trim();
+
+    private async Task<string> ParseErrorAsync(HttpResponseMessage response)
     {
-        if (_activePipelineStep == step && _isDeploying) return "bg-indigo-950 border-indigo-500 text-indigo-400 font-bold animate-pulse";
-        if (_activePipelineStep > step) return "bg-emerald-950/20 border-emerald-500/20 text-emerald-400 font-medium";
-        if (_executionSuccess == false && _activePipelineStep == step) return "bg-rose-950/30 border-rose-500/20 text-rose-400 font-bold";
-        return "bg-slate-950/40 border-slate-850 text-slate-500";
+        try
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(content);
+                    if (doc.RootElement.TryGetProperty("message", out var msg)) return msg.GetString() ?? content;
+                    if (doc.RootElement.TryGetProperty("Message", out var msg2)) return msg2.GetString() ?? content;
+                }
+                catch
+                {
+                    // JSON ayrÄ±ÅŸtÄ±rÄ±lamadÄ±ysa (Ã¶rneÄŸin HTML dÃ¶nmÃ¼ÅŸse) ham iÃ§eriÄŸi gÃ¶ster veya HTTP kodunu dÃ¶n
+                    return string.IsNullOrWhiteSpace(content) ? $"HTTP {(int)response.StatusCode}" : content;
+                }
+            }
+            return string.IsNullOrWhiteSpace(content) ? $"HTTP {(int)response.StatusCode}" : content;
+        }
+        catch { return $"HTTP {(int)response.StatusCode}"; }
     }
 
-    private string GetPipelineStatusText(int step)
+    private string GetNginxConfig()
     {
-        if (_activePipelineStep == step && _isDeploying) return "İşleniyor";
-        if (_activePipelineStep > step) return "Başarılı";
-        if (_executionSuccess == false && _activePipelineStep == step) return "Hata";
-        return "Bekliyor";
+        var serverName = string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}";
+        return $@"server {{
+    listen 80;
+    server_name {serverName};
+    location / {{
+        proxy_pass http://127.0.0.1:{_port};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }}
+}}";
     }
 
-    public class EnvVarModel
+    private async Task CopyText(string text)
     {
-        public string Key { get; set; } = "";
-        public string Value { get; set; } = "";
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+        Snackbar.Add("KopyalandÄ±!", Severity.Success);
     }
 
-    public class VerifyZipResponse
+    // â”€â”€â”€ Modeller â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    private async Task SaveCloudflareSettingsAsync()
     {
-        public bool IsZipCorrupt { get; set; }
-        public bool HasDll { get; set; }
-        public bool HasStartup { get; set; }
-        public bool HasAppSettings { get; set; }
-        public bool IsPortEmpty { get; set; }
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "cf_token", _cfToken ?? string.Empty);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "cf_zone_id", _cfZoneId ?? string.Empty);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "cf_server_ip", _serverIp ?? string.Empty);
+        }
+        catch
+        {
+            // localStorage is a convenience cache; deployment should continue without it.
+        }
     }
 
-    public class ProjectCardDto { public Guid Id { get; set; } public string Name { get; set; } = ""; }
+    public class ZipAnalysisResult
+    {
+        public bool Success { get; set; }
+        public string Error { get; set; } = string.Empty;
+        public string DetectedRuntime { get; set; } = string.Empty;
+        public string DetectedName { get; set; } = string.Empty;
+        public string DetectedEntryFile { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+    }
+
+    public class ProjectCardDto { public Guid Id { get; set; } public string Name { get; set; } = ""; public string ImageOrPath { get; set; } = ""; public bool EnablePhp { get; set; } }
     public class CreateSubdomainModel { public Guid? ProjectId { get; set; } public string SubdomainName { get; set; } = ""; public string DomainName { get; set; } = ""; public bool SslEnabled { get; set; } public int? ExternalPort { get; set; } }
     public class SubdomainDto { public Guid Id { get; set; } public string SubdomainName { get; set; } = ""; public string DomainName { get; set; } = ""; }
+    public class CreateDatabaseModel { public Guid? ProjectId { get; set; } public string DbName { get; set; } = ""; public string DbUser { get; set; } = ""; public string DbPassword { get; set; } = ""; }
+    public class CreateDnsModel { public Guid? ProjectId { get; set; } public string Type { get; set; } = "A"; public string Name { get; set; } = ""; public string Value { get; set; } = ""; public int Ttl { get; set; } = 3600; public bool Proxied { get; set; } = true; public bool UseCloudflare { get; set; } = false; public string CloudflareToken { get; set; } = ""; public string CloudflareZoneId { get; set; } = ""; }
+    public class CreateDockerModel { public string Name { get; set; } = ""; public string ImageName { get; set; } = ""; public long MemoryLimitBytes { get; set; } public double CpuCount { get; set; } public int InternalPort { get; set; } }
     public class RootDomainDto { public Guid Id { get; set; } public string Name { get; set; } = ""; public string? CloudflareToken { get; set; } public string? CloudflareZoneId { get; set; } }
+
+    private const long MaxZipUploadBytes = 200L * 1024 * 1024;
+
+    // â”€â”€â”€ YÃ¼kleme Telemetrisi & Progress Stream SÄ±nÄ±fÄ± â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    private string GetReadableUploadedSize()
+    {
+        if (_selectedFile == null) return "0 B";
+        long uploaded = (long)(_selectedFile.Size * (_uploadPercentage / 100.0));
+        return GetReadableBytes(uploaded);
+    }
+
+    private string GetReadableFileSize()
+    {
+        if (_selectedFile == null) return "0 B";
+        return GetReadableBytes(_selectedFile.Size);
+    }
+
+    private string GetReadableBytes(long bytes)
+    {
+        string[] suffix = { "B", "KB", "MB", "GB", "TB" };
+        int i;
+        double dblBytes = bytes;
+        for (i = 0; i < suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+        {
+            dblBytes = bytes / 1024.0;
+        }
+        return $"{dblBytes:0.##} {suffix[i]}";
+    }
+
+    public class ProgressStream : System.IO.Stream
+    {
+        private readonly System.IO.Stream _innerStream;
+        private readonly long _length;
+        private readonly Func<long, long, Task> _onProgressAsync;
+        private long _totalBytesRead = 0;
+
+        public ProgressStream(System.IO.Stream innerStream, Func<long, long, Task> onProgressAsync)
+        {
+            _innerStream = innerStream;
+            _length = innerStream.Length;
+            _onProgressAsync = onProgressAsync;
+        }
+
+        public override bool CanRead => _innerStream.CanRead;
+        public override bool CanSeek => _innerStream.CanSeek;
+        public override bool CanWrite => _innerStream.CanWrite;
+        public override long Length => _length;
+        public override long Position
+        {
+            get => _innerStream.Position;
+            set => _innerStream.Position = value;
+        }
+
+        public override void Flush() => _innerStream.Flush();
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            int bytesRead = _innerStream.Read(buffer, offset, count);
+            ReportProgressAsync(bytesRead).GetAwaiter().GetResult();
+            return bytesRead;
+        }
+
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            int bytesRead = await _innerStream.ReadAsync(buffer, offset, count, cancellationToken);
+            await ReportProgressAsync(bytesRead);
+            return bytesRead;
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            int bytesRead = await _innerStream.ReadAsync(buffer, cancellationToken);
+            await ReportProgressAsync(bytesRead);
+            return bytesRead;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => _innerStream.Seek(offset, origin);
+        public override void SetLength(long value) => _innerStream.SetLength(value);
+        public override void Write(byte[] buffer, int offset, int count) => _innerStream.Write(buffer, offset, count);
+
+        private async Task ReportProgressAsync(int bytesRead)
+        {
+            if (bytesRead > 0)
+            {
+                _totalBytesRead += bytesRead;
+                await _onProgressAsync(_totalBytesRead, _length);
+            }
+        }
+    }
 }
