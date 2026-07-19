@@ -90,17 +90,47 @@
 
                     @if (_deployMode != "static")
                     {
-                        <!-- Port Numarası -->
-                        <div>
-                            <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">İç Port Numarası</label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
-                                    <i class="fa-solid fa-network-wired"></i>
-                                </span>
-                                <input type="number" @bind="_port" @bind:event="oninput" min="1024" max="65535" disabled="@_isDeploying"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg pl-9 pr-3 py-2 text-xs text-emerald-400 font-bold focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50">
+                        <!-- Port Numaralari -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Host Port (Dis)</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                                        <i class="fa-solid fa-network-wired"></i>
+                                    </span>
+                                    <input type="number" @bind="_port" min="1" max="65535" disabled="@_isDeploying"
+                                        class="w-full bg-slate-950 border border-slate-850 rounded-lg pl-9 pr-3 py-2 text-xs text-emerald-400 font-bold focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50">
+                                </div>
+                                <p class="text-[9px] text-slate-500 mt-1 font-medium">Sunucuda disa acilacak calisma portu.</p>
                             </div>
-                            <p class="text-[9px] text-slate-500 mt-1">Sunucuda çalışacak projenizin dinleyeceği benzersiz boş bir port.</p>
+                            
+                            @if (_deployMode == "docker")
+                            {
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Container Port (Ic)</label>
+                                    <div class="flex gap-1 relative">
+                                        <div class="relative w-full">
+                                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                                                <i class="fa-solid fa-box"></i>
+                                            </span>
+                                            <input type="number" @bind="_containerPort" placeholder="Otomatik" min="1" max="65535" disabled="@_isDeploying"
+                                                class="w-full bg-slate-950 border border-slate-850 rounded-lg pl-9 pr-3 py-2 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50">
+                                        </div>
+                                        <button type="button" @onclick="DetectContainerPortAsync" disabled="@(string.IsNullOrWhiteSpace(_dockerImageName) || _isDetectingPort || _isDeploying)"
+                                            class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center disabled:opacity-50" style="min-width: 36px;">
+                                            @if (_isDetectingPort)
+                                            {
+                                                <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            }
+                                            else
+                                            {
+                                                <i class="fa-solid fa-magnifying-glass"></i>
+                                            }
+                                        </button>
+                                    </div>
+                                    <p class="text-[9px] text-slate-500 mt-1 font-medium">Girilmezse imajin EXPOSE portu taranir.</p>
+                                </div>
+                            }
                         </div>
 
                         <!-- CPU ve RAM Limitleri -->
@@ -668,6 +698,8 @@
     private string _subdomain = "api";
     private string _domain = "";
     private int _port = 80;
+    private int? _containerPort = null;
+    private bool _isDetectingPort = false;
 
     private List<RootDomainDto> _rootDomains = new();
 
@@ -910,6 +942,45 @@
         _errorMessage = string.Empty;
     }
 
+    private async Task DetectContainerPortAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_dockerImageName)) return;
+        _isDetectingPort = true;
+        StateHasChanged();
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/projects/image-exposed-port",
+                new { ImageName = _dockerImageName });
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<ImageExposedPortResult>();
+                if (result?.ExposedPort.HasValue == true)
+                {
+                    _containerPort = result.ExposedPort.Value;
+                    Snackbar.Add($"EXPOSE portu otomatik algilandi: {result.ExposedPort.Value}", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Bu image icin EXPOSE portu bulunamadi. Lutfen manuel girin.", Severity.Warning);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Port algilama hatasi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isDetectingPort = false;
+            StateHasChanged();
+        }
+    }
+
+    private class ImageExposedPortResult
+    {
+        public int? ExposedPort { get; set; }
+    }
+
     private bool ValidateDeploymentRequest()
     {
         if (string.IsNullOrWhiteSpace(_projectName))
@@ -924,9 +995,15 @@
             return false;
         }
 
-        if (_deployMode != "static" && (_port < 1024 || _port > 65535))
+        if (_deployMode != "static" && (_port < 1 || _port > 65535))
         {
-            Snackbar.Add("Port 1024 ile 65535 arasinda olmali.", Severity.Warning);
+            Snackbar.Add("Port 1 ile 65535 arasinda olmali.", Severity.Warning);
+            return false;
+        }
+
+        if (_deployMode == "docker" && _containerPort.HasValue && (_containerPort.Value < 1 || _containerPort.Value > 65535))
+        {
+            Snackbar.Add("Container Port 1 ile 65535 arasinda olmali.", Severity.Warning);
             return false;
         }
 
@@ -998,7 +1075,7 @@
                     MemoryLimitBytes = (long)_memoryLimitMb * 1048576,
                     CpuCount = _cpuCount,
                     HostPort = _port,
-                    ContainerPort = (int?)null // EXPOSE otomatik algılanacak
+                    ContainerPort = _containerPort
                 };
 
                 var dockerResponse = await Http.PostAsJsonAsync("api/projects/container", dockerPayload);
