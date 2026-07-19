@@ -14,7 +14,8 @@ public class Project
     public string ImageOrPath { get; set; } = string.Empty;
     public long MemoryLimitBytes { get; set; }
     public double CpuCount { get; set; }
-    public int InternalPort { get; set; }
+    public int HostPort { get; set; }
+    public int? ContainerPort { get; set; }
     public ProjectStatus Status { get; set; } = ProjectStatus.Provisioning;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? StartedAt { get; set; }

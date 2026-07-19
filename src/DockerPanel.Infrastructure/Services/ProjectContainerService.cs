@@ -32,7 +32,7 @@ public class ProjectContainerService : IProjectContainerService
         _dockerClient = new DockerClientConfiguration(dockerUri).CreateClient();
     }
 
-    public async Task<string> ProvisionContainerAsync(string name, string imageName, long memoryLimitBytes, double cpuCount, int internalPort)
+    public async Task<string> ProvisionContainerAsync(string name, string imageName, long memoryLimitBytes, double cpuCount, int hostPort, int containerPort)
     {
         // 1. Regex Girdi Doğrulama (Command Injection Önleme)
         InputValidator.ThrowIfInvalidProjectName(name, "Uygulama adı sadece küçük harf, rakam, tire (-) ve alt çizgi (_) içerebilir!");
@@ -72,7 +72,9 @@ public class ProjectContainerService : IProjectContainerService
         long nanoCpus = (long)(cpuCount * 1_000_000_000);
 
         // 4. Konteyner Yapılandırması ve Yaratımı
-        var containerPortKey = $"{internalPort}/tcp";
+        // containerPortKey → image içinde gerçekten dinlenen port (örn. 80/tcp)
+        // HostPort           → dış dünyaya/Nginx'e açılan port   (örn. 8080)
+        var containerPortKey = $"{containerPort}/tcp";
         var config = new CreateContainerParameters
         {
             Image = $"{fromImage}:{tag}",
@@ -88,15 +90,12 @@ public class ProjectContainerService : IProjectContainerService
                 NanoCPUs = nanoCpus,
                 PortBindings = new Dictionary<string, IList<PortBinding>>
                 {
+                    [containerPortKey] = new List<PortBinding>
                     {
-                        containerPortKey,
-                        new List<PortBinding>
+                        new()
                         {
-                            new()
-                            {
-                                HostIP = "127.0.0.1",
-                                HostPort = internalPort.ToString()
-                            }
+                            HostIP = "127.0.0.1",
+                            HostPort = hostPort.ToString()
                         }
                     }
                 },
@@ -120,7 +119,7 @@ public class ProjectContainerService : IProjectContainerService
             SystemLogQueue.Log("info", $"[Docker] global köprü ağı 'dockerpanel-global-net' oluşturuldu.");
         }
 
-        SystemLogQueue.Log("info", $"$ docker create --name {name} --net dockerpanel-global-net -m {memoryLimitBytes} --cpus {cpuCount} -p 127.0.0.1:{internalPort}:{internalPort}/tcp {fromImage}:{tag}");
+        SystemLogQueue.Log("info", $"$ docker create --name {name} --net dockerpanel-global-net -m {memoryLimitBytes} --cpus {cpuCount} -p 127.0.0.1:{hostPort}:{containerPort}/tcp {fromImage}:{tag}");
         var response = await _dockerClient.Containers.CreateContainerAsync(config);
         SystemLogQueue.Log("info", $"[Docker] Konteyner oluşturuldu. ID: {response.ID.Substring(0, 12)}");
 
@@ -130,6 +129,63 @@ public class ProjectContainerService : IProjectContainerService
         SystemLogQueue.Log("info", $"[Docker] Konteyner başarıyla sağlandı ve arka planda çalıştırıldı (Running).");
 
         return response.ID;
+    }
+
+    public async Task<int?> GetImageExposedPortAsync(string imageName)
+    {
+        // 1. Image adını ayrıştır
+        var parts = imageName.Split(':');
+        var fromImage = parts[0];
+        var tag = parts.Length > 1 ? parts[1] : "latest";
+        var fullName = $"{fromImage}:{tag}";
+
+        // 2. Image yerelde mevcut mu kontrol et; yoksa pull et
+        var images = await _dockerClient.Images.ListImagesAsync(new ImagesListParameters { All = true });
+        bool imageExists = images.Any(img => img.RepoTags != null && img.RepoTags.Contains(fullName));
+
+        if (!imageExists)
+        {
+            SystemLogQueue.Log("info", $"[Docker] ExposedPort tespiti için image çekiliyor: {fullName}");
+            try
+            {
+                await _dockerClient.Images.CreateImageAsync(
+                    new ImagesCreateParameters { FromImage = fromImage, Tag = tag },
+                    null,
+                    new Progress<JSONMessage>()
+                );
+                SystemLogQueue.Log("info", $"[Docker] Image başarıyla çekildi: {fullName}");
+            }
+            catch (Exception ex)
+            {
+                SystemLogQueue.Log("warning", $"[Docker] ExposedPort tespiti için image çekilemedi: {ex.Message}");
+                return null;
+            }
+        }
+
+        // 3. Inspect et ve ExposedPorts'dan ilk portu oku
+        try
+        {
+            var inspect = await _dockerClient.Images.InspectImageAsync(fullName);
+            if (inspect.Config?.ExposedPorts != null && inspect.Config.ExposedPorts.Count > 0)
+            {
+                // ExposedPorts keys: "80/tcp", "443/tcp", "3000/tcp" vb.
+                foreach (var portKey in inspect.Config.ExposedPorts.Keys)
+                {
+                    var rawPort = portKey.Split('/')[0];
+                    if (int.TryParse(rawPort, out int port))
+                    {
+                        SystemLogQueue.Log("info", $"[Docker] Image EXPOSE tespiti: {fullName} → {port}");
+                        return port;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            SystemLogQueue.Log("warning", $"[Docker] Image inspect sırasında hata: {ex.Message}");
+        }
+
+        return null;
     }
 
     public async Task StopContainerAsync(string dockerContainerId)

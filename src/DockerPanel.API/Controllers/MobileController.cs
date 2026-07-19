@@ -149,7 +149,7 @@ public class MobileController : ControllerBase
                 proj.StartedAt,
                 proj.MemoryLimitBytes,
                 proj.CpuCount,
-                proj.InternalPort
+                proj.HostPort
             });
         }
 
@@ -161,7 +161,7 @@ public class MobileController : ControllerBase
             FullUrl = $"http://{(string.IsNullOrEmpty(s.SubdomainName) || s.SubdomainName == "@" ? "" : s.SubdomainName + ".")}{s.DomainName}",
             s.SubdomainName,
             s.DomainName,
-            Port = s.Project?.InternalPort ?? 80,
+            Port = s.Project?.HostPort ?? 80,
             s.CreatedAt
         }).ToList();
 

@@ -1,4 +1,4 @@
-﻿@page "/deploy-wizard"
+@page "/deploy-wizard"
 @attribute [Authorize]
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
@@ -997,7 +997,8 @@
                     ImageName = _dockerImageName.Trim(),
                     MemoryLimitBytes = (long)_memoryLimitMb * 1048576,
                     CpuCount = _cpuCount,
-                    InternalPort = _port
+                    HostPort = _port,
+                    ContainerPort = (int?)null // EXPOSE otomatik algılanacak
                 };
 
                 var dockerResponse = await Http.PostAsJsonAsync("api/projects/container", dockerPayload);
@@ -1058,7 +1059,7 @@
                 nativeContent.Add(new StringContent(_projectName.ToLower()), "Name");
                 nativeContent.Add(new StringContent(((long)_memoryLimitMb * 1048576).ToString()), "MemoryLimitBytes");
                 nativeContent.Add(new StringContent(_cpuCount.ToString()), "CpuCount");
-                nativeContent.Add(new StringContent(_port.ToString()), "InternalPort");
+                nativeContent.Add(new StringContent(_port.ToString()), "HostPort");
                 nativeContent.Add(new StringContent(_runtimeType ?? "dotnet"), "RuntimeType");
 
                 if (!string.IsNullOrWhiteSpace(_entryFile))
@@ -1266,7 +1267,7 @@
     public class SubdomainDto { public Guid Id { get; set; } public string SubdomainName { get; set; } = ""; public string DomainName { get; set; } = ""; }
     public class CreateDatabaseModel { public Guid? ProjectId { get; set; } public string DbName { get; set; } = ""; public string DbUser { get; set; } = ""; public string DbPassword { get; set; } = ""; }
     public class CreateDnsModel { public Guid? ProjectId { get; set; } public string Type { get; set; } = "A"; public string Name { get; set; } = ""; public string Value { get; set; } = ""; public int Ttl { get; set; } = 3600; public bool Proxied { get; set; } = true; public bool UseCloudflare { get; set; } = false; public string CloudflareToken { get; set; } = ""; public string CloudflareZoneId { get; set; } = ""; }
-    public class CreateDockerModel { public string Name { get; set; } = ""; public string ImageName { get; set; } = ""; public long MemoryLimitBytes { get; set; } public double CpuCount { get; set; } public int InternalPort { get; set; } }
+    public class CreateDockerModel { public string Name { get; set; } = ""; public string ImageName { get; set; } = ""; public long MemoryLimitBytes { get; set; } public double CpuCount { get; set; } public int HostPort { get; set; } public int? ContainerPort { get; set; } }
     public class RootDomainDto { public Guid Id { get; set; } public string Name { get; set; } = ""; public string? CloudflareToken { get; set; } public string? CloudflareZoneId { get; set; } }
 
     private const long MaxZipUploadBytes = 200L * 1024 * 1024;

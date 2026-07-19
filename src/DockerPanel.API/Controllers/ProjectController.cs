@@ -106,7 +106,7 @@ public class ProjectController : ControllerBase
                     sub.SubdomainName,
                     sub.DomainName,
                     project.Name,
-                    project.InternalPort,
+                    project.HostPort,
                     project.Type,
                     project.ImageOrPath,
                     project.EnablePhp,
@@ -227,7 +227,8 @@ public class ProjectController : ControllerBase
             project.ImageOrPath = request.ImageName;
             project.MemoryLimitBytes = request.MemoryLimitBytes;
             project.CpuCount = request.CpuCount;
-            project.InternalPort = request.InternalPort;
+            project.HostPort = request.HostPort;
+            project.ContainerPort = request.ContainerPort;
             project.Status = ProjectStatus.Provisioning;
             
             _dbContext.Entry(project).State = EntityState.Modified;
@@ -242,7 +243,8 @@ public class ProjectController : ControllerBase
                 ImageOrPath = request.ImageName,
                 MemoryLimitBytes = request.MemoryLimitBytes,
                 CpuCount = request.CpuCount,
-                InternalPort = request.InternalPort,
+                HostPort = request.HostPort,
+                ContainerPort = request.ContainerPort,
                 Status = ProjectStatus.Provisioning,
                 CreatedAt = DateTimeOffset.UtcNow
             };
@@ -252,12 +254,24 @@ public class ProjectController : ControllerBase
 
         try
         {
+            // Akıllı containerPort çözümleme:
+            // 1. Kullanıcının girdiği ContainerPort
+            // 2. Image'ın EXPOSE ettiği port (pull + inspect)
+            // 3. Son çare: HostPort
+            int effectiveContainerPort = request.ContainerPort
+                ?? await _containerService.GetImageExposedPortAsync(request.ImageName)
+                ?? request.HostPort;
+
+            // Çözümlenen containerPort'u DB'ye yansıt
+            project.ContainerPort = effectiveContainerPort;
+
             var dockerId = await _containerService.ProvisionContainerAsync(
                 request.Name,
                 request.ImageName,
                 request.MemoryLimitBytes,
                 request.CpuCount,
-                request.InternalPort
+                request.HostPort,
+                effectiveContainerPort
             );
 
             project.DockerContainerId = dockerId;
@@ -329,7 +343,8 @@ public class ProjectController : ControllerBase
             project.Type = ProjectType.NativeProject;
             project.MemoryLimitBytes = request.MemoryLimitBytes;
             project.CpuCount = request.CpuCount;
-            project.InternalPort = request.InternalPort;
+            project.HostPort = request.HostPort;
+            project.ContainerPort = null; // Native projeler için ContainerPort anlamsız
             project.Status = ProjectStatus.Provisioning;
 
             _dbContext.Entry(project).State = EntityState.Modified;
@@ -343,7 +358,8 @@ public class ProjectController : ControllerBase
                 Type = ProjectType.NativeProject,
                 MemoryLimitBytes = request.MemoryLimitBytes,
                 CpuCount = request.CpuCount,
-                InternalPort = request.InternalPort,
+                HostPort = request.HostPort,
+                ContainerPort = null, // Native projeler için ContainerPort anlamsız
                 Status = ProjectStatus.Provisioning,
                 CreatedAt = DateTimeOffset.UtcNow
             };
@@ -395,7 +411,7 @@ public class ProjectController : ControllerBase
             }
 
             // Config Kayıt Et
-            await _processManagerService.AddOrUpdateProcessConfigAsync(request.Name, request.InternalPort, request.RuntimeType, request.EntryFile, request.CustomCommand);
+            await _processManagerService.AddOrUpdateProcessConfigAsync(request.Name, request.HostPort, request.RuntimeType, request.EntryFile, request.CustomCommand);
 
             // Native Süreci Başlat
             await _processManagerService.StartProcessAsync(request.Name);
@@ -405,7 +421,7 @@ public class ProjectController : ControllerBase
 
             await UpdateLinkedSubdomainsNginxConfigAsync(project);
 
-            await LogAuditAsync("NativeProjectDeployed", "Project", project.Id, JsonSerializer.Serialize(new { name = project.Name, path = project.ImageOrPath, port = project.InternalPort }));
+            await LogAuditAsync("NativeProjectDeployed", "Project", project.Id, JsonSerializer.Serialize(new { name = project.Name, path = project.ImageOrPath, port = project.HostPort }));
 
             return Ok(project);
         }
@@ -491,7 +507,8 @@ public class ProjectController : ControllerBase
             project.Type = ProjectType.StaticSite;
             project.MemoryLimitBytes = 0;
             project.CpuCount = 0;
-            project.InternalPort = 80;
+            project.HostPort = 80;
+            project.ContainerPort = null;
             project.EnablePhp = request.EnablePhp;
             project.Status = ProjectStatus.Provisioning;
 
@@ -506,7 +523,8 @@ public class ProjectController : ControllerBase
                 Type = ProjectType.StaticSite,
                 MemoryLimitBytes = 0,
                 CpuCount = 0,
-                InternalPort = 80,
+                HostPort = 80,
+                ContainerPort = null,
                 EnablePhp = request.EnablePhp,
                 Status = ProjectStatus.Provisioning,
                 CreatedAt = DateTimeOffset.UtcNow
@@ -694,7 +712,7 @@ public class ProjectController : ControllerBase
             }
             else if (project.Type == ProjectType.NativeProject)
             {
-                await _processManagerService.AddOrUpdateProcessConfigAsync(project.Name, project.InternalPort);
+                await _processManagerService.AddOrUpdateProcessConfigAsync(project.Name, project.HostPort);
                 await _processManagerService.RestartProcessAsync(project.Name);
             }
 
@@ -707,6 +725,18 @@ public class ProjectController : ControllerBase
         {
             return StatusCode(500, new { Message = ex.Message });
         }
+    }
+
+    // Image'ın EXPOSE ettiği portu dönen endpoint
+    [HttpPost("image-exposed-port")]
+    [DisableRateLimiting]
+    public async Task<IActionResult> GetImageExposedPort([FromBody] ImageExposedPortRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ImageName))
+            return BadRequest(new { Message = "Image adı boş olamaz." });
+
+        var port = await _containerService.GetImageExposedPortAsync(request.ImageName);
+        return Ok(new { ExposedPort = port });
     }
 
     [HttpPut("{id}/limits")]
@@ -799,7 +829,7 @@ public class ProjectController : ControllerBase
                         {
                             foreach (var project in bgProjects.Where(p => p.Type == ProjectType.NativeProject))
                             {
-                                await processManagerService.AddOrUpdateProcessConfigAsync(project.Name, project.InternalPort);
+                                await processManagerService.AddOrUpdateProcessConfigAsync(project.Name, project.HostPort);
                             }
 
                             nativeRestartAttempted = true;
@@ -1094,13 +1124,22 @@ public class ProjectController : ControllerBase
     }
 }
 
+// ── Image ExposedPort Endpoint ──────────────────────────────────────────────
+public class ImageExposedPortRequest
+{
+    public string ImageName { get; set; } = string.Empty;
+}
+
 public class CreateContainerRequest
 {
     public string Name { get; set; } = string.Empty;
     public string ImageName { get; set; } = string.Empty;
     public long MemoryLimitBytes { get; set; }
     public double CpuCount { get; set; }
-    public int InternalPort { get; set; }
+    /// <summary>Dışarıya/Nginx'e açılan port (örn. 8080)</summary>
+    public int HostPort { get; set; }
+    /// <summary>Image içinde dinlenen port. Boşsa sistem EXPOSE'u okur, o da yoksa HostPort kullanılır.</summary>
+    public int? ContainerPort { get; set; }
 }
 
 public class UpdateProjectLimitsRequest
@@ -1114,7 +1153,8 @@ public class DeployNativeRequest
     public string Name { get; set; } = string.Empty;
     public long MemoryLimitBytes { get; set; }
     public double CpuCount { get; set; }
-    public int InternalPort { get; set; }
+    /// <summary>Native projenin dinleyeceği port</summary>
+    public int HostPort { get; set; }
     public IFormFile ZipFile { get; set; } = null!;
     public string? RuntimeType { get; set; }
     public string? EntryFile { get; set; }

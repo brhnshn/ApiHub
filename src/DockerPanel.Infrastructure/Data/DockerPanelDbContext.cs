@@ -85,8 +85,10 @@ public class DockerPanelDbContext : DbContext
             entity.Property(e => e.CpuCount)
                 .IsRequired();
 
-            entity.Property(e => e.InternalPort)
+            entity.Property(e => e.HostPort)
                 .IsRequired();
+
+            entity.Property(e => e.ContainerPort);
 
             entity.Property(e => e.Status)
                 .HasConversion<string>()

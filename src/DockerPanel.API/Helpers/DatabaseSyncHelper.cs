@@ -150,9 +150,9 @@ public static class DatabaseSyncHelper
                             }
                         }
 
-                        if (project.InternalPort != port || project.ImageOrPath != targetPath)
+                        if (project.HostPort != port || project.ImageOrPath != targetPath)
                         {
-                            project.InternalPort = port;
+                            project.HostPort = port;
                             project.ImageOrPath = targetPath;
                             Console.WriteLine($"[Sync] Mevcut Native proje metadata güncellendi: {project.Name} (Port: {port})");
                         }
@@ -190,7 +190,8 @@ public static class DatabaseSyncHelper
                             Name = projectName,
                             Type = ProjectType.NativeProject,
                             ImageOrPath = targetPath,
-                            InternalPort = port,
+                            HostPort = port,
+                            ContainerPort = null,
                             MemoryLimitBytes = 536870912, // 512 MB varsayılan
                             CpuCount = 0.5,
                             Status = isRunning ? ProjectStatus.Running : ProjectStatus.Stopped,
@@ -275,7 +276,7 @@ public static class DatabaseSyncHelper
                                     if (!subExists)
                                     {
                                         // Bu porta sahip projeyi bul
-                                        var matchingProject = await db.Projects.FirstOrDefaultAsync(p => p.InternalPort == port);
+                                        var matchingProject = await db.Projects.FirstOrDefaultAsync(p => p.HostPort == port);
                                         if (matchingProject != null)
                                         {
                                             var newSub = new Subdomain

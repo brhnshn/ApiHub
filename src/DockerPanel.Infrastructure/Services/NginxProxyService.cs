@@ -1242,7 +1242,7 @@ server {{
                  bool sslEnabled = content.Contains("listen 443") || content.Contains("ssl_certificate");
 
                  // Bu portu kullanan bir proje var mı?
-                 var project = await dbContext.Projects.FirstOrDefaultAsync(p => p.InternalPort == port);
+                 var project = await dbContext.Projects.FirstOrDefaultAsync(p => p.HostPort == port);
                  Guid? projectId = project?.Id;
 
                  var subdomain = new Subdomain

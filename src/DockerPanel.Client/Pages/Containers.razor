@@ -165,7 +165,7 @@
 
                         <div class="grid grid-cols-2 gap-4 pt-2 text-xs border-t border-white/5">
                             <div class="space-y-1">
-                                <p class="text-[#8c909f]">İç Port: <span class="text-white font-mono">@project.InternalPort</span></p>
+                                <p class="text-[#8c909f]">Host Port: <span class="text-white font-mono">@project.HostPort</span>@(project.ContainerPort.HasValue && project.ContainerPort != project.HostPort ? $" → {project.ContainerPort}" : "")</p>
                                 @if (isRunning && project.StartedAt.HasValue)
                                 {
                                     <div class="flex items-center gap-1 text-[#4edea3]">
@@ -381,7 +381,7 @@ else
 
                         <!-- Alt Bilgiler -->
                         <div class="d-flex justify-between align-center mt-4 pt-3" style="border-top: 1px solid var(--border-light); font-size: 11px; color: var(--text-secondary);">
-                            <span>İç Port: <strong style="color: var(--text-main);">@project.InternalPort</strong></span>
+                            <span>Host Port: <strong style="color: var(--text-main);">@project.HostPort</strong>@(project.ContainerPort.HasValue && project.ContainerPort != project.HostPort ? $" → {project.ContainerPort}" : "")</span>
                             <span>Limit: <strong style="color: var(--text-main);">@project.CpuCount CPU / @(project.MemoryLimitBytes / 1048576) MB</strong></span>
                         </div>
                         @if (project.Status == ProjectStatus.Running && project.StartedAt.HasValue)
@@ -647,9 +647,37 @@ else
                     </MudItem>
                 </MudGrid>
 
-                <div class="mb-6">
-                    <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">İç Bağlantı Portu</label>
-                    <MudNumericField T="int" @bind-Value="_createModel.InternalPort" Min="1" Max="65535" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <div class="mb-4">
+                    <MudGrid>
+                        <MudItem xs="6">
+                            <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">Host Port <span style="color: #64748b; font-weight: 400;">(dış erişim)</span></label>
+                            <MudNumericField T="int" @bind-Value="_createModel.HostPort" Min="1" Max="65535" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        </MudItem>
+                        @if (_selectedType == ProjectType.DockerContainer)
+                        {
+                            <MudItem xs="6">
+                                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px;">Container Port <span style="color: #64748b; font-weight: 400;">(image içi)</span></label>
+                                <div class="d-flex gap-1 align-center">
+                                    <MudNumericField T="int?" @bind-Value="_createModel.ContainerPort" Min="1" Max="65535" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="Oto" />
+                                    <MudTooltip Text="Image'ın EXPOSE ettiği portu otomatik algıla (pull + inspect)">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Search" Size="Size.Small" Color="Color.Info"
+                                                       Disabled="@(string.IsNullOrWhiteSpace(_createModel.ImageName) || _isDetectingPort)"
+                                                       OnClick="DetectContainerPortAsync" />
+                                    </MudTooltip>
+                                </div>
+                                @if (_isDetectingPort)
+                                {
+                                    <MudText Typo="Typo.caption" Style="color: #64748b;">EXPOSE portu algılanıyor...</MudText>
+                                }
+                            </MudItem>
+                        }
+                    </MudGrid>
+                    @if (_selectedType == ProjectType.DockerContainer && _createModel.ContainerPort.HasValue)
+                    {
+                        <MudText Typo="Typo.caption" Style="color: #94a3b8;" Class="mt-1">
+                            docker run -p @_createModel.HostPort:@_createModel.ContainerPort ...
+                        </MudText>
+                    }
                 </div>
             }
 
@@ -890,6 +918,7 @@ else
     private bool _isLoading = true;
     private bool _createModalVisible = false;
     private bool _isCreating = false;
+    private bool _isDetectingPort = false;
     private bool _isBulkRestarting = false;
     private readonly HashSet<Guid> _restartingProjectIds = new();
     private bool _limitModalVisible = false;
@@ -982,7 +1011,8 @@ else
                 ImageOrPath = p.ImageOrPath,
                 MemoryLimitBytes = p.MemoryLimitBytes,
                 CpuCount = p.CpuCount,
-                InternalPort = p.InternalPort,
+                HostPort = p.HostPort,
+                ContainerPort = p.ContainerPort,
                 Status = (ProjectStatus)(int)p.Status,
                 StartedAt = p.StartedAt,
                 EnablePhp = p.EnablePhp,
@@ -1061,7 +1091,8 @@ else
                 ImageOrPath = p.ImageOrPath,
                 MemoryLimitBytes = p.MemoryLimitBytes,
                 CpuCount = p.CpuCount,
-                InternalPort = p.InternalPort,
+                HostPort = p.HostPort,
+                ContainerPort = p.ContainerPort,
                 Status = (StateProjectStatus)(int)p.Status,
                 StartedAt = p.StartedAt,
                 EnablePhp = p.EnablePhp,
@@ -1101,7 +1132,8 @@ else
         _createModel.ImageName = "";
         _createModel.MemoryLimitMb = 512;
         _createModel.CpuCount = 0.5;
-        _createModel.InternalPort = 80;
+        _createModel.HostPort = 80;
+        _createModel.ContainerPort = null;
         _selectedType = ProjectType.DockerContainer;
         _selectedFile = null;
         _createModalVisible = true;
@@ -1110,6 +1142,45 @@ else
     private void CloseCreateModal()
     {
         _createModalVisible = false;
+    }
+
+    private async Task DetectContainerPortAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_createModel.ImageName)) return;
+        _isDetectingPort = true;
+        StateHasChanged();
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/projects/image-exposed-port",
+                new { ImageName = _createModel.ImageName });
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<ImageExposedPortResult>();
+                if (result?.ExposedPort.HasValue == true)
+                {
+                    _createModel.ContainerPort = result.ExposedPort.Value;
+                    Snackbar.Add($"EXPOSE portu otomatik algılandı: {result.ExposedPort.Value}", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Bu image için EXPOSE portu bulunamadı. Lütfen manuel girin.", Severity.Warning);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Port algılama hatası: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isDetectingPort = false;
+            StateHasChanged();
+        }
+    }
+
+    private class ImageExposedPortResult
+    {
+        public int? ExposedPort { get; set; }
     }
 
     private async Task HandleCreate()
@@ -1131,7 +1202,8 @@ else
                     ImageName = _createModel.ImageName,
                     MemoryLimitBytes = (long)_createModel.MemoryLimitMb * 1048576,
                     CpuCount = _createModel.CpuCount,
-                    InternalPort = _createModel.InternalPort
+                    HostPort = _createModel.HostPort,
+                    ContainerPort = _createModel.ContainerPort
                 };
 
                 var response = await Http.PostAsJsonAsync("api/projects/container", apiPayload);
@@ -1160,7 +1232,7 @@ else
                 content.Add(new StringContent(_createModel.Name.ToLower()), "Name");
                 content.Add(new StringContent(((long)_createModel.MemoryLimitMb * 1048576).ToString()), "MemoryLimitBytes");
                 content.Add(new StringContent(_createModel.CpuCount.ToString()), "CpuCount");
-                content.Add(new StringContent(_createModel.InternalPort.ToString()), "InternalPort");
+                content.Add(new StringContent(_createModel.HostPort.ToString()), "HostPort");
                 content.Add(new StringContent(_createModel.RuntimeType), "RuntimeType");
                 content.Add(new StringContent(_createModel.EntryFile ?? string.Empty), "EntryFile");
                 content.Add(new StringContent(_createModel.CustomCommand ?? string.Empty), "CustomCommand");
@@ -1688,7 +1760,7 @@ else
             }
             else
             {
-                content.Add(new StringContent(_activeZipProject.InternalPort.ToString()), "InternalPort");
+                content.Add(new StringContent(_activeZipProject.HostPort.ToString()), "HostPort");
                 content.Add(new StringContent(_activeZipProject.MemoryLimitBytes.ToString()), "MemoryLimitBytes");
                 content.Add(new StringContent(_activeZipProject.CpuCount.ToString(System.Globalization.CultureInfo.InvariantCulture)), "CpuCount");
                 if (!string.IsNullOrEmpty(_detectedRuntime))
@@ -1762,7 +1834,8 @@ else
         public string ImageOrPath { get; set; } = string.Empty;
         public long MemoryLimitBytes { get; set; }
         public double CpuCount { get; set; }
-        public int InternalPort { get; set; }
+        public int HostPort { get; set; }
+        public int? ContainerPort { get; set; }
         public ProjectStatus Status { get; set; }
         public DateTimeOffset? StartedAt { get; set; }
         public bool EnablePhp { get; set; }
@@ -1839,7 +1912,8 @@ else
         public string ImageName { get; set; } = string.Empty;
         public int MemoryLimitMb { get; set; } = 512;
         public double CpuCount { get; set; } = 0.5;
-        public int InternalPort { get; set; } = 80;
+        public int HostPort { get; set; } = 80;
+        public int? ContainerPort { get; set; } = null;
 
         // Native ZIP Çalıştırma Ayarları
         public string RuntimeType { get; set; } = "dotnet";

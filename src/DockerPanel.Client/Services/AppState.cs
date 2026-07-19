@@ -808,7 +808,8 @@ namespace DockerPanel.Client.Services
         public string ImageOrPath { get; set; } = string.Empty;
         public long MemoryLimitBytes { get; set; }
         public double CpuCount { get; set; }
-        public int InternalPort { get; set; }
+        public int HostPort { get; set; }
+        public int? ContainerPort { get; set; }
         public StateProjectStatus Status { get; set; }
         public DateTimeOffset? StartedAt { get; set; }
         public bool EnablePhp { get; set; }

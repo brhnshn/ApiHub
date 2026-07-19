@@ -73,7 +73,7 @@ public class SubdomainController : ControllerBase
             s.SslEnabled,
             s.ProjectId,
             ContainerName = s.Project?.Name ?? "Bağımsız / Dış Servis",
-            ContainerPort = s.Project?.InternalPort ?? 80, // Eğer proje yoksa varsayılan port
+            ContainerPort = s.Project?.HostPort ?? 80, // Eğer proje yoksa varsayılan port
             s.CreatedAt
         });
 
@@ -129,7 +129,7 @@ public class SubdomainController : ControllerBase
             {
                 return Forbid();
             }
-            targetPort = project.InternalPort;
+            targetPort = project.HostPort;
         }
 
         // 4. Yeni Kayıt Taslağı
@@ -221,7 +221,7 @@ public class SubdomainController : ControllerBase
             {
                 return Forbid();
             }
-            targetPort = project.InternalPort;
+            targetPort = project.HostPort;
         }
 
         using var transaction = await _dbContext.Database.BeginTransactionAsync();
@@ -293,7 +293,7 @@ public class SubdomainController : ControllerBase
 
             // Nginx konfigürasyonunu SSL ile yeniden yapılandır
             var project = subdomain.Project;
-            int targetPort = project?.InternalPort ?? 80;
+            int targetPort = project?.HostPort ?? 80;
 
             await _nginxService.ProvisionSubdomainAsync(
                 subdomain.SubdomainName,
@@ -362,7 +362,7 @@ public class SubdomainController : ControllerBase
             {
                 try
                 {
-                    int targetPort = sub.Project?.InternalPort ?? 80;
+                    int targetPort = sub.Project?.HostPort ?? 80;
                     
                     await _nginxService.ProvisionSubdomainAsync(
                         sub.SubdomainName,

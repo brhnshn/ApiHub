@@ -175,7 +175,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.DockerContainer,
             ImageOrPath = "ubuntu",
-            InternalPort = 5001,
+            HostPort = 5001,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -299,7 +299,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -330,7 +330,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -357,7 +357,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Stopped,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -386,7 +386,7 @@ public class E2ETests : IDisposable
         var project = await _dbContext.Projects.FirstOrDefaultAsync(p => p.Name == "proj-manual");
         Assert.NotNull(project);
         Assert.Equal(ProjectStatus.Running, project!.Status);
-        Assert.Equal(5040, project.InternalPort);
+        Assert.Equal(5040, project.HostPort);
     }
 
     [Fact]
@@ -399,7 +399,7 @@ public class E2ETests : IDisposable
             Name = "proj-ghost",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -425,7 +425,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -452,7 +452,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -479,7 +479,7 @@ public class E2ETests : IDisposable
             Name = "proj-fail",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -509,7 +509,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -538,7 +538,7 @@ public class E2ETests : IDisposable
             Type = ProjectType.DockerContainer,
             ImageOrPath = "nginx",
             DockerContainerId = "cont123",
-            InternalPort = 80,
+            HostPort = 80,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -567,7 +567,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Stopped,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -594,7 +594,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Error,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -621,7 +621,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Provisioning,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -648,7 +648,7 @@ public class E2ETests : IDisposable
             Name = "proj-stopped",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Stopped,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -671,7 +671,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Stopped,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -823,7 +823,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -863,7 +863,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -894,7 +894,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "/pathA",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -933,7 +933,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -960,7 +960,7 @@ public class E2ETests : IDisposable
             Name = "proj-timeout",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -985,7 +985,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -1012,7 +1012,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -1050,7 +1050,7 @@ public class E2ETests : IDisposable
             Name = "proj-zombie",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -1076,7 +1076,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -1106,7 +1106,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy_path",
-            InternalPort = 5030,
+            HostPort = 5030,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -1128,8 +1128,8 @@ public class E2ETests : IDisposable
     [Fact]
     public async Task T2_F5_04_PanicStop_persistence()
     {
-        var project1 = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proj1", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Stopped, InternalPort = 5001, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
-        var project2 = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proj2", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Stopped, InternalPort = 5002, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
+        var project1 = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proj1", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Stopped, HostPort = 5001, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
+        var project2 = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proj2", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Stopped, HostPort = 5002, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
         _dbContext.Projects.AddRange(project1, project2);
         await _dbContext.SaveChangesAsync();
 
@@ -1146,8 +1146,8 @@ public class E2ETests : IDisposable
     [Fact]
     public async Task T2_F5_05_External_termination_detection()
     {
-        var project1 = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proj1", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Running, InternalPort = 5001, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
-        var project2 = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proj2", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Stopped, InternalPort = 5002, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
+        var project1 = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proj1", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Running, HostPort = 5001, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
+        var project2 = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proj2", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Stopped, HostPort = 5002, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
         _dbContext.Projects.AddRange(project1, project2);
         await _dbContext.SaveChangesAsync();
 
@@ -1175,7 +1175,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy",
-            InternalPort = 5001,
+            HostPort = 5001,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -1202,7 +1202,7 @@ public class E2ETests : IDisposable
     [Fact]
     public async Task T3_INT_02_Starting_project_on_conflicting_port()
     {
-        var project1 = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proj1", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Running, InternalPort = 5000, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
+        var project1 = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proj1", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Running, HostPort = 5000, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
         _dbContext.Projects.Add(project1);
         await _dbContext.SaveChangesAsync();
 
@@ -1233,7 +1233,7 @@ public class E2ETests : IDisposable
             Name = "proj1",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy",
-            InternalPort = 5001,
+            HostPort = 5001,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -1278,7 +1278,7 @@ public class E2ETests : IDisposable
             Name = "proj-real",
             Type = ProjectType.NativeProject,
             ImageOrPath = "/opt/dockerpanel/projects/proj-real",
-            InternalPort = 6001,
+            HostPort = 6001,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -1331,7 +1331,7 @@ public class E2ETests : IDisposable
             Name = "proj-load",
             Type = ProjectType.NativeProject,
             ImageOrPath = "dummy",
-            InternalPort = 5005,
+            HostPort = 5005,
             Status = ProjectStatus.Running,
             CpuCount = 0.5,
             MemoryLimitBytes = 536870912
@@ -1382,8 +1382,8 @@ public class E2ETests : IDisposable
     [Fact]
     public async Task T4_SCN_04_API_Node_Crash_and_Host_OS_Reboot_Recovery()
     {
-        var projectA = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "projA", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Running, InternalPort = 5001, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
-        var projectB = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "projB", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Stopped, InternalPort = 5002, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
+        var projectA = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "projA", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Running, HostPort = 5001, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
+        var projectB = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "projB", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Stopped, HostPort = 5002, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
         _dbContext.Projects.AddRange(projectA, projectB);
         await _dbContext.SaveChangesAsync();
 
@@ -1513,9 +1513,14 @@ public class FakeProjectContainerService : IProjectContainerService
     public List<string> StartedContainers { get; } = new();
     public List<string> StoppedContainers { get; } = new();
 
-    public Task<string> ProvisionContainerAsync(string name, string imageName, long memoryLimitBytes, double cpuCount, int internalPort)
+    public Task<string> ProvisionContainerAsync(string name, string imageName, long memoryLimitBytes, double cpuCount, int hostPort, int containerPort)
     {
         return Task.FromResult(Guid.NewGuid().ToString());
+    }
+
+    public Task<int?> GetImageExposedPortAsync(string imageName)
+    {
+        return Task.FromResult<int?>(80);
     }
 
     public Task StopContainerAsync(string dockerContainerId)

@@ -48,7 +48,7 @@
                         <MudSelectItem Value="@((Guid?)null)">Lütfen bir proje seçin...</MudSelectItem>
                         @foreach (var p in _activeContainers)
                         {
-                            <MudSelectItem Value="@((Guid?)p.Id)">@p.Name (Port: @p.InternalPort)</MudSelectItem>
+                            <MudSelectItem Value="@((Guid?)p.Id)">@p.Name (Port: @p.HostPort)</MudSelectItem>
                         }
                     </MudSelect>
                 </div>
@@ -391,7 +391,7 @@
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public int InternalPort { get; set; }
+        public int HostPort { get; set; }
     }
 
     public class ProjectLogsDto

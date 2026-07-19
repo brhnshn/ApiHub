@@ -376,7 +376,7 @@
                         <option value="@Guid.Empty">Bağımsız / Dış Servis (Projesiz)</option>
                         @foreach (var c in _activeContainers)
                         {
-                            <option value="@c.Id">@c.Name (Port: @c.InternalPort)</option>
+                            <option value="@c.Id">@c.Name (Port: @c.HostPort)</option>
                         }
                     </select>
                 </div>
@@ -450,7 +450,7 @@
                         <option value="@Guid.Empty">Bağımsız / Dış Servis (Projesiz)</option>
                         @foreach (var c in _activeContainers)
                         {
-                            <option value="@c.Id">@c.Name (Port: @c.InternalPort)</option>
+                            <option value="@c.Id">@c.Name (Port: @c.HostPort)</option>
                         }
                     </select>
                 </div>
@@ -1404,7 +1404,7 @@
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public int InternalPort { get; set; }
+        public int HostPort { get; set; }
     }
 
     // Form Model Tanımları
