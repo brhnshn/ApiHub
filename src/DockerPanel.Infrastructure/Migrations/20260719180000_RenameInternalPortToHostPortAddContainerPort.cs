@@ -1,10 +1,13 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using DockerPanel.Infrastructure.Data;
 
 #nullable disable
 
 namespace DockerPanel.Infrastructure.Migrations
 {
-    /// <inheritdoc />
+    [DbContext(typeof(DockerPanelDbContext))]
+    [Migration("20260719180000_RenameInternalPortToHostPortAddContainerPort")]
     public partial class RenameInternalPortToHostPortAddContainerPort : Migration
     {
         /// <inheritdoc />
