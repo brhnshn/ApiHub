@@ -11,9 +11,11 @@ public interface IProjectContainerService
     Task StopContainerAsync(string dockerContainerId);
     Task StartContainerAsync(string dockerContainerId);
     Task DeleteContainerAsync(string dockerContainerId);
+    Task DeleteImageAsync(string imageName);
     Task UpdateContainerLimitsAsync(string dockerContainerId, long memoryLimitBytes, double cpuCount);
     Task<ContainerStatsDto> GetContainerStatsAsync(string dockerContainerId);
     Task<bool> IsContainerRunningAsync(string dockerContainerId);
+    Task<bool> WaitForContainerHealthAsync(string dockerContainerId, TimeSpan timeout, CancellationToken cancellationToken = default);
     Task<IEnumerable<string>> GetContainerLogsAsync(string dockerContainerId, int tailLines = 100);
     /// <summary>
     /// Docker image'ının EXPOSE ettiği ilk portu döner.

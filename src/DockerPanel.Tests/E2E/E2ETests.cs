@@ -1543,6 +1543,8 @@ public class FakeProjectContainerService : IProjectContainerService
         return Task.CompletedTask;
     }
 
+    public Task DeleteImageAsync(string imageName) => Task.CompletedTask;
+
     public Task UpdateContainerLimitsAsync(string dockerContainerId, long memoryLimitBytes, double cpuCount)
     {
         return Task.CompletedTask;
@@ -1571,6 +1573,9 @@ public class FakeProjectContainerService : IProjectContainerService
         }
         return Task.FromResult(true);
     }
+
+    public Task<bool> WaitForContainerHealthAsync(string dockerContainerId, TimeSpan timeout, CancellationToken cancellationToken = default)
+        => IsContainerRunningAsync(dockerContainerId);
 
     public Task<IEnumerable<string>> GetContainerLogsAsync(string dockerContainerId, int tailLines = 100)
     {

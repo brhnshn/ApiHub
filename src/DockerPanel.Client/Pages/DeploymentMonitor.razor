@@ -1,0 +1,113 @@
+@page "/deployments/{Id:guid}"
+@attribute [Authorize]
+@implements IAsyncDisposable
+@using System.Net.Http.Json
+@using DockerPanel.Domain.Enums
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Deployment Durumu</PageTitle>
+
+<div class="max-w-3xl mx-auto p-6 bg-slate-900 rounded-2xl border border-slate-800 text-white">
+    <div class="flex items-center justify-between mb-5">
+        <h2 class="font-bold">Deployment @Id.ToString("N")[..8]</h2>
+        <span class="text-xs px-2 py-1 rounded bg-indigo-500/20 text-indigo-300">@_deployment?.Status</span>
+    </div>
+    @if (_deployment == null)
+    {
+        <p class="text-slate-400">Deployment durumu yükleniyor...</p>
+    }
+    else
+    {
+        <div class="space-y-2">
+            @foreach (var step in _deployment.Steps.OrderBy(s => s.Order))
+            {
+                <div class="flex justify-between p-2 rounded bg-slate-950 text-xs">
+                    <span>@step.Name</span><span class="@(step.Status == "Failed" ? "text-rose-400" : step.Status == "Succeeded" ? "text-emerald-400" : "text-slate-400")">@step.Status</span>
+                </div>
+            }
+        </div>
+        @if (_deployment.Status == DeploymentStatus.RollbackPending.ToString())
+        {
+            <div class="mt-5 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10">
+                <p class="text-sm text-amber-200">Pipeline başarısız oldu. Rollback için @_secondsRemaining saniye kaldı.</p>
+                <button class="mt-3 px-3 py-2 rounded bg-amber-600 text-white text-xs font-bold" @onclick="RollbackAsync">Hemen Geri Al</button>
+            </div>
+        }
+        @if (_deployment.Status == DeploymentStatus.RollbackFailed.ToString())
+        {
+            <div class="mt-5 p-4 rounded-xl border border-rose-500/30 bg-rose-500/10">
+                <p class="text-sm text-rose-200">Rollback tamamlanamadı.</p>
+                <p class="mt-1 text-xs text-rose-300">@_deployment.ErrorMessage</p>
+                <button class="mt-3 px-3 py-2 rounded bg-rose-600 text-white text-xs font-bold" @onclick="RetryRollbackAsync">Tekrar Dene</button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private DeploymentView? _deployment;
+    private int _secondsRemaining;
+    private CancellationTokenSource? _pollCancellation;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pollCancellation = new CancellationTokenSource();
+        await PollAsync(_pollCancellation.Token);
+    }
+
+    private async Task PollAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            _deployment = await Http.GetFromJsonAsync<DeploymentView>($"api/deployments/{Id}", cancellationToken);
+            if (_deployment?.Status == DeploymentStatus.RollbackPending.ToString())
+            {
+                _secondsRemaining = Math.Max(0, (int)Math.Ceiling(((_deployment.RollbackExpiresAt ?? DateTimeOffset.UtcNow) - DateTimeOffset.UtcNow).TotalSeconds));
+                if (_secondsRemaining == 0)
+                {
+                    await Task.Delay(500, cancellationToken);
+                    continue;
+                }
+            }
+            else if (_deployment?.Status is nameof(DeploymentStatus.Succeeded) or nameof(DeploymentStatus.RolledBack) or nameof(DeploymentStatus.RollbackFailed))
+            {
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(1000, cancellationToken);
+        }
+    }
+
+    private async Task RollbackAsync()
+    {
+        await Http.PostAsync($"api/deployments/{Id}/rollback", null);
+        await RefreshAsync();
+    }
+
+    private async Task RetryRollbackAsync()
+    {
+        await Http.PostAsync($"api/deployments/{Id}/retry-rollback", null);
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync() => _deployment = await Http.GetFromJsonAsync<DeploymentView>($"api/deployments/{Id}");
+
+    public ValueTask DisposeAsync()
+    {
+        _pollCancellation?.Cancel();
+        _pollCancellation?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    private sealed class DeploymentView
+    {
+        public string Status { get; set; } = string.Empty;
+        public string? ErrorMessage { get; set; }
+        public DateTimeOffset? RollbackExpiresAt { get; set; }
+        public List<DeploymentStepView> Steps { get; set; } = new();
+    }
+    private sealed class DeploymentStepView { public int Order { get; set; } public string Name { get; set; } = string.Empty; public string Status { get; set; } = string.Empty; }
+}

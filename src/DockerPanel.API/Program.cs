@@ -41,6 +41,12 @@ builder.Services.AddDbContext<DockerPanelDbContext>(options =>
 
 // 2. Modüler Servis Kayıtları
 builder.Services.AddScoped<IProjectContainerService, ProjectContainerService>();
+builder.Services.AddScoped<IDeploymentService, DeploymentService>();
+builder.Services.AddScoped<IComposeAnalyzerService, ComposeAnalyzerService>();
+builder.Services.AddScoped<IComposeDeploymentService, ComposeDeploymentService>();
+builder.Services.AddScoped<IGitHubDeploymentService, GitHubDeploymentService>();
+builder.Services.AddScoped<IComposeSecurityValidator, ComposeSecurityValidator>();
+builder.Services.AddSingleton<IDeploymentJobQueue, DeploymentJobQueue>();
 builder.Services.AddScoped<IProcessManagerService, ProcessManagerService>();
 builder.Services.AddScoped<IProjectZipDeployService, ProjectZipDeployService>();
 builder.Services.AddScoped<INginxService, NginxProxyService>();
@@ -62,6 +68,8 @@ if (!builder.Environment.IsDevelopment())
     builder.Services.AddHostedService<MetricBackgroundWorker>();
     builder.Services.AddHostedService<BackupWorker>();
 }
+builder.Services.AddHostedService<DeploymentCleanupWorker>();
+builder.Services.AddHostedService<DeploymentWorker>();
 
 builder.Services.AddRateLimiter(options =>
 {

@@ -3,6 +3,7 @@ using System;
 using DockerPanel.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DockerPanel.Infrastructure.Migrations
 {
     [DbContext(typeof(DockerPanelDbContext))]
-    partial class DockerPanelDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720203623_AddDeployments")]
+    partial class AddDeployments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -174,21 +177,11 @@ namespace DockerPanel.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("ContainerPort")
-                        .HasColumnType("integer");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("DomainName")
-                        .HasMaxLength(253)
-                        .HasColumnType("character varying(253)");
-
                     b.Property<string>("ErrorMessage")
                         .HasColumnType("text");
-
-                    b.Property<int?>("HostPort")
-                        .HasColumnType("integer");
 
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid");
@@ -197,17 +190,6 @@ namespace DockerPanel.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
-
-                    b.Property<string>("ProxyService")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("RequestJson")
-                        .HasColumnType("text");
-
-                    b.Property<string>("RollbackClaim")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
 
                     b.Property<DateTimeOffset?>("RollbackExpiresAt")
                         .HasColumnType("timestamp with time zone");
@@ -221,17 +203,10 @@ namespace DockerPanel.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
-                    b.Property<bool>("SslEnabled")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
-
-                    b.Property<string>("SubdomainName")
-                        .HasMaxLength(63)
-                        .HasColumnType("character varying(63)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");

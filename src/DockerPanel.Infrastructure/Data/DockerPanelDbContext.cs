@@ -21,6 +21,9 @@ public class DockerPanelDbContext : DbContext
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<PushNotification> PushNotifications => Set<PushNotification>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+    public DbSet<Deployment> Deployments => Set<Deployment>();
+    public DbSet<DeploymentStep> DeploymentSteps => Set<DeploymentStep>();
+    public DbSet<DeploymentResource> DeploymentResources => Set<DeploymentResource>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -106,6 +109,49 @@ public class DockerPanelDbContext : DbContext
                 .WithMany(u => u.Projects)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Deployment>(entity =>
+        {
+            entity.ToTable("Deployments");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProjectName).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.SourceType).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(e => e.SourceReference).HasMaxLength(2048);
+            entity.Property(e => e.CommitSha).HasMaxLength(64);
+            entity.Property(e => e.WorkingDirectory).HasMaxLength(1024);
+            entity.Property(e => e.RequestJson);
+            entity.Property(e => e.ProxyService).HasMaxLength(128);
+            entity.Property(e => e.DomainName).HasMaxLength(253);
+            entity.Property(e => e.SubdomainName).HasMaxLength(63);
+            entity.Property(e => e.RollbackClaim).HasMaxLength(128);
+            entity.Property(e => e.ErrorMessage);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Project).WithMany().HasForeignKey(e => e.ProjectId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => new { e.Status, e.RollbackExpiresAt });
+        });
+
+        modelBuilder.Entity<DeploymentStep>(entity =>
+        {
+            entity.ToTable("DeploymentSteps");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ErrorMessage);
+            entity.HasOne(e => e.Deployment).WithMany(d => d.Steps).HasForeignKey(e => e.DeploymentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.DeploymentId, e.Order }).IsUnique();
+        });
+
+        modelBuilder.Entity<DeploymentResource>(entity =>
+        {
+            entity.ToTable("DeploymentResources");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ResourceType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ResourceKey).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.ResourceValue).IsRequired();
+            entity.HasOne(e => e.Deployment).WithMany(d => d.Resources).HasForeignKey(e => e.DeploymentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.DeploymentId, e.ResourceType, e.ResourceKey }).IsUnique();
         });
 
         // 3. Subdomain Entity Configuration

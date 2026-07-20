@@ -326,4 +326,29 @@ public class ProjectContainerService : IProjectContainerService
             return false;
         }
     }
+
+    public async Task<bool> WaitForContainerHealthAsync(string dockerContainerId, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                var inspect = await _dockerClient.Containers.InspectContainerAsync(dockerContainerId, cancellationToken);
+                if (inspect.State?.Running != true) return false;
+                var health = inspect.State.Health?.Status;
+                if (string.Equals(health, "healthy", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(health)) return true;
+                if (string.Equals(health, "unhealthy", StringComparison.OrdinalIgnoreCase)) return false;
+            }
+            catch { }
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+        }
+        return false;
+    }
+
+    public async Task DeleteImageAsync(string imageName)
+    {
+        if (string.IsNullOrWhiteSpace(imageName)) return;
+        await _dockerClient.Images.DeleteImageAsync(imageName, new ImageDeleteParameters { Force = false, NoPrune = true });
+    }
 }
