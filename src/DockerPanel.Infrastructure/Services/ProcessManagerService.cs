@@ -530,10 +530,15 @@ public class ProcessManagerService : IProcessManagerService
                         if (logLines.Count > 0)
                         {
                             string details = string.Join("\n", logLines);
+                            // Log detaylarıyla zenginleştirilmiş exception'ı fırlat
                             throw new Exception($"{ex.Message}\nUygulama Hata Logları:\n{details}", ex);
                         }
                     }
-                    catch { /* Ignore log reading errors to preserve original exception */ }
+                    catch (Exception logEx) when (logEx != ex && !(logEx.InnerException == ex))
+                    {
+                        // Yalnızca log OKUMA hatalarını yutuyoruz; zenginleştirilmiş exception'ları değil
+                        SystemLogQueue.Log("warning", $"[ProcessManager] {name} uygulama log dosyası okunamadı: {logEx.Message}");
+                    }
                 }
                 throw;
             }
@@ -623,10 +628,15 @@ public class ProcessManagerService : IProcessManagerService
                         if (logLines.Count > 0)
                         {
                             string details = string.Join("\n", logLines);
+                            // Log detaylarıyla zenginleştirilmiş exception'ı fırlat
                             throw new Exception($"{ex.Message}\nUygulama Hata Logları:\n{details}", ex);
                         }
                     }
-                    catch { /* Ignore log reading errors to preserve original exception */ }
+                    catch (Exception logEx) when (logEx != ex && !(logEx.InnerException == ex))
+                    {
+                        // Yalnızca log OKUMA hatalarını yutuyoruz; zenginleştirilmiş exception'ları değil
+                        SystemLogQueue.Log("warning", $"[ProcessManager] {name} uygulama log dosyası okunamadı: {logEx.Message}");
+                    }
                 }
                 throw;
             }

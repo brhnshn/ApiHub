@@ -250,7 +250,9 @@ start_project() {
     local pid="$!"
     printf '%s\n' "$pid" > "$pid_file"
 
-    sleep 1
+    # .NET ve Node.js uygulamalar\u0131 cold-start'ta 1 saniyeden fazla zaman alabilir;
+    # 3 saniye bekleyerek yanl\u0131\u015f pozitif "process-exited" tespitini \u00f6nlüyoruz.
+    sleep 3
     if is_pid_alive "$pid"; then
         printf '%s|Running|pid=%s\n' "$PROJECT_NAME" "$pid"
         return 0
