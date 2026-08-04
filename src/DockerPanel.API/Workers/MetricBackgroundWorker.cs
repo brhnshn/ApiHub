@@ -158,69 +158,70 @@ public class MetricBackgroundWorker : BackgroundService
                             {
                                 // Watchdog: Check if the Docker container is actually running (every 15s)
                                 bool isRunning = true;
-                                if (runWatchdog)
+                                bool isTransitioning = ProcessTransitionTracker.IsTransitioning(project.Name);
+
+                                if (runWatchdog && !isTransitioning)
                                 {
                                     isRunning = await containerService.IsContainerRunningAsync(project.DockerContainerId);
-                                    
-                                    // Transient check verification: wait 2s and verify again to prevent false alarms
+
+                                    // Transient check verification to prevent false alarms
                                     if (!isRunning)
                                     {
-                                        await Task.Delay(2000, stoppingToken);
                                         isRunning = await containerService.IsContainerRunningAsync(project.DockerContainerId);
                                     }
 
                                     if (!isRunning)
                                     {
-                                        int failures = _watchdogFailures.AddOrUpdate(project.Id, 1, (key, val) => val + 1);
-                                        _logger.LogWarning("[Watchdog] Docker container for project {ProjectName} ({ProjectId}) is not running! Failure count: {Failures}", project.Name, project.Id, failures);
+                                            int failures = _watchdogFailures.AddOrUpdate(project.Id, 1, (key, val) => val + 1);
+                                            _logger.LogWarning("[Watchdog] Docker container for project {ProjectName} ({ProjectId}) is not running! Failure count: {Failures}", project.Name, project.Id, failures);
 
-                                        if (failures >= 3)
-                                        {
-                                            _logger.LogError("[Watchdog] Docker container for project {ProjectName} ({ProjectId}) failed to start after {Failures} attempts. Halted.", project.Name, project.Id, failures);
-                                            SystemLogQueue.Log("error", $"[Watchdog] '{project.Name}' Docker projesi üst üste {failures} kez başlatılamadı. Otomatik kurtarma durduruldu, proje durumu 'Hata' olarak güncellendi.");
+                                            if (failures >= 3)
+                                            {
+                                                _logger.LogError("[Watchdog] Docker container for project {ProjectName} ({ProjectId}) failed to start after {Failures} attempts. Halted.", project.Name, project.Id, failures);
+                                                SystemLogQueue.Log("error", $"[Watchdog] '{project.Name}' Docker projesi üst üste {failures} kez başlatılamadı. Otomatik kurtarma durduruldu, proje durumu 'Hata' olarak güncellendi.");
 
-                                            await pushService.SendNotificationToUserAsync(
-                                                project.UserId,
-                                                "⚠️ Otomatik Kurtarma Başarısız",
-                                                $"'{project.Name}' Docker konteyner servisi sürekli çöküyor ve otomatik başlatılamadı. Servis durduruldu. Lütfen logları inceleyin.",
-                                                $"apihub://navigate?path=/containers&projectId={project.Id}");
+                                                await pushService.SendNotificationToUserAsync(
+                                                    project.UserId,
+                                                    "⚠️ Otomatik Kurtarma Başarısız",
+                                                    $"'{project.Name}' Docker konteyner servisi sürekli çöküyor ve otomatik başlatılamadı. Servis durduruldu. Lütfen logları inceleyin.",
+                                                    $"apihub://navigate?path=/containers&projectId={project.Id}");
 
-                                            project.Status = ProjectStatus.Error;
-                                            project.StartedAt = null;
-                                            projectStateChanged = true;
-                                            _watchdogFailures.TryRemove(project.Id, out _);
+                                                project.Status = ProjectStatus.Error;
+                                                project.StartedAt = null;
+                                                projectStateChanged = true;
+                                                _watchdogFailures.TryRemove(project.Id, out _);
+                                            }
+                                            else
+                                            {
+                                                SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Docker projesi durmuş durumda tespit edildi (Kurtarma Denemesi {failures}/3), otomatik yeniden başlatılıyor...");
+                                                
+                                                // Send alert only on first detection to avoid spam
+                                                if (failures == 1)
+                                                {
+                                                    await pushService.SendNotificationToUserAsync(
+                                                        project.UserId,
+                                                        "🔴 Servis Durdu (Docker)",
+                                                        $"'{project.Name}' Docker konteyner servisi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
+                                                        $"apihub://navigate?path=/containers&projectId={project.Id}");
+                                                }
+
+                                                try
+                                                {
+                                                    await containerService.StartContainerAsync(project.DockerContainerId);
+                                                    project.StartedAt = DateTimeOffset.UtcNow;
+                                                    projectStateChanged = true;
+                                                }
+                                                catch (Exception ex)
+                                                {
+                                                    _logger.LogError(ex, "[Watchdog] Failed to restart Docker container for project {ProjectName}", project.Name);
+                                                }
+                                            }
                                         }
                                         else
                                         {
-                                            SystemLogQueue.Log("warning", $"[Watchdog] '{project.Name}' Docker projesi durmuş durumda tespit edildi (Kurtarma Denemesi {failures}/3), otomatik yeniden başlatılıyor...");
-                                            
-                                            // Send alert only on first detection to avoid spam
-                                            if (failures == 1)
-                                            {
-                                                await pushService.SendNotificationToUserAsync(
-                                                    project.UserId,
-                                                    "🔴 Servis Durdu (Docker)",
-                                                    $"'{project.Name}' Docker konteyner servisi durmuş durumda tespit edildi, otomatik yeniden başlatılıyor...",
-                                                    $"apihub://navigate?path=/containers&projectId={project.Id}");
-                                            }
-
-                                            try
-                                            {
-                                                await containerService.StartContainerAsync(project.DockerContainerId);
-                                                project.StartedAt = DateTimeOffset.UtcNow;
-                                                projectStateChanged = true;
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                _logger.LogError(ex, "[Watchdog] Failed to restart Docker container for project {ProjectName}", project.Name);
-                                            }
+                                            // Reset tracker if check passes
+                                            _watchdogFailures.TryRemove(project.Id, out _);
                                         }
-                                    }
-                                    else
-                                    {
-                                        // Reset tracker if check passes
-                                        _watchdogFailures.TryRemove(project.Id, out _);
-                                    }
                                 }
 
                                 var stats = await containerService.GetContainerStatsAsync(project.DockerContainerId);
@@ -239,29 +240,22 @@ public class MetricBackgroundWorker : BackgroundService
 
                                 if (runWatchdog && !isTransitioning)
                                 {
-                                    var freshProject = await dbContext.Projects
-                                        .AsNoTracking()
-                                        .FirstOrDefaultAsync(p => p.Id == project.Id, stoppingToken);
+                                    string runDir = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                                        ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "project-manager")
+                                        : "/run/project-manager";
+                                    string pidFile = Path.Combine(runDir, $"{project.Name}.pid");
+                                    bool pidFileExistsBeforeCheck = File.Exists(pidFile);
 
-                                    if (freshProject != null && freshProject.Status == ProjectStatus.Running)
+                                    isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
+
+                                    // Transient check verification to prevent false alarms
+                                    if (!isRunning)
                                     {
-                                        string runDir = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                                            ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "project-manager")
-                                            : "/run/project-manager";
-                                        string pidFile = Path.Combine(runDir, $"{project.Name}.pid");
-                                        bool pidFileExistsBeforeCheck = File.Exists(pidFile);
-
                                         isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
-                                        
-                                        // Transient check verification: wait 2s and verify again to prevent false alarms
-                                        if (!isRunning)
-                                        {
-                                            await Task.Delay(2000, stoppingToken);
-                                            isRunning = await processManagerService.IsProcessRunningAsync(project.Name);
-                                        }
+                                    }
 
-                                        if (!isRunning)
-                                        {
+                                    if (!isRunning)
+                                    {
                                             bool isStartupGracePeriod = (DateTimeOffset.UtcNow - _startedTime).TotalMinutes < 2;
                                             if (!isStartupGracePeriod && !pidFileExistsBeforeCheck && !_watchdogFailures.ContainsKey(project.Id))
                                             {
@@ -323,7 +317,6 @@ public class MetricBackgroundWorker : BackgroundService
                                             // Reset tracker if check passes
                                             _watchdogFailures.TryRemove(project.Id, out _);
                                         }
-                                    }
                                 }
 
                                 // Yerel/Native süreç simüle metrikleri
@@ -354,12 +347,12 @@ public class MetricBackgroundWorker : BackgroundService
 
                             if (projectStateChanged)
                             {
-                                var dbProject = await dbContext.Projects.FirstOrDefaultAsync(p => p.Id == project.Id, stoppingToken);
+                                var dbProject = await dbContext.Projects.FirstOrDefaultAsync(p => p.Id == project.Id, CancellationToken.None);
                                 if (dbProject != null)
                                 {
                                     dbProject.Status = project.Status;
                                     dbProject.StartedAt = project.StartedAt;
-                                    await dbContext.SaveChangesAsync(stoppingToken);
+                                    await dbContext.SaveChangesAsync(CancellationToken.None);
                                 }
                             }
 

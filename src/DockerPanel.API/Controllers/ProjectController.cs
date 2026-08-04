@@ -14,6 +14,7 @@ using DockerPanel.Domain.Enums;
 using DockerPanel.Domain.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using DockerPanel.Infrastructure.Data;
+using DockerPanel.Infrastructure.Services;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace DockerPanel.API.Controllers;
@@ -591,6 +592,7 @@ public class ProjectController : ControllerBase
 
         if (!IsAdmin() && project.UserId != GetUserId()) return Forbid();
 
+        ProcessTransitionTracker.StartTransition(project.Name);
         try
         {
             if (project.Type == ProjectType.DockerContainer)
@@ -614,6 +616,10 @@ public class ProjectController : ControllerBase
         {
             return StatusCode(500, new { Message = ex.Message });
         }
+        finally
+        {
+            ProcessTransitionTracker.EndTransition(project.Name);
+        }
     }
 
     [HttpPost("{id}/stop")]
@@ -624,6 +630,7 @@ public class ProjectController : ControllerBase
 
         if (!IsAdmin() && project.UserId != GetUserId()) return Forbid();
 
+        ProcessTransitionTracker.StartTransition(project.Name);
         try
         {
             if (project.Type == ProjectType.DockerContainer)
@@ -647,6 +654,10 @@ public class ProjectController : ControllerBase
         {
             return StatusCode(500, new { Message = ex.Message });
         }
+        finally
+        {
+            ProcessTransitionTracker.EndTransition(project.Name);
+        }
     }
 
     [HttpPost("panic-stop")]
@@ -666,6 +677,7 @@ public class ProjectController : ControllerBase
 
         foreach (var project in runningProjects)
         {
+            ProcessTransitionTracker.StartTransition(project.Name);
             try
             {
                 if (project.Type == ProjectType.DockerContainer && !string.IsNullOrEmpty(project.DockerContainerId))
@@ -684,6 +696,10 @@ public class ProjectController : ControllerBase
                 SystemLogQueue.Log("error", $"[Panic-Stop] {project.Name} durdurulamadı: {ex.Message}");
                 failedCount++;
             }
+            finally
+            {
+                ProcessTransitionTracker.EndTransition(project.Name);
+            }
         }
 
         await _dbContext.SaveChangesAsync();
@@ -700,6 +716,7 @@ public class ProjectController : ControllerBase
 
         if (!IsAdmin() && project.UserId != GetUserId()) return Forbid();
 
+        ProcessTransitionTracker.StartTransition(project.Name);
         try
         {
             if (project.Type == ProjectType.DockerContainer)
@@ -724,6 +741,10 @@ public class ProjectController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500, new { Message = ex.Message });
+        }
+        finally
+        {
+            ProcessTransitionTracker.EndTransition(project.Name);
         }
     }
 

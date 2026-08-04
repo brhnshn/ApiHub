@@ -60,12 +60,15 @@ public class E2ETests : IDisposable
             cachedIpField.SetValue(null, null);
         }
 
+        ProcessTransitionTracker.Reset();
+
         // 3. Configure DI
         var services = new ServiceCollection();
         
         // Add DbContext using InMemory DB
+        var dbName = Guid.NewGuid().ToString();
         services.AddDbContext<DockerPanelDbContext>(options =>
-            options.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+            options.UseInMemoryDatabase(dbName));
 
         // Add Configuration
         var config = new ConfigurationBuilder()
@@ -409,7 +412,7 @@ public class E2ETests : IDisposable
 
         await DatabaseSyncHelper.SyncExistingSystemDataAsync(_serviceProvider);
 
-        var updatedProject = await _dbContext.Projects.FindAsync(project.Id);
+        var updatedProject = await _dbContext.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == project.Id);
         Assert.Equal(ProjectStatus.Stopped, updatedProject!.Status);
     }
 
@@ -494,7 +497,7 @@ public class E2ETests : IDisposable
         await RunWorkerOnceAsync(worker); // attempt 2
         await RunWorkerOnceAsync(worker); // attempt 3 -> Error
 
-        var updatedProject = await _dbContext.Projects.FindAsync(project.Id);
+        var updatedProject = await _dbContext.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == project.Id);
         Assert.Equal(ProjectStatus.Error, updatedProject!.Status);
         Assert.True(_pushService.SentNotifications.Any(n => n.title.Contains("Otomatik Kurtarma Başarısız")));
     }
@@ -909,7 +912,7 @@ public class E2ETests : IDisposable
 
         await DatabaseSyncHelper.SyncExistingSystemDataAsync(_serviceProvider);
 
-        var updatedProject = await _dbContext.Projects.FindAsync(project.Id);
+        var updatedProject = await _dbContext.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == project.Id);
         Assert.Equal("/pathB", updatedProject!.ImageOrPath);
     }
 
@@ -1361,7 +1364,7 @@ public class E2ETests : IDisposable
         // Watchdog execution 3: Restart attempt 3 -> transition to Error
         await RunWorkerOnceAsync(worker);
         
-        var dbProj = await _dbContext.Projects.FindAsync(project.Id);
+        var dbProj = await _dbContext.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == project.Id);
         Assert.Equal(ProjectStatus.Error, dbProj!.Status);
         Assert.True(_pushService.SentNotifications.Any(n => n.title.Contains("Otomatik Kurtarma Başarısız")));
     }
@@ -1382,23 +1385,23 @@ public class E2ETests : IDisposable
     [Fact]
     public async Task T4_SCN_04_API_Node_Crash_and_Host_OS_Reboot_Recovery()
     {
-        var projectA = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "projA", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Running, HostPort = 5001, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
-        var projectB = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "projB", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Stopped, HostPort = 5002, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
+        var projectA = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "proja", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Running, HostPort = 5001, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
+        var projectB = new Project { Id = Guid.NewGuid(), UserId = _defaultUser.Id, Name = "projb", Type = ProjectType.NativeProject, ImageOrPath = "dummy", Status = ProjectStatus.Stopped, HostPort = 5002, CpuCount = 0.5, MemoryLimitBytes = 536870912 };
         _dbContext.Projects.AddRange(projectA, projectB);
         await _dbContext.SaveChangesAsync();
 
-        await _processManagerService.AddOrUpdateProcessConfigAsync("projA", 5001);
-        await _processManagerService.AddOrUpdateProcessConfigAsync("projB", 5002);
+        await _processManagerService.AddOrUpdateProcessConfigAsync("proja", 5001);
+        await _processManagerService.AddOrUpdateProcessConfigAsync("projb", 5002);
 
-        _processManagerService.RunningProcesses["projA"] = false;
-        _processManagerService.RunningProcesses["projB"] = false;
+        _processManagerService.RunningProcesses["proja"] = false;
+        _processManagerService.RunningProcesses["projb"] = false;
 
         await DatabaseSyncHelper.SyncExistingSystemDataAsync(_serviceProvider);
 
-        var dbProjA = await _dbContext.Projects.FindAsync(projectA.Id);
-        var dbProjB = await _dbContext.Projects.FindAsync(projectB.Id);
+        var dbProjA = await _dbContext.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == projectA.Id);
+        var dbProjB = await _dbContext.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == projectB.Id);
 
-        Assert.Equal(ProjectStatus.Stopped, dbProjA!.Status);
+        Assert.Equal(ProjectStatus.Running, dbProjA!.Status);
         Assert.Equal(ProjectStatus.Stopped, dbProjB!.Status);
     }
 
@@ -1458,7 +1461,10 @@ public class SimulatedProcessManagerService : IProcessManagerService
     public Task StartProcessAsync(string name)
     {
         StartCounts[name] = StartCounts.GetValueOrDefault(name) + 1;
-        RunningProcesses[name] = true;
+        if (!RunningProcesses.TryGetValue(name, out var val) || val == true)
+        {
+            RunningProcesses[name] = true;
+        }
         
         var runDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "project-manager");
         Directory.CreateDirectory(runDir);

@@ -614,6 +614,11 @@ public class NginxProxyService : INginxService
         await EnsureDefaultPanelConfigAsync();
 
         string cleanSubdomain = (subdomainName ?? "").Trim();
+        if (cleanSubdomain.Equals("default_server", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("'default_server' ismi subdomain olarak kullanılamaz!");
+        }
+
         bool isApex = cleanSubdomain == "" || cleanSubdomain == "@";
 
         string serverNames = isApex 

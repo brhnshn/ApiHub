@@ -37,6 +37,10 @@ public static class SecurityHelper
     {
         var destinationInfo = new DirectoryInfo(destinationDirectoryPath);
         string destinationFullPath = destinationInfo.FullName;
+        if (!destinationFullPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+        {
+            destinationFullPath += Path.DirectorySeparatorChar;
+        }
 
         // Destination dizininin var olduğundan emin ol
         if (!Directory.Exists(destinationFullPath))

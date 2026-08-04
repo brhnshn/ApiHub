@@ -32,6 +32,11 @@ public static class ProcessTransitionTracker
     {
         return TransitioningProjects.ContainsKey(projectName);
     }
+
+    public static void Reset()
+    {
+        TransitioningProjects.Clear();
+    }
 }
 
 public class ProcessManagerService : IProcessManagerService
