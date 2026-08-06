@@ -512,11 +512,44 @@ p { font-size: 14px; color: #a1a1aa; line-height: 1.6; margin-bottom: 28px; }
 </html>",
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow
+            },
+            new MaintenancePage
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Name = "Servis Devre Dışı",
+                HtmlContent = @"<!DOCTYPE html>
+<html lang=""tr"">
+<head>
+<meta charset=""UTF-8"">
+<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+<title>Servis Devre Dışı</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #022c22; color: #ecfdf5; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.card { background: rgba(6,78,59,0.8); border: 1px solid rgba(52,211,153,0.2); border-radius: 20px; padding: 44px 36px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+.shield { font-size: 42px; margin-bottom: 16px; display: inline-block; }
+h1 { font-size: 24px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
+p { font-size: 14px; color: #a7f3d0; line-height: 1.6; margin-bottom: 24px; }
+.badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(16,185,129,0.2); color: #34d399; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class=""card"">
+<div class=""shield"">🛡️</div>
+<h1>Servis Yapılandırmada</h1>
+<p>Bu servis şu anda güvenli bir şekilde yapılandırılmaktadır. Kısa süre içinde hizmete açılacaktır.</p>
+<div class=""badge"">Güvenli Sunucu Yönetimi</div>
+</div>
+</body>
+</html>",
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
             }
         };
 
         db.MaintenancePages.AddRange(templates);
         await db.SaveChangesAsync();
-        Console.WriteLine("[Sync] 4 adet varsayılan bakım sayfası şablonu veritabanına eklendi.");
+        Console.WriteLine("[Sync] 5 adet varsayılan bakım sayfası şablonu veritabanına eklendi.");
     }
 }
