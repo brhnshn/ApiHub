@@ -249,6 +249,8 @@ public class NginxProxyService : INginxService
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection ""upgrade"";
+
+        proxy_intercept_errors on;
     }}
 
 {BackendDownBlock}
@@ -388,9 +390,78 @@ public class NginxProxyService : INginxService
         return domains;
     }
 
+    private async Task UpgradeExistingNginxConfigsAsync()
+    {
+        try
+        {
+            string availableDir = ResolvePath(SitesAvailableDir);
+            if (!Directory.Exists(availableDir)) return;
+
+            var confFiles = Directory.GetFiles(availableDir, "*.conf");
+            bool updatedAny = false;
+
+            foreach (var file in confFiles)
+            {
+                var filename = Path.GetFileName(file);
+                if (filename.Equals("000-default-panel.conf", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string content = await File.ReadAllTextAsync(file, Utf8WithoutBom);
+                bool needsUpdate = false;
+
+                if (content.Contains("return 502 '<html>") || content.Contains("return 502 '<!DOCTYPE html>") || (content.Contains("proxy_pass") && !content.Contains("proxy_intercept_errors on;")))
+                {
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate)
+                {
+                    if (content.Contains("proxy_pass") && !content.Contains("proxy_intercept_errors on;"))
+                    {
+                        content = Regex.Replace(content, @"(proxy_pass\s+http://[^;]+;)", "$1\n        proxy_intercept_errors on;");
+                    }
+
+                    if (content.Contains("@backend_down"))
+                    {
+                        content = Regex.Replace(content,
+                            @"error_page\s+502\s+503\s+504[\s\S]*?location\s+@backend_down\s*\{[\s\S]*?\}\s*\}",
+                            BackendDownBlock.TrimStart(),
+                            RegexOptions.Multiline);
+                    }
+                    else
+                    {
+                        int lastBrace = content.LastIndexOf('}');
+                        if (lastBrace > 0)
+                        {
+                            content = content.Substring(0, lastBrace) + BackendDownBlock + "\n}";
+                        }
+                    }
+
+                    await File.WriteAllTextAsync(file, content, Utf8WithoutBom);
+                    updatedAny = true;
+                    SystemLogQueue.Log("info", $"[Nginx Migration] {filename} konfigürasyonu Cloudflare uyumlu offline sayfası (=200 OK + proxy_intercept_errors on) ile güncellendi.");
+                }
+            }
+
+            if (updatedAny && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                try
+                {
+                    await ReloadNginxAsync();
+                }
+                catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            SystemLogQueue.Log("warning", $"[Nginx Migration] Mevcut konfigürasyonlar taranırken hata: {ex.Message}");
+        }
+    }
+
     private async Task EnsureDefaultPanelConfigAsync()
     {
         await EnsureOfflinePageExistsAsync();
+        await UpgradeExistingNginxConfigsAsync();
         // Programmatically generate self-signed SSL certificate if it does not exist
         var defaultCertPath = "/etc/ssl/certs/nginx-selfsigned.crt";
         var defaultKeyPath = "/etc/ssl/private/nginx-selfsigned.key";
@@ -934,6 +1005,8 @@ server {{
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection ""upgrade"";
+
+        proxy_intercept_errors on;
     }}
 
 {BackendDownBlock}
@@ -960,6 +1033,8 @@ server {{
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection ""upgrade"";
+
+        proxy_intercept_errors on;
     }}
 
 {BackendDownBlock}

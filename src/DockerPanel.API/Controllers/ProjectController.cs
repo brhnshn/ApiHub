@@ -647,6 +647,7 @@ public class ProjectController : ControllerBase
 
             MarkStopped(project);
             await _dbContext.SaveChangesAsync();
+            await UpdateLinkedSubdomainsNginxConfigAsync(project);
             await LogAuditAsync("ContainerStopped", "Project", project.Id, "{}");
             return Ok(new { Message = "Proje başarıyla durduruldu." });
         }
