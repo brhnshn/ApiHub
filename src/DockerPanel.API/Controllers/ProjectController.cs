@@ -794,6 +794,98 @@ public class ProjectController : ControllerBase
 
     public record StopProjectRequest(Guid? MaintenancePageId, Dictionary<Guid, Guid?>? SubdomainPages = null);
 
+    [HttpPost("bulk-maintenance")]
+    public async Task<IActionResult> BulkMaintenance([FromBody] BulkMaintenanceRequest request)
+    {
+        var userId = GetUserId();
+        var query = _dbContext.Projects.AsQueryable();
+        if (!IsAdmin())
+        {
+            query = query.Where(p => p.UserId == userId);
+        }
+
+        var projects = await query.ToListAsync();
+        var defaultTemplate = await _dbContext.MaintenancePages.OrderBy(p => p.CreatedAt).FirstOrDefaultAsync();
+
+        DockerPanel.Domain.Entities.MaintenancePage? selectedPage = null;
+        if (request.MaintenancePageId.HasValue)
+        {
+            selectedPage = await _dbContext.MaintenancePages.FindAsync(request.MaintenancePageId.Value);
+        }
+        selectedPage ??= defaultTemplate;
+
+        int processedCount = 0;
+
+        if (string.Equals(request.Action, "activate", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var proj in projects)
+            {
+                try
+                {
+                    if (proj.Status == ProjectStatus.Running)
+                    {
+                        if (proj.Type == ProjectType.DockerContainer && !string.IsNullOrEmpty(proj.DockerContainerId))
+                        {
+                            await _containerService.StopContainerAsync(proj.DockerContainerId);
+                        }
+                        else if (proj.Type == ProjectType.NativeProject)
+                        {
+                            await _processManagerService.StopProcessAsync(proj.Name);
+                        }
+                        MarkStopped(proj);
+                    }
+
+                    await ActivateMaintenanceModeForProjectAsync(proj, new StopProjectRequest(selectedPage?.Id));
+                    processedCount++;
+                }
+                catch (Exception ex)
+                {
+                    SystemLogQueue.Log("error", $"[Bulk Maintenance] {proj.Name} bakıma alınırken hata: {ex.Message}");
+                }
+            }
+
+            await _dbContext.SaveChangesAsync();
+            await LogAuditAsync("BulkMaintenanceActivated", "Project", null, JsonSerializer.Serialize(new { count = processedCount }));
+            return Ok(new { Message = $"{processedCount} proje durduruldu ve Nginx bakım sayfaları yayına alındı." });
+        }
+        else if (string.Equals(request.Action, "deactivate", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var proj in projects)
+            {
+                try
+                {
+                    await DeactivateMaintenanceModeForProjectAsync(proj);
+
+                    if (proj.Status == ProjectStatus.Stopped)
+                    {
+                        if (proj.Type == ProjectType.DockerContainer && !string.IsNullOrEmpty(proj.DockerContainerId))
+                        {
+                            await _containerService.StartContainerAsync(proj.DockerContainerId);
+                        }
+                        else if (proj.Type == ProjectType.NativeProject)
+                        {
+                            await _processManagerService.StartProcessAsync(proj.Name);
+                        }
+                        MarkRunning(proj);
+                    }
+                    processedCount++;
+                }
+                catch (Exception ex)
+                {
+                    SystemLogQueue.Log("error", $"[Bulk Maintenance] {proj.Name} bakımdan çıkarılırken hata: {ex.Message}");
+                }
+            }
+
+            await _dbContext.SaveChangesAsync();
+            await LogAuditAsync("BulkMaintenanceDeactivated", "Project", null, JsonSerializer.Serialize(new { count = processedCount }));
+            return Ok(new { Message = $"{processedCount} projenin bakım modu kaldırıldı ve yeniden başlatıldı." });
+        }
+
+        return BadRequest(new { Message = "Geçersiz eylem. 'activate' veya 'deactivate' kullanın." });
+    }
+
+    public record BulkMaintenanceRequest(Guid? MaintenancePageId, string Action);
+
     [HttpPost("panic-stop")]
     public async Task<IActionResult> PanicStop()
     {
