@@ -44,6 +44,7 @@ public class NginxProxyService : INginxService
 
     private static readonly Encoding Utf8WithoutBom = new UTF8Encoding(false);
     private const string TemplatePath = "/opt/dockerpanel/nginx-template.conf";
+    private const string OfflinePagePath = "/opt/dockerpanel/html/offline.html";
     private const string SitesAvailableDir = "/etc/nginx/sites-available";
     private const string SitesEnabledDir = "/etc/nginx/sites-enabled";
 
@@ -71,8 +72,151 @@ public class NginxProxyService : INginxService
         return targetPath;
     }
 
+    private const string InlineOfflineHtml = @"<!DOCTYPE html><html lang=""tr""><head><meta charset=""UTF-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1.0""><title>Bu Sayfa Şu Anlık Kapalıdır</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background-color:#0b0f17;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}.card{background:rgba(23,32,48,0.75);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:48px 36px;max-width:500px;width:100%;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.6)}.badge{display:inline-flex;align-items:center;gap:8px;background:rgba(245,158,11,0.1);color:#fbbf24;border:1px solid rgba(245,158,11,0.2);padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:20px}.dot{width:8px;height:8px;background-color:#f59e0b;border-radius:50%;box-shadow:0 0 10px #f59e0b;animation:pulse 2s infinite}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.85)}}h1{font-size:24px;font-weight:700;color:#fff;margin-bottom:12px}p{font-size:15px;color:#94a3b8;line-height:1.6;margin-bottom:28px}.footer{font-size:12px;color:#64748b;border-top:1px solid rgba(255,255,255,0.06);padding-top:20px}</style></head><body><div class=""card""><div class=""badge""><span class=""dot""></span> Servis Çevrimdışı</div><h1>Bu Sayfa Şu Anlık Kapalıdır</h1><p>Aradığınız proje veya web sitesi şu anda kapalıdır ya da bakım modundadır. Lütfen daha sonra tekrar ziyaret ediniz.</p><div class=""footer"">DockerPanel Sunucu Yönetimi</div></div></body></html>";
+
+    private static readonly string BackendDownBlock = @"    # Proje kapalıyken Cloudflare 502 engelini önleyen kapalı sayfası (=200 OK)
+    error_page 502 503 504 =200 @backend_down;
+    location @backend_down {
+        root /opt/dockerpanel/html;
+        try_files /offline.html @inline_offline;
+    }
+    location @inline_offline {
+        add_header Content-Type ""text/html; charset=utf-8"";
+        return 200 '" + InlineOfflineHtml + @"';
+    }";
+
+    public async Task EnsureOfflinePageExistsAsync()
+    {
+        var resolvedPath = ResolvePath(OfflinePagePath);
+        bool shouldWrite = !File.Exists(resolvedPath);
+        if (!shouldWrite)
+        {
+            try
+            {
+                var content = await File.ReadAllTextAsync(resolvedPath, Utf8WithoutBom);
+                if (!content.Contains("Bu Sayfa Şu Anlık Kapalıdır"))
+                {
+                    shouldWrite = true;
+                }
+            }
+            catch { }
+        }
+
+        if (shouldWrite)
+        {
+            var offlineHtml = @"<!DOCTYPE html>
+<html lang=""tr"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>Bu Sayfa Şu Anlık Kapalıdır</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0b0f17;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .card {
+            background: rgba(23, 32, 48, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 48px 36px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(16px);
+        }
+        .icon-container {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 72px;
+            height: 72px;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 50%;
+            margin-bottom: 24px;
+            color: #fbbf24;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(245, 158, 11, 0.1);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            background-color: #f59e0b;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #f59e0b;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+        p {
+            font-size: 15px;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+        .footer {
+            font-size: 12px;
+            color: #64748b;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class=""card"">
+        <div class=""icon-container"">
+            <svg width=""36"" height=""36"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round"">
+                <rect x=""2"" y=""6"" width=""20"" height=""12"" rx=""2""></rect>
+                <path d=""M12 12h.01""></path>
+                <path d=""M17 12h.01""></path>
+                <path d=""M7 12h.01""></path>
+            </svg>
+        </div>
+        <div>
+            <div class=""badge""><span class=""dot""></span> Servis Çevrimdışı</div>
+        </div>
+        <h1>Bu Sayfa Şu Anlık Kapalıdır</h1>
+        <p>Aradığınız proje veya web sitesi şu anda kapalıdır ya da bakım modundadır. Lütfen daha sonra tekrar ziyaret ediniz.</p>
+        <div class=""footer"">DockerPanel Sunucu Yönetimi</div>
+    </div>
+</body>
+</html>";
+            await File.WriteAllTextAsync(resolvedPath, offlineHtml, Utf8WithoutBom);
+        }
+    }
+
     private async Task EnsureTemplateExistsAsync()
     {
+        await EnsureOfflinePageExistsAsync();
         var resolvedTemplate = ResolvePath(TemplatePath);
         bool shouldWrite = !File.Exists(resolvedTemplate);
         if (!shouldWrite)
@@ -90,12 +234,12 @@ public class NginxProxyService : INginxService
 
         if (shouldWrite)
         {
-            var defaultTemplate = @"server {
+            var defaultTemplate = $@"server {{
     listen 80;
-    server_name {{Subdomain}}.{{Domain}};
+    server_name {{{{Subdomain}}}}.{{{{Domain}}}};
 
-    location / {
-        proxy_pass http://127.0.0.1:{{ContainerPort}};
+    location / {{
+        proxy_pass http://127.0.0.1:{{{{ContainerPort}}}};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -105,15 +249,10 @@ public class NginxProxyService : INginxService
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection ""upgrade"";
-    }
+    }}
 
-    # Proje kapalıyken veya çökmüşken panel yönlendirmesini (SW cache trap) önleyen 502 sayfası
-    error_page 502 503 504 @backend_down;
-    location @backend_down {
-        return 502 '<html><head><title>Uygulama Calismiyor</title><style>body{font-family:sans-serif;text-align:center;padding:100px 20px;background:#0e1511;color:#dde4dd}h1{font-size:36px;color:#ffb4ab}p{font-size:18px;color:#86948a}</style></head><body><h1>Uygulama Calismiyor (502 Bad Gateway)</h1><p>Bu proje su anda kapali veya baslatilamadi. Lutfen kontrol panelinden loglarini inceleyin.</p></body></html>';
-        add_header Content-Type text/html;
-    }
-}";
+{BackendDownBlock}
+}}";
             await File.WriteAllTextAsync(resolvedTemplate, defaultTemplate, Utf8WithoutBom);
         }
     }
@@ -251,6 +390,7 @@ public class NginxProxyService : INginxService
 
     private async Task EnsureDefaultPanelConfigAsync()
     {
+        await EnsureOfflinePageExistsAsync();
         // Programmatically generate self-signed SSL certificate if it does not exist
         var defaultCertPath = "/etc/ssl/certs/nginx-selfsigned.crt";
         var defaultKeyPath = "/etc/ssl/private/nginx-selfsigned.key";
@@ -796,12 +936,7 @@ server {{
         proxy_set_header Connection ""upgrade"";
     }}
 
-    # Proje kapalıyken veya çökmüşken panel yönlendirmesini önleyen 502 sayfası
-    error_page 502 503 504 @backend_down;
-    location @backend_down {{
-        return 502 '<html><head><title>Uygulama Calismiyor</title><style>body{{font-family:sans-serif;text-align:center;padding:100px 20px;background:#0e1511;color:#dde4dd}}h1{{font-size:36px;color:#ffb4ab}}p{{font-size:18px;color:#86948a}}</style></head><body><h1>Uygulama Calismiyor (502 Bad Gateway)</h1><p>Bu proje su anda kapali veya baslatilamadi. Lutfen kontrol panelinden loglarini inceleyin.</p></body></html>';
-        add_header Content-Type text/html;
-    }}
+{BackendDownBlock}
 }}";
             }
             else
@@ -827,12 +962,7 @@ server {{
         proxy_set_header Connection ""upgrade"";
     }}
 
-    # Proje kapalıyken veya çökmüşken panel yönlendirmesini önleyen 502 sayfası
-    error_page 502 503 504 @backend_down;
-    location @backend_down {{
-        return 502 '<html><head><title>Uygulama Calismiyor</title><style>body{{font-family:sans-serif;text-align:center;padding:100px 20px;background:#0e1511;color:#dde4dd}}h1{{font-size:36px;color:#ffb4ab}}p{{font-size:18px;color:#86948a}}</style></head><body><h1>Uygulama Calismiyor (502 Bad Gateway)</h1><p>Bu proje su anda kapali veya baslatilamadi. Lutfen kontrol panelinden loglarini inceleyin.</p></body></html>';
-        add_header Content-Type text/html;
-    }}
+{BackendDownBlock}
 }}";
             }
         }

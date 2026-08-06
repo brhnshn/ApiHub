@@ -10,5 +10,6 @@ public interface INginxService
     Task EnableSslWithCertbotAsync(string subdomainName, string domainName);
     Task SyncActiveConfigsWithDbAsync(System.Guid userId);
     Task ReloadNginxAsync();
+    Task EnsureOfflinePageExistsAsync();
 }
 
