@@ -74,11 +74,11 @@ public class NginxProxyService : INginxService
 
     private const string InlineOfflineHtml = @"<!DOCTYPE html><html lang=""tr""><head><meta charset=""UTF-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1.0""><title>Bu Sayfa Şu Anlık Kapalıdır</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background-color:#0b0f17;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}.card{background:rgba(23,32,48,0.75);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:48px 36px;max-width:500px;width:100%;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.6)}.badge{display:inline-flex;align-items:center;gap:8px;background:rgba(245,158,11,0.1);color:#fbbf24;border:1px solid rgba(245,158,11,0.2);padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:20px}.dot{width:8px;height:8px;background-color:#f59e0b;border-radius:50%;box-shadow:0 0 10px #f59e0b;animation:pulse 2s infinite}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.85)}}h1{font-size:24px;font-weight:700;color:#fff;margin-bottom:12px}p{font-size:15px;color:#94a3b8;line-height:1.6;margin-bottom:28px}.footer{font-size:12px;color:#64748b;border-top:1px solid rgba(255,255,255,0.06);padding-top:20px}</style></head><body><div class=""card""><div class=""badge""><span class=""dot""></span> Servis Çevrimdışı</div><h1>Bu Sayfa Şu Anlık Kapalıdır</h1><p>Aradığınız proje veya web sitesi şu anda kapalıdır ya da bakım modundadır. Lütfen daha sonra tekrar ziyaret ediniz.</p><div class=""footer"">Burhan Şahin | info@burhansahin.com.tr</div></div></body></html>";
 
-    private static readonly string BackendDownBlock = @"    # Proje kapalıyken Cloudflare 502 engelini önleyen kapalı sayfası (=200 OK)
-    error_page 502 503 504 =200 @backend_down;
-    location @backend_down {
-        add_header Content-Type ""text/html; charset=utf-8"";
-        return 200 '" + InlineOfflineHtml + @"';
+    private static readonly string BackendDownBlock = @"    # Proje kapalıyken Cloudflare 520/502 engelini önleyen fiziksel kapalı sayfası (=200 OK)
+    error_page 502 503 504 =200 /offline.html;
+    location = /offline.html {
+        root /opt/dockerpanel/html;
+        internal;
     }";
 
     public async Task EnsureOfflinePageExistsAsync()
@@ -202,7 +202,7 @@ public class NginxProxyService : INginxService
         </div>
         <h1>Bu Sayfa Şu Anlık Kapalıdır</h1>
         <p>Aradığınız proje veya web sitesi şu anda kapalıdır ya da bakım modundadır. Lütfen daha sonra tekrar ziyaret ediniz.</p>
-        <div class=""footer"">DockerPanel Sunucu Yönetimi</div>
+        <div class=""footer"">Burhan Şahin | info@burhansahin.com.tr</div>
     </div>
 </body>
 </html>";
