@@ -1646,7 +1646,7 @@ server {{
     }}
 
     location / {{
-        try_files /{htmlFileName} =200;
+        try_files /{htmlFileName} =404;
         add_header Content-Type ""text/html; charset=utf-8"";
     }}
 }}";
@@ -1665,7 +1665,7 @@ server {{
     }}
 
     location / {{
-        try_files /{htmlFileName} =200;
+        try_files /{htmlFileName} =404;
         add_header Content-Type ""text/html; charset=utf-8"";
     }}
 }}";
