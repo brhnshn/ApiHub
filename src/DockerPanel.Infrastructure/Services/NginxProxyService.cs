@@ -77,10 +77,6 @@ public class NginxProxyService : INginxService
     private static readonly string BackendDownBlock = @"    # Proje kapalıyken Cloudflare 502 engelini önleyen kapalı sayfası (=200 OK)
     error_page 502 503 504 =200 @backend_down;
     location @backend_down {
-        root /opt/dockerpanel/html;
-        try_files /offline.html @inline_offline;
-    }
-    location @inline_offline {
         add_header Content-Type ""text/html; charset=utf-8"";
         return 200 '" + InlineOfflineHtml + @"';
     }";
@@ -1646,7 +1642,7 @@ server {{
     }}
 
     location / {{
-        try_files /{htmlFileName} =404;
+        rewrite ^ /{htmlFileName} break;
         add_header Content-Type ""text/html; charset=utf-8"";
     }}
 }}";
@@ -1665,7 +1661,7 @@ server {{
     }}
 
     location / {{
-        try_files /{htmlFileName} =404;
+        rewrite ^ /{htmlFileName} break;
         add_header Content-Type ""text/html; charset=utf-8"";
     }}
 }}";
