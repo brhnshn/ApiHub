@@ -503,33 +503,58 @@ else
         }
         else
         {
-            <MudSelect T="Guid?" Label="Bakım Sayfası" @bind-Value="_selectedMaintenancePageId"
-                       Variant="Variant.Outlined" Dense="true"
+            <MudSelect T="Guid?" Label="Genel Bakım Sayfası (Tüm Subdomainler)" @bind-Value="_selectedMaintenancePageId"
+                       Variant="Variant.Outlined" Dense="true" Class="mb-3"
                        Style="font-family: 'Outfit', sans-serif;"
                        AdornmentIcon="@Icons.Material.Filled.WebAsset"
                        AdornmentColor="Color.Warning">
-                <MudSelectItem T="Guid?" Value="null">— Bakım sayfası yayınlama —</MudSelectItem>
+                <MudSelectItem T="Guid?" Value="null">Varsayılan Sistem Şablonu (Sistem Bakımda)</MudSelectItem>
                 @foreach (var mPage in _maintenancePages)
                 {
                     <MudSelectItem T="Guid?" Value="mPage.Id">@mPage.Name</MudSelectItem>
                 }
             </MudSelect>
 
+            @if (_projectToStop?.Subdomains.Any() == true)
+            {
+                <div style="border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px; margin-top: 12px;">
+                    <MudText Typo="Typo.caption" Style="font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Subdomain Özel Sayfa Seçimi (@_projectToStop.Subdomains.Count subdomain)
+                    </MudText>
+                    <div class="mt-2 space-y-2" style="max-height: 180px; overflow-y: auto; padding-right: 4px;">
+                        @foreach (var sub in _projectToStop.Subdomains)
+                        {
+                            var subFullName = string.IsNullOrEmpty(sub.SubdomainName) || sub.SubdomainName == "@" ? sub.DomainName : $"{sub.SubdomainName}.{sub.DomainName}";
+                            Guid? currentVal = _subdomainSelectedPages.ContainsKey(sub.Id) ? _subdomainSelectedPages[sub.Id] : null;
+
+                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 8px 12px;" class="d-flex align-center justify-between gap-2">
+                                <span style="font-size: 12px; font-weight: 600; color: #e2e8f0;">@subFullName</span>
+                                <MudSelect T="Guid?" Value="currentVal" ValueChanged="@((val) => _subdomainSelectedPages[sub.Id] = val)"
+                                           Variant="Variant.Outlined" Dense="true" Style="font-size: 11px; min-width: 160px;">
+                                    <MudSelectItem T="Guid?" Value="null">Genel Seçimi Kullan</MudSelectItem>
+                                    @foreach (var mPage in _maintenancePages)
+                                    {
+                                        <MudSelectItem T="Guid?" Value="mPage.Id">@mPage.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
             @if (!_maintenancePages.Any())
             {
                 <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3" Style="font-size: 12px;">
-                    Henüz bakım sayfası yok. <a @onclick="@(() => { _stopDialogVisible = false; _maintenancePanelOpen = true; StateHasChanged(); })" style="cursor: pointer; color: #60a5fa; text-decoration: underline;">Şimdi oluştur</a>
+                    Henüz özel bakım sayfası yok. <a @onclick="@(() => { _stopDialogVisible = false; _maintenancePanelOpen = true; StateHasChanged(); })" style="cursor: pointer; color: #60a5fa; text-decoration: underline;">Şimdi oluştur</a>
                 </MudAlert>
             }
         }
 
-        @if (_selectedMaintenancePageId.HasValue)
-        {
-            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3" Style="font-size: 12px;">
-                Seçilen bakım sayfası tüm bağlı subdomain/domainlerde yayınlanacak.
-                Projeyi yeniden başlattığınızda otomatik olarak kaldırılır.
-            </MudAlert>
-        }
+        <MudAlert Severity="Severity.Success" Dense="true" Class="mt-3" Style="font-size: 12px;">
+            Durdurulan projelerde HTTP 200 yanıt kodu ile bakım sayfası yayınlanacağı için Cloudflare 502/521 göstermez.
+            Projeyi başlattığınızda orijinal siteye dönülür.
+        </MudAlert>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="CancelStopDialog" Color="Color.Default" Variant="Variant.Text" Disabled="_isStopping">İptal</MudButton>
@@ -1147,6 +1172,7 @@ else
     private bool _stopDialogVisible = false;
     private ProjectCardDto? _projectToStop = null;
     private Guid? _selectedMaintenancePageId = null;
+    private Dictionary<Guid, Guid?> _subdomainSelectedPages = new();
     private bool _isStopping = false;
 
     // Bakım Sayfası Yönetimi
@@ -1540,7 +1566,14 @@ else
     {
         // Önce bakım sayfası dialog'unu aç
         _projectToStop = project;
-        _selectedMaintenancePageId = null;
+        _selectedMaintenancePageId = project.ActiveMaintenancePageId;
+        _subdomainSelectedPages = new Dictionary<Guid, Guid?>();
+
+        foreach (var sub in project.Subdomains)
+        {
+            _subdomainSelectedPages[sub.Id] = sub.ActiveMaintenancePageId;
+        }
+
         _stopDialogVisible = true;
 
         // Bakım sayfalarını yükle
@@ -1560,22 +1593,16 @@ else
 
         try
         {
-            var payload = _selectedMaintenancePageId.HasValue
-                ? new { MaintenancePageId = (Guid?)_selectedMaintenancePageId.Value }
-                : new { MaintenancePageId = (Guid?)null };
+            var payload = new
+            {
+                MaintenancePageId = _selectedMaintenancePageId,
+                SubdomainPages = _subdomainSelectedPages
+            };
 
-            var content = new System.Net.Http.StringContent(
-                System.Text.Json.JsonSerializer.Serialize(payload),
-                System.Text.Encoding.UTF8,
-                "application/json");
-
-            var response = await Http.PostAsync($"api/projects/{_projectToStop.Id}/stop", content);
+            var response = await Http.PostAsJsonAsync($"api/projects/{_projectToStop.Id}/stop", payload);
             if (response.IsSuccessStatusCode)
             {
-                var msg = _selectedMaintenancePageId.HasValue
-                    ? "Proje durduruldu ve bakım sayfası yayına alındı."
-                    : "Proje durduruldu.";
-                Snackbar.Add(msg, Severity.Success);
+                Snackbar.Add("Proje durduruldu ve Nginx bakım sayfaları yayına alındı.", Severity.Success);
                 _stopDialogVisible = false;
                 await AppState.LeaveProjectGroupAsync(_projectToStop.Id.ToString());
                 await LoadProjectsAsync();
@@ -2208,9 +2235,11 @@ else
 
     public class SubdomainDto
     {
+        public Guid Id { get; set; }
         public string SubdomainName { get; set; } = string.Empty;
         public string DomainName { get; set; } = string.Empty;
         public bool SslEnabled { get; set; }
+        public Guid? ActiveMaintenancePageId { get; set; }
     }
 
     public class MaintenancePageDto

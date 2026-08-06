@@ -121,48 +121,97 @@ public class ProjectController : ControllerBase
         }
     }
 
-    private async Task ActivateMaintenanceModeForProjectAsync(Project project, DockerPanel.Domain.Entities.MaintenancePage maintenancePage)
+    private async Task ActivateMaintenanceModeForProjectAsync(Project project, StopProjectRequest? request)
     {
-        // HTML içeriğini /opt/dockerpanel/maintenance-pages/{id}.html dosyasına yaz
-        const string maintenancePagesDir = "/opt/dockerpanel/maintenance-pages";
-        var htmlFileName = $"{maintenancePage.Id}.html";
-        var htmlFilePath = $"{maintenancePagesDir}/{htmlFileName}";
-
-        // Dosyayı yerel yola çözümle ve yaz
-        var resolvedDir = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
-            ? System.IO.Path.Combine(AppContext.BaseDirectory, "opt_dockerpanel", "maintenance-pages")
-            : maintenancePagesDir;
-
-        if (!System.IO.Directory.Exists(resolvedDir))
-            System.IO.Directory.CreateDirectory(resolvedDir);
-
-        var resolvedFilePath = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
-            ? System.IO.Path.Combine(resolvedDir, htmlFileName)
-            : htmlFilePath;
-
-        await System.IO.File.WriteAllTextAsync(resolvedFilePath, maintenancePage.HtmlContent, new System.Text.UTF8Encoding(false));
-
-        // Bağlı tüm subdomainler için Nginx bakım modu konfigürasyonu yaz
         var linkedSubdomains = await _dbContext.Subdomains
             .Where(s => s.ProjectId == project.Id)
             .ToListAsync();
+
+        if (!linkedSubdomains.Any()) return;
+
+        // Varsayılan genel şablonu (ilk sıradaki veya 'Sistem Bakımda') bul
+        var defaultTemplate = await _dbContext.MaintenancePages
+            .OrderBy(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        // 1. Dosya kaydedici helper
+        async Task<string?> EnsureHtmlFileExistsAsync(DockerPanel.Domain.Entities.MaintenancePage page)
+        {
+            const string maintenancePagesDir = "/opt/dockerpanel/maintenance-pages";
+            var htmlFileName = $"{page.Id}.html";
+            var htmlFilePath = $"{maintenancePagesDir}/{htmlFileName}";
+
+            var resolvedDir = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
+                ? System.IO.Path.Combine(AppContext.BaseDirectory, "opt_dockerpanel", "maintenance-pages")
+                : maintenancePagesDir;
+
+            if (!System.IO.Directory.Exists(resolvedDir))
+                System.IO.Directory.CreateDirectory(resolvedDir);
+
+            var resolvedFilePath = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
+                ? System.IO.Path.Combine(resolvedDir, htmlFileName)
+                : htmlFilePath;
+
+            await System.IO.File.WriteAllTextAsync(resolvedFilePath, page.HtmlContent, new System.Text.UTF8Encoding(false));
+
+            if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+            {
+                try
+                {
+                    System.IO.File.SetUnixFileMode(resolvedFilePath,
+                        System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserWrite |
+                        System.IO.UnixFileMode.GroupRead | System.IO.UnixFileMode.OtherRead);
+                }
+                catch { }
+            }
+
+            return htmlFilePath;
+        }
+
+        // Genel seçilen sayfa
+        DockerPanel.Domain.Entities.MaintenancePage? generalPage = null;
+        if (request?.MaintenancePageId != null)
+        {
+            generalPage = await _dbContext.MaintenancePages.FindAsync(request.MaintenancePageId);
+        }
+        generalPage ??= defaultTemplate;
 
         foreach (var sub in linkedSubdomains)
         {
             try
             {
-                await _nginxService.ActivateMaintenanceModeAsync(
-                    sub.SubdomainName,
-                    sub.DomainName,
-                    htmlFilePath,
-                    sub.SslEnabled
-                );
+                DockerPanel.Domain.Entities.MaintenancePage? subPage = null;
+
+                // Subdomain özelinde sayfa seçilmiş mi?
+                if (request?.SubdomainPages != null && request.SubdomainPages.TryGetValue(sub.Id, out var subPageId) && subPageId.HasValue)
+                {
+                    subPage = await _dbContext.MaintenancePages.FindAsync(subPageId.Value);
+                }
+
+                subPage ??= generalPage;
+
+                if (subPage != null)
+                {
+                    var htmlFilePath = await EnsureHtmlFileExistsAsync(subPage);
+                    if (htmlFilePath != null)
+                    {
+                        await _nginxService.ActivateMaintenanceModeAsync(
+                            sub.SubdomainName,
+                            sub.DomainName,
+                            htmlFilePath,
+                            sub.SslEnabled
+                        );
+                        sub.ActiveMaintenancePageId = subPage.Id;
+                    }
+                }
             }
             catch (Exception nginxEx)
             {
                 SystemLogQueue.Log("warning", $"[Bakım Modu] {sub.SubdomainName}.{sub.DomainName} bakım modu aktif edilemedi: {nginxEx.Message}");
             }
         }
+
+        project.ActiveMaintenancePageId = generalPage?.Id;
     }
 
     private async Task DeactivateMaintenanceModeForProjectAsync(Project project)
@@ -183,12 +232,14 @@ public class ProjectController : ControllerBase
                     project.Type,
                     sub.SslEnabled
                 );
+                sub.ActiveMaintenancePageId = null;
             }
             catch (Exception nginxEx)
             {
                 SystemLogQueue.Log("warning", $"[Bakım Modu] {sub.SubdomainName}.{sub.DomainName} bakım modu devre dışı bırakılamadı: {nginxEx.Message}");
             }
         }
+        project.ActiveMaintenancePageId = null;
     }
 
     private async Task DeleteLinkedDnsRecordAsync(DnsRecord record)
@@ -724,25 +775,12 @@ public class ProjectController : ControllerBase
 
             MarkStopped(project);
 
-            // Bakım sayfası seçilmişse: HTML dosyasını yaz ve Nginx'i bakım moduna al
-            if (request?.MaintenancePageId != null)
-            {
-                var maintenancePage = await _dbContext.MaintenancePages.FindAsync(request.MaintenancePageId);
-                if (maintenancePage != null)
-                {
-                    await ActivateMaintenanceModeForProjectAsync(project, maintenancePage);
-                    project.ActiveMaintenancePageId = maintenancePage.Id;
-                }
-            }
-            else
-            {
-                // Bakım sayfası seçilmemişse bile eski subdomain konfigürasyonu güncellenir
-                await UpdateLinkedSubdomainsNginxConfigAsync(project);
-            }
+            // Proje durdurulduğunda tüm bağlı subdomain'leri Nginx üzerinde bakım moduna al (Cloudflare 502 önlenir)
+            await ActivateMaintenanceModeForProjectAsync(project, request);
 
             await _dbContext.SaveChangesAsync();
             await LogAuditAsync("ContainerStopped", "Project", project.Id, "{}");
-            return Ok(new { Message = "Proje başarıyla durduruldu." });
+            return Ok(new { Message = "Proje durduruldu ve Nginx bakım sayfaları yayına alındı." });
         }
         catch (Exception ex)
         {
@@ -754,7 +792,7 @@ public class ProjectController : ControllerBase
         }
     }
 
-    public record StopProjectRequest(Guid? MaintenancePageId);
+    public record StopProjectRequest(Guid? MaintenancePageId, Dictionary<Guid, Guid?>? SubdomainPages = null);
 
     [HttpPost("panic-stop")]
     public async Task<IActionResult> PanicStop()

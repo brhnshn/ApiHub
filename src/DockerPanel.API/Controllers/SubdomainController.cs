@@ -72,6 +72,7 @@ public class SubdomainController : ControllerBase
             s.DomainName,
             s.SslEnabled,
             s.ProjectId,
+            s.ActiveMaintenancePageId,
             ContainerName = s.Project?.Name ?? "Bağımsız / Dış Servis",
             ContainerPort = s.Project?.HostPort ?? 80, // Eğer proje yoksa varsayılan port
             s.CreatedAt
@@ -435,7 +436,68 @@ public class SubdomainController : ControllerBase
             return StatusCode(500, new { Message = ex.Message });
         }
     }
+
+    [HttpPost("{id}/maintenance")]
+    public async Task<IActionResult> SetSubdomainMaintenance(Guid id, [FromBody] SetSubdomainMaintenanceRequest request)
+    {
+        var subdomain = await _dbContext.Subdomains.Include(s => s.Project).FirstOrDefaultAsync(s => s.Id == id);
+        if (subdomain == null) return NotFound();
+
+        if (!IsAdmin() && subdomain.UserId != GetUserId()) return Forbid();
+
+        try
+        {
+            if (request.MaintenancePageId.HasValue)
+            {
+                var page = await _dbContext.MaintenancePages.FindAsync(request.MaintenancePageId.Value);
+                if (page == null) return BadRequest(new { Message = "Bakım sayfası bulunamadı." });
+
+                const string maintenancePagesDir = "/opt/dockerpanel/maintenance-pages";
+                var htmlFileName = $"{page.Id}.html";
+                var htmlFilePath = $"{maintenancePagesDir}/{htmlFileName}";
+
+                var resolvedDir = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
+                    ? System.IO.Path.Combine(AppContext.BaseDirectory, "opt_dockerpanel", "maintenance-pages")
+                    : maintenancePagesDir;
+
+                if (!System.IO.Directory.Exists(resolvedDir)) System.IO.Directory.CreateDirectory(resolvedDir);
+                var resolvedFilePath = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
+                    ? System.IO.Path.Combine(resolvedDir, htmlFileName)
+                    : htmlFilePath;
+
+                await System.IO.File.WriteAllTextAsync(resolvedFilePath, page.HtmlContent, new System.Text.UTF8Encoding(false));
+
+                await _nginxService.ActivateMaintenanceModeAsync(subdomain.SubdomainName, subdomain.DomainName, htmlFilePath, subdomain.SslEnabled);
+                subdomain.ActiveMaintenancePageId = page.Id;
+            }
+            else
+            {
+                // Bakım modundan çıkar ve orijinal yönlendirmeye dön
+                if (subdomain.Project != null)
+                {
+                    await _nginxService.DeactivateMaintenanceModeAsync(
+                        subdomain.SubdomainName,
+                        subdomain.DomainName,
+                        subdomain.Project.Name,
+                        subdomain.Project.HostPort,
+                        subdomain.Project.Type,
+                        subdomain.SslEnabled
+                    );
+                }
+                subdomain.ActiveMaintenancePageId = null;
+            }
+
+            await _dbContext.SaveChangesAsync();
+            return Ok(new { Message = "Subdomain bakım modu güncellendi." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = ex.Message });
+        }
+    }
 }
+
+public record SetSubdomainMaintenanceRequest(Guid? MaintenancePageId);
 
 public class CreateSubdomainRequest
 {

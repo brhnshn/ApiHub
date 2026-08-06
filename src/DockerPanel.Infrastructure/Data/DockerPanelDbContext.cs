@@ -192,6 +192,8 @@ public class DockerPanelDbContext : DbContext
                 .HasForeignKey(e => e.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired(false);
+
+            entity.Property(e => e.ActiveMaintenancePageId);
         });
 
         // 4. DnsRecord Entity Configuration

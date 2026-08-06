@@ -1594,10 +1594,21 @@ server {{
         }
         catch { }
 
-        // Bakım modu HTML dosyasının bulunduğu dizin
+        // Bakım modu HTML dosyasının bulunduğu dizin ve okuma izinleri
         var maintenancePagesDir = "/opt/dockerpanel/maintenance-pages";
         var resolvedDir = ResolvePath(maintenancePagesDir);
         var htmlFileName = Path.GetFileName(htmlFilePath);
+        var resolvedHtmlFilePath = ResolvePath(htmlFilePath);
+
+        try
+        {
+            if (!Directory.Exists(resolvedDir)) Directory.CreateDirectory(resolvedDir);
+            if (File.Exists(resolvedHtmlFilePath) && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                File.SetUnixFileMode(resolvedHtmlFilePath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+            }
+        }
+        catch { }
 
         string compiledConfig;
 
@@ -1635,7 +1646,7 @@ server {{
     }}
 
     location / {{
-        try_files /{htmlFileName} =503;
+        try_files /{htmlFileName} =200;
         add_header Content-Type ""text/html; charset=utf-8"";
     }}
 }}";
@@ -1654,7 +1665,7 @@ server {{
     }}
 
     location / {{
-        try_files /{htmlFileName} =503;
+        try_files /{htmlFileName} =200;
         add_header Content-Type ""text/html; charset=utf-8"";
     }}
 }}";

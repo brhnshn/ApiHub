@@ -10,6 +10,7 @@ public class Subdomain
     public string SubdomainName { get; set; } = string.Empty;
     public string DomainName { get; set; } = string.Empty;
     public bool SslEnabled { get; set; } = true;
+    public Guid? ActiveMaintenancePageId { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     // Navigation Properties
