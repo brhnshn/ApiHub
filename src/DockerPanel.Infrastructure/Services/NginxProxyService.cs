@@ -1666,8 +1666,7 @@ server {{
     }}
 
     location / {{
-        rewrite ^ /{htmlFileName} break;
-        add_header Content-Type ""text/html; charset=utf-8"";
+        try_files /{htmlFileName} =404;
     }}
 }}";
         }
@@ -1685,8 +1684,7 @@ server {{
     }}
 
     location / {{
-        rewrite ^ /{htmlFileName} break;
-        add_header Content-Type ""text/html; charset=utf-8"";
+        try_files /{htmlFileName} =404;
     }}
 }}";
         }
@@ -1707,7 +1705,8 @@ server {{
         {
             try
             {
-                // Root yetkisiyle chmod ve symlink oluştur (Permission denied hatası almamak için)
+                // Root yetkisiyle dizin ve symlink oluştur (nginx -t root dizini yoksa hata verir)
+                await ExecuteCommandAsync("sudo", $"-n /bin/mkdir -p \"{resolvedDir}\"");
                 await ExecuteCommandAsync("sudo", $"-n /bin/chmod 755 \"{resolvedDir}\"");
                 if (File.Exists(resolvedHtmlFilePath))
                 {
