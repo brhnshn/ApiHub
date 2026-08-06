@@ -301,10 +301,36 @@ public class NginxProxyService : INginxService
         }
     }
 
+    public async Task EnsureFallbackSslCertExistsAsync()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
+
+        const string certFile = "/etc/nginx/ssl/dockerpanel-fallback.crt";
+        const string keyFile = "/etc/nginx/ssl/dockerpanel-fallback.key";
+
+        try
+        {
+            if (!File.Exists(certFile) || !File.Exists(keyFile))
+            {
+                await ExecuteCommandAsync("sudo", "-n /bin/mkdir -p /etc/nginx/ssl");
+                await ExecuteCommandAsync("sudo", "-n /usr/bin/openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /etc/nginx/ssl/dockerpanel-fallback.key -out /etc/nginx/ssl/dockerpanel-fallback.crt -subj \"/CN=dockerpanel-fallback\"");
+                await ExecuteCommandAsync("sudo", "-n /bin/chmod 644 /etc/nginx/ssl/dockerpanel-fallback.crt");
+                await ExecuteCommandAsync("sudo", "-n /bin/chmod 600 /etc/nginx/ssl/dockerpanel-fallback.key");
+                SystemLogQueue.Log("info", "[Nginx SSL] DockerPanel yedek Fallback SSL sertifikası başarıyla oluşturuldu.");
+            }
+        }
+        catch (Exception ex)
+        {
+            SystemLogQueue.Log("warning", $"[Nginx SSL] Yedek Fallback SSL sertifikası oluşturulamadı: {ex.Message}");
+        }
+    }
+
     public async Task ReloadNginxAsync()
     {
         var reloadCommands = new[]
         {
+            "/usr/sbin/nginx -s reload",
+            "/usr/bin/nginx -s reload",
             "/usr/bin/systemctl reload nginx",
             "/bin/systemctl reload nginx",
             "/usr/sbin/systemctl reload nginx",
@@ -1566,7 +1592,9 @@ server {{
 
         string fullDomain = isApex ? domainName : $"{cleanSubdomain}.{domainName}";
 
-        // SSL sertifikası var mı kontrol et
+        // SSL sertifikası var mı kontrol et, yoksa fallback cert kullan
+        await EnsureFallbackSslCertExistsAsync();
+
         string certPath = $"/etc/letsencrypt/live/{fullDomain}/fullchain.pem";
         string keyPath = $"/etc/letsencrypt/live/{fullDomain}/privkey.pem";
 
@@ -1574,7 +1602,7 @@ server {{
         try
         {
             hasCert = (File.Exists(ResolvePath(certPath, false)) && File.Exists(ResolvePath(keyPath, false))) ||
-                           (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && sslEnabled);
+                      (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && sslEnabled);
 
             if (!hasCert && !isApex)
             {
@@ -1589,6 +1617,14 @@ server {{
             }
         }
         catch { }
+
+        // Eğer domaine özel cert bulunamazsa Fallback SSL kullan (Cloudflare Full SSL 443 bağlantısının kopmaması için)
+        if (!hasCert && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            certPath = "/etc/nginx/ssl/dockerpanel-fallback.crt";
+            keyPath = "/etc/nginx/ssl/dockerpanel-fallback.key";
+            hasCert = File.Exists(certPath);
+        }
 
         // Bakım modu HTML dosyasının bulunduğu dizin ve okuma izinleri
         var maintenancePagesDir = "/opt/dockerpanel/maintenance-pages";
