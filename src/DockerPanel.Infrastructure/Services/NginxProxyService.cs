@@ -1613,18 +1613,6 @@ server {{
             compiledConfig = $@"# MAINTENANCE MODE - {fullDomain}
 server {{
     listen 80;
-    server_name {serverNames};
-
-    location /.well-known/acme-challenge/ {{
-        root /var/www/html;
-    }}
-
-    location / {{
-        return 301 https://$host$request_uri;
-    }}
-}}
-
-server {{
     listen 443 ssl;
     server_name {serverNames};
 
@@ -1683,11 +1671,15 @@ server {{
         {
             try
             {
-                var linkInfo = new FileInfo(resolvedEnabledPath);
-                if (linkInfo.Exists || linkInfo.LinkTarget != null)
-                    linkInfo.Delete();
+                // Root yetkisiyle chmod ve symlink oluştur (Permission denied hatası almamak için)
+                await ExecuteCommandAsync("sudo", $"-n /bin/chmod 755 \"{resolvedDir}\"");
+                if (File.Exists(resolvedHtmlFilePath))
+                {
+                    await ExecuteCommandAsync("sudo", $"-n /bin/chmod 644 \"{resolvedHtmlFilePath}\"");
+                }
 
-                File.CreateSymbolicLink(resolvedEnabledPath, resolvedAvailablePath);
+                await ExecuteCommandAsync("sudo", $"-n /bin/rm -f \"{resolvedEnabledPath}\"");
+                await ExecuteCommandAsync("sudo", $"-n /bin/ln -sf \"{resolvedAvailablePath}\" \"{resolvedEnabledPath}\"");
 
                 await ExecuteCommandAsync("sudo", "-n /usr/sbin/nginx -t");
 
@@ -1697,9 +1689,8 @@ server {{
             }
             catch (Exception ex)
             {
-                if (File.Exists(resolvedEnabledPath)) File.Delete(resolvedEnabledPath);
+                SystemLogQueue.Log("error", $"[Nginx Bakım Modu] Konfigürasyon hatası: {ex.Message}");
                 if (backupContent != null) await File.WriteAllTextAsync(resolvedAvailablePath, backupContent, Utf8WithoutBom);
-                else if (File.Exists(resolvedAvailablePath)) File.Delete(resolvedAvailablePath);
 
                 throw new InvalidOperationException($"Bakım modu Nginx konfigürasyonu uygulanamadı: {ex.Message}");
             }

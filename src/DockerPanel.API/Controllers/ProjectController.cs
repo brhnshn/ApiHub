@@ -127,6 +127,25 @@ public class ProjectController : ControllerBase
             .Where(s => s.ProjectId == project.Id)
             .ToListAsync();
 
+        if (!linkedSubdomains.Any())
+        {
+            var dnsRecords = await _dbContext.DnsRecords
+                .Where(d => d.ProjectId == project.Id)
+                .ToListAsync();
+
+            foreach (var dns in dnsRecords)
+            {
+                linkedSubdomains.Add(new Subdomain
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectId = project.Id,
+                    SubdomainName = "@",
+                    DomainName = dns.Name,
+                    SslEnabled = true
+                });
+            }
+        }
+
         if (!linkedSubdomains.Any()) return;
 
         // Varsayılan genel şablonu (ilk sıradaki veya 'Sistem Bakımda') bul
