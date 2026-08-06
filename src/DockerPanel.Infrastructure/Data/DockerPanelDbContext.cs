@@ -10,20 +10,21 @@ public class DockerPanelDbContext : DbContext
     {
     }
 
-    public DbSet<User> Users => Set<User>();
-    public DbSet<Project> Projects => Set<Project>();
-    public DbSet<Subdomain> Subdomains => Set<Subdomain>();
-    public DbSet<DnsRecord> DnsRecords => Set<DnsRecord>();
-    public DbSet<DatabaseSchema> DatabaseSchemas => Set<DatabaseSchema>();
-    public DbSet<MailAccount> MailAccounts => Set<MailAccount>();
-    public DbSet<RootDomain> RootDomains => Set<RootDomain>();
-    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
-    public DbSet<PushNotification> PushNotifications => Set<PushNotification>();
-    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
-    public DbSet<Deployment> Deployments => Set<Deployment>();
-    public DbSet<DeploymentStep> DeploymentSteps => Set<DeploymentStep>();
+    public DbSet<User>               Users             => Set<User>();
+    public DbSet<Project>            Projects          => Set<Project>();
+    public DbSet<Subdomain>          Subdomains        => Set<Subdomain>();
+    public DbSet<DnsRecord>          DnsRecords        => Set<DnsRecord>();
+    public DbSet<DatabaseSchema>     DatabaseSchemas   => Set<DatabaseSchema>();
+    public DbSet<MailAccount>        MailAccounts      => Set<MailAccount>();
+    public DbSet<RootDomain>         RootDomains       => Set<RootDomain>();
+    public DbSet<AuditLog>           AuditLogs         => Set<AuditLog>();
+    public DbSet<DeviceToken>        DeviceTokens      => Set<DeviceToken>();
+    public DbSet<PushNotification>   PushNotifications => Set<PushNotification>();
+    public DbSet<ApiKey>             ApiKeys           => Set<ApiKey>();
+    public DbSet<Deployment>         Deployments       => Set<Deployment>();
+    public DbSet<DeploymentStep>     DeploymentSteps   => Set<DeploymentStep>();
     public DbSet<DeploymentResource> DeploymentResources => Set<DeploymentResource>();
+    public DbSet<MaintenancePage>    MaintenancePages  => Set<MaintenancePage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -103,6 +104,8 @@ public class DockerPanelDbContext : DbContext
             entity.Property(e => e.EnablePhp)
                 .HasDefaultValue(false)
                 .IsRequired();
+
+            entity.Property(e => e.ActiveMaintenancePageId);
 
             // Foreign Key: User -> Projects (Cascade Delete)
             entity.HasOne(e => e.User)
@@ -464,6 +467,33 @@ public class DockerPanelDbContext : DbContext
             // Foreign Key: User -> ApiKeys (Cascade Delete)
             entity.HasOne(e => e.User)
                 .WithMany(u => u.ApiKeys)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 12. MaintenancePage Entity Configuration
+        modelBuilder.Entity<MaintenancePage>(entity =>
+        {
+            entity.ToTable("MaintenancePages");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.HtmlContent)
+                .IsRequired();
+
+            entity.Property(e => e.CreatedAt)
+                .IsRequired();
+
+            entity.Property(e => e.UpdatedAt)
+                .IsRequired();
+
+            // Foreign Key: User -> MaintenancePages (Cascade Delete)
+            entity.HasOne(e => e.User)
+                .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

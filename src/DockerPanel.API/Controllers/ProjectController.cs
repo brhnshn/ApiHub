@@ -121,6 +121,76 @@ public class ProjectController : ControllerBase
         }
     }
 
+    private async Task ActivateMaintenanceModeForProjectAsync(Project project, DockerPanel.Domain.Entities.MaintenancePage maintenancePage)
+    {
+        // HTML içeriğini /opt/dockerpanel/maintenance-pages/{id}.html dosyasına yaz
+        const string maintenancePagesDir = "/opt/dockerpanel/maintenance-pages";
+        var htmlFileName = $"{maintenancePage.Id}.html";
+        var htmlFilePath = $"{maintenancePagesDir}/{htmlFileName}";
+
+        // Dosyayı yerel yola çözümle ve yaz
+        var resolvedDir = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
+            ? System.IO.Path.Combine(AppContext.BaseDirectory, "opt_dockerpanel", "maintenance-pages")
+            : maintenancePagesDir;
+
+        if (!System.IO.Directory.Exists(resolvedDir))
+            System.IO.Directory.CreateDirectory(resolvedDir);
+
+        var resolvedFilePath = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
+            ? System.IO.Path.Combine(resolvedDir, htmlFileName)
+            : htmlFilePath;
+
+        await System.IO.File.WriteAllTextAsync(resolvedFilePath, maintenancePage.HtmlContent, new System.Text.UTF8Encoding(false));
+
+        // Bağlı tüm subdomainler için Nginx bakım modu konfigürasyonu yaz
+        var linkedSubdomains = await _dbContext.Subdomains
+            .Where(s => s.ProjectId == project.Id)
+            .ToListAsync();
+
+        foreach (var sub in linkedSubdomains)
+        {
+            try
+            {
+                await _nginxService.ActivateMaintenanceModeAsync(
+                    sub.SubdomainName,
+                    sub.DomainName,
+                    htmlFilePath,
+                    sub.SslEnabled
+                );
+            }
+            catch (Exception nginxEx)
+            {
+                SystemLogQueue.Log("warning", $"[Bakım Modu] {sub.SubdomainName}.{sub.DomainName} bakım modu aktif edilemedi: {nginxEx.Message}");
+            }
+        }
+    }
+
+    private async Task DeactivateMaintenanceModeForProjectAsync(Project project)
+    {
+        var linkedSubdomains = await _dbContext.Subdomains
+            .Where(s => s.ProjectId == project.Id)
+            .ToListAsync();
+
+        foreach (var sub in linkedSubdomains)
+        {
+            try
+            {
+                await _nginxService.DeactivateMaintenanceModeAsync(
+                    sub.SubdomainName,
+                    sub.DomainName,
+                    project.Name,
+                    project.HostPort,
+                    project.Type,
+                    sub.SslEnabled
+                );
+            }
+            catch (Exception nginxEx)
+            {
+                SystemLogQueue.Log("warning", $"[Bakım Modu] {sub.SubdomainName}.{sub.DomainName} bakım modu devre dışı bırakılamadı: {nginxEx.Message}");
+            }
+        }
+    }
+
     private async Task DeleteLinkedDnsRecordAsync(DnsRecord record)
     {
         var rootDomain = await _dbContext.RootDomains
@@ -595,6 +665,13 @@ public class ProjectController : ControllerBase
         ProcessTransitionTracker.StartTransition(project.Name);
         try
         {
+            // Bakım modu aktifse subdomain konfigürasyonlarını önce eski haline döndür
+            if (project.ActiveMaintenancePageId != null)
+            {
+                await DeactivateMaintenanceModeForProjectAsync(project);
+                project.ActiveMaintenancePageId = null;
+            }
+
             if (project.Type == ProjectType.DockerContainer)
             {
                 if (string.IsNullOrEmpty(project.DockerContainerId))
@@ -623,7 +700,7 @@ public class ProjectController : ControllerBase
     }
 
     [HttpPost("{id}/stop")]
-    public async Task<IActionResult> Stop(Guid id)
+    public async Task<IActionResult> Stop(Guid id, [FromBody] StopProjectRequest? request = null)
     {
         var project = await _dbContext.Projects.FindAsync(id);
         if (project == null) return NotFound();
@@ -646,8 +723,24 @@ public class ProjectController : ControllerBase
             }
 
             MarkStopped(project);
+
+            // Bakım sayfası seçilmişse: HTML dosyasını yaz ve Nginx'i bakım moduna al
+            if (request?.MaintenancePageId != null)
+            {
+                var maintenancePage = await _dbContext.MaintenancePages.FindAsync(request.MaintenancePageId);
+                if (maintenancePage != null)
+                {
+                    await ActivateMaintenanceModeForProjectAsync(project, maintenancePage);
+                    project.ActiveMaintenancePageId = maintenancePage.Id;
+                }
+            }
+            else
+            {
+                // Bakım sayfası seçilmemişse bile eski subdomain konfigürasyonu güncellenir
+                await UpdateLinkedSubdomainsNginxConfigAsync(project);
+            }
+
             await _dbContext.SaveChangesAsync();
-            await UpdateLinkedSubdomainsNginxConfigAsync(project);
             await LogAuditAsync("ContainerStopped", "Project", project.Id, "{}");
             return Ok(new { Message = "Proje başarıyla durduruldu." });
         }
@@ -660,6 +753,8 @@ public class ProjectController : ControllerBase
             ProcessTransitionTracker.EndTransition(project.Name);
         }
     }
+
+    public record StopProjectRequest(Guid? MaintenancePageId);
 
     [HttpPost("panic-stop")]
     public async Task<IActionResult> PanicStop()

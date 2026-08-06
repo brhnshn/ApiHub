@@ -22,6 +22,12 @@ public class Project
 
     public bool EnablePhp { get; set; } = false;
 
+    /// <summary>
+    /// Proje durdurulduğunda aktif olarak yayınlanan bakım sayfasının ID'si.
+    /// Null ise bakım modu aktif değildir.
+    /// </summary>
+    public Guid? ActiveMaintenancePageId { get; set; }
+
     // Navigation Properties
     public virtual User User { get; set; } = null!;
     public virtual ICollection<Subdomain> Subdomains { get; set; } = new List<Subdomain>();

@@ -11,5 +11,7 @@ public interface INginxService
     Task SyncActiveConfigsWithDbAsync(System.Guid userId);
     Task ReloadNginxAsync();
     Task EnsureOfflinePageExistsAsync();
+    Task ActivateMaintenanceModeAsync(string subdomainName, string domainName, string htmlFilePath, bool sslEnabled = false);
+    Task DeactivateMaintenanceModeAsync(string subdomainName, string domainName, string containerName, int containerPort, ProjectType projectType, bool sslEnabled = false);
 }
 

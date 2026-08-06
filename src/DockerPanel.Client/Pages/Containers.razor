@@ -391,6 +391,15 @@ else
                                 <span>@GetUptimeText(project.StartedAt.Value)</span>
                             </div>
                         }
+                        @if (project.Status == ProjectStatus.Stopped && project.ActiveMaintenancePageId.HasValue)
+                        {
+                            <div class="d-flex align-center gap-1 mt-2">
+                                <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;">
+                                    <span style="width:7px; height:7px; background:#f59e0b; border-radius:50%; display:inline-block; animation: pulse 2s infinite;"></span>
+                                    Bakım Sayfası Yayında
+                                </span>
+                            </div>
+                        }
 
                         <!-- Aksiyon Butonları -->
                         <div class="d-flex gap-2 mt-4">
@@ -473,6 +482,184 @@ else
         </div>
     </div>
 }
+
+@* === PROJE DURDURMA DİYALOGU - BAKIM SAYFASI SEÇİMİ === *@
+<MudDialog @bind-Visible="_stopDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true }">
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <MudIcon Icon="@Icons.Material.Filled.PauseCircle" Style="color: #f87171;" />
+            <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Projeyi Durdur</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4 mud-text-secondary">
+            <strong style="color: var(--text-main);">@_projectToStop?.Name</strong> projesini durdurmak üzeresiniz.
+            Durdurulan projenin domain/subdomainlerinde bakım sayfası yayınlamak ister misiniz?
+        </MudText>
+
+        @if (_isLoadingMaintenancePages)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudSelect T="Guid?" Label="Bakım Sayfası" @bind-Value="_selectedMaintenancePageId"
+                       Variant="Variant.Outlined" Dense="true"
+                       Style="font-family: 'Outfit', sans-serif;"
+                       AdornmentIcon="@Icons.Material.Filled.WebAsset"
+                       AdornmentColor="Color.Warning">
+                <MudSelectItem T="Guid?" Value="null">— Bakım sayfası yayınlama —</MudSelectItem>
+                @foreach (var mPage in _maintenancePages)
+                {
+                    <MudSelectItem T="Guid?" Value="mPage.Id">@mPage.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            @if (!_maintenancePages.Any())
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3" Style="font-size: 12px;">
+                    Henüz bakım sayfası yok. <a @onclick="@(() => { _stopDialogVisible = false; _maintenancePanelOpen = true; StateHasChanged(); })" style="cursor: pointer; color: #60a5fa; text-decoration: underline;">Şimdi oluştur</a>
+                </MudAlert>
+            }
+        }
+
+        @if (_selectedMaintenancePageId.HasValue)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3" Style="font-size: 12px;">
+                Seçilen bakım sayfası tüm bağlı subdomain/domainlerde yayınlanacak.
+                Projeyi yeniden başlattığınızda otomatik olarak kaldırılır.
+            </MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CancelStopDialog" Color="Color.Default" Variant="Variant.Text" Disabled="_isStopping">İptal</MudButton>
+        <MudButton OnClick="ConfirmStopProject" Color="Color.Error" Variant="Variant.Filled"
+                   Disabled="_isStopping" Style="font-weight: 700; text-transform: none;">
+            @if (_isStopping)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="margin-right: 8px;" />
+            }
+            Durdur
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* === BAKIM SAYFALARI YÖNETİM PANELİ DİYALOGU === *@
+<MudDialog @bind-Visible="_maintenancePanelOpen" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true }">
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 10px; justify-content: space-between; width: 100%;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <MudIcon Icon="@Icons.Material.Filled.WebAsset" Style="color: #fbbf24;" />
+                <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Bakım Sayfaları</MudText>
+            </div>
+            <MudButton OnClick="OpenMaintenanceCreateDialog" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                       Color="Color.Warning" Size="Size.Small" Style="font-weight: 700; text-transform: none;">Yeni Sayfa</MudButton>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (_isLoadingMaintenancePages)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Warning" />
+        }
+        else if (!_maintenancePages.Any())
+        {
+            <div style="text-align: center; padding: 32px; color: #64748b;">
+                <MudIcon Icon="@Icons.Material.Filled.WebAssetOff" Style="font-size: 48px; color: #374151;" />
+                <div style="margin-top: 12px; font-size: 14px;">Henüz bakım sayfası oluşturulmamış.</div>
+                <MudButton OnClick="OpenMaintenanceCreateDialog" Variant="Variant.Filled" Color="Color.Warning"
+                           StartIcon="@Icons.Material.Filled.Add" Class="mt-3" Style="font-weight: 700; text-transform: none;">
+                    İlk Bakım Sayfasını Oluştur
+                </MudButton>
+            </div>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true" Style="background: transparent;">
+                <thead>
+                    <tr>
+                        <th style="color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase;">Sayfa Adı</th>
+                        <th style="color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; text-align: center;">Aktif Proje</th>
+                        <th style="color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; text-align: right;">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var mPage in _maintenancePages)
+                    {
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600; color: var(--text-main); font-size: 13px;">@mPage.Name</div>
+                                <div style="color: #64748b; font-size: 11px;">Güncellendi: @mPage.UpdatedAt.ToLocalTime().ToString("dd MMM HH:mm")</div>
+                            </td>
+                            <td style="text-align: center;">
+                                @if (mPage.ActiveProjectCount > 0)
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Style="font-size: 11px; font-weight: 700;">@mPage.ActiveProjectCount proje</MudChip>
+                                }
+                                else
+                                {
+                                    <span style="color: #475569; font-size: 11px;">—</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                <MudTooltip Text="Düzenle">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="@(() => OpenMaintenanceEditDialog(mPage))" />
+                                </MudTooltip>
+                                <MudTooltip Text="Sil">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                   Disabled="@(mPage.ActiveProjectCount > 0)"
+                                                   OnClick="@(() => DeleteMaintenancePage(mPage))" />
+                                </MudTooltip>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _maintenancePanelOpen = false)" Color="Color.Default" Variant="Variant.Text">Kapat</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* === BAKIM SAYFASI OLUŞTURMA/DÜZENLEME DİYALOGU === *@
+<MudDialog @bind-Visible="_maintenanceCreateDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Yeni Bakım Sayfası</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_maintenanceNewName" Label="Sayfa Adı" Variant="Variant.Outlined" Dense="true" Class="mb-4"
+                      Placeholder="Örn: Sistem Bakımda, Yakında Açılıyor..." />
+        <MudTextField @bind-Value="_maintenanceNewHtml" Label="HTML İçeriği" Variant="Variant.Outlined"
+                      Lines="12" Style="font-family: 'JetBrains Mono', monospace; font-size: 12px;"
+                      Placeholder="<!DOCTYPE html>..." />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _maintenanceCreateDialogVisible = false)" Color="Color.Default" Variant="Variant.Text" Disabled="_isSavingMaintenancePage">İptal</MudButton>
+        <MudButton OnClick="SaveMaintenancePage" Color="Color.Warning" Variant="Variant.Filled" Disabled="_isSavingMaintenancePage" Style="font-weight: 700; text-transform: none;">
+            @if (_isSavingMaintenancePage) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="margin-right: 8px;" /> }
+            Kaydet
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_maintenanceEditDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Bakım Sayfasını Düzenle</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_maintenanceNewName" Label="Sayfa Adı" Variant="Variant.Outlined" Dense="true" Class="mb-4" />
+        <MudTextField @bind-Value="_maintenanceNewHtml" Label="HTML İçeriği" Variant="Variant.Outlined"
+                      Lines="12" Style="font-family: 'JetBrains Mono', monospace; font-size: 12px;" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _maintenanceEditDialogVisible = false)" Color="Color.Default" Variant="Variant.Text" Disabled="_isSavingMaintenancePage">İptal</MudButton>
+        <MudButton OnClick="SaveMaintenancePage" Color="Color.Primary" Variant="Variant.Filled" Disabled="_isSavingMaintenancePage" Style="font-weight: 700; text-transform: none;">
+            @if (_isSavingMaintenancePage) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="margin-right: 8px;" /> }
+            Güncelle
+        </MudButton>
+    </DialogActions>
+</MudDialog>
 
 <MudDialog @bind-Visible="_limitModalVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
     <TitleContent>
@@ -956,6 +1143,23 @@ else
     private bool _deleteLinkedDb = false;
     private bool _isDeletingProject = false;
 
+    // Bakım Sayfası - Stop Diyalogu
+    private bool _stopDialogVisible = false;
+    private ProjectCardDto? _projectToStop = null;
+    private Guid? _selectedMaintenancePageId = null;
+    private bool _isStopping = false;
+
+    // Bakım Sayfası Yönetimi
+    private List<MaintenancePageDto> _maintenancePages = new();
+    private bool _maintenancePanelOpen = false;
+    private bool _isLoadingMaintenancePages = false;
+    private bool _maintenanceCreateDialogVisible = false;
+    private bool _maintenanceEditDialogVisible = false;
+    private MaintenancePageDto? _maintenanceEditTarget = null;
+    private string _maintenanceNewName = string.Empty;
+    private string _maintenanceNewHtml = string.Empty;
+    private bool _isSavingMaintenancePage = false;
+
     // Log Drawer
     private bool _logsDrawerOpen = false;
     private string _activeLogProjectName = string.Empty;
@@ -1334,18 +1538,47 @@ else
 
     private async Task StopProject(ProjectCardDto project)
     {
-        project.Status = ProjectStatus.Provisioning;
+        // Önce bakım sayfası dialog'unu aç
+        _projectToStop = project;
+        _selectedMaintenancePageId = null;
+        _stopDialogVisible = true;
+
+        // Bakım sayfalarını yükle
+        if (_maintenancePages.Count == 0)
+        {
+            await LoadMaintenancePagesAsync();
+        }
+    }
+
+    private async Task ConfirmStopProject()
+    {
+        if (_projectToStop == null) return;
+
+        _isStopping = true;
+        _projectToStop.Status = ProjectStatus.Provisioning;
         StateHasChanged();
 
         try
         {
-            var response = await Http.PostAsync($"api/projects/{project.Id}/stop", null);
+            var payload = _selectedMaintenancePageId.HasValue
+                ? new { MaintenancePageId = (Guid?)_selectedMaintenancePageId.Value }
+                : new { MaintenancePageId = (Guid?)null };
+
+            var content = new System.Net.Http.StringContent(
+                System.Text.Json.JsonSerializer.Serialize(payload),
+                System.Text.Encoding.UTF8,
+                "application/json");
+
+            var response = await Http.PostAsync($"api/projects/{_projectToStop.Id}/stop", content);
             if (response.IsSuccessStatusCode)
             {
-                Snackbar.Add("Proje durduruldu.", Severity.Success);
+                var msg = _selectedMaintenancePageId.HasValue
+                    ? "Proje durduruldu ve bakım sayfası yayına alındı."
+                    : "Proje durduruldu.";
+                Snackbar.Add(msg, Severity.Success);
+                _stopDialogVisible = false;
+                await AppState.LeaveProjectGroupAsync(_projectToStop.Id.ToString());
                 await LoadProjectsAsync();
-
-                await AppState.LeaveProjectGroupAsync(project.Id.ToString());
             }
             else
             {
@@ -1359,6 +1592,131 @@ else
             Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
             await LoadProjectsAsync();
         }
+        finally
+        {
+            _isStopping = false;
+            _projectToStop = null;
+        }
+    }
+
+    private void CancelStopDialog()
+    {
+        _stopDialogVisible = false;
+        _projectToStop = null;
+        _selectedMaintenancePageId = null;
+        if (_projectToStop != null)
+        {
+            _projectToStop.Status = ProjectStatus.Running;
+            StateHasChanged();
+        }
+    }
+
+    // Bakım Sayfası Yönetim Metodları
+    private async Task LoadMaintenancePagesAsync()
+    {
+        _isLoadingMaintenancePages = true;
+        try
+        {
+            var pages = await Http.GetFromJsonAsync<List<MaintenancePageDto>>("api/maintenance-pages");
+            _maintenancePages = pages ?? new();
+        }
+        catch { }
+        finally
+        {
+            _isLoadingMaintenancePages = false;
+        }
+    }
+
+    private void OpenMaintenanceCreateDialog()
+    {
+        _maintenanceNewName = string.Empty;
+        _maintenanceNewHtml = GetDefaultMaintenanceHtml("Sistem Bakımda");
+        _maintenanceCreateDialogVisible = true;
+    }
+
+    private void OpenMaintenanceEditDialog(MaintenancePageDto page)
+    {
+        _maintenanceEditTarget = page;
+        _maintenanceNewName = page.Name;
+        _maintenanceNewHtml = page.HtmlContent;
+        _maintenanceEditDialogVisible = true;
+    }
+
+    private async Task SaveMaintenancePage()
+    {
+        if (string.IsNullOrWhiteSpace(_maintenanceNewName)) return;
+        _isSavingMaintenancePage = true;
+        try
+        {
+            System.Net.Http.HttpResponseMessage response;
+            if (_maintenanceEditTarget == null)
+            {
+                var payload = new { Name = _maintenanceNewName, HtmlContent = _maintenanceNewHtml };
+                response = await Http.PostAsJsonAsync("api/maintenance-pages", payload);
+            }
+            else
+            {
+                var payload = new { Name = _maintenanceNewName, HtmlContent = _maintenanceNewHtml };
+                response = await Http.PutAsJsonAsync($"api/maintenance-pages/{_maintenanceEditTarget.Id}", payload);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(_maintenanceEditTarget == null ? "Bakım sayfası oluşturuldu." : "Bakım sayfası güncellendi.", Severity.Success);
+                _maintenanceCreateDialogVisible = false;
+                _maintenanceEditDialogVisible = false;
+                _maintenanceEditTarget = null;
+                await LoadMaintenancePagesAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Hata: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex) { Snackbar.Add($"Hata: {ex.Message}", Severity.Error); }
+        finally { _isSavingMaintenancePage = false; }
+    }
+
+    private async Task DeleteMaintenancePage(MaintenancePageDto page)
+    {
+        var response = await Http.DeleteAsync($"api/maintenance-pages/{page.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Bakım sayfası silindi.", Severity.Success);
+            await LoadMaintenancePagesAsync();
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            Snackbar.Add($"Silinemedi: {error}", Severity.Error);
+        }
+    }
+
+    private static string GetDefaultMaintenanceHtml(string title)
+    {
+        return "<!DOCTYPE html>\n"
+            + "<html lang=\"tr\">\n<head>\n"
+            + "<meta charset=\"UTF-8\">\n"
+            + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+            + $"<title>{title}</title>\n"
+            + "<style>\n"
+            + "* { box-sizing: border-box; margin: 0; padding: 0; }\n"
+            + "body { font-family: system-ui, -apple-system, sans-serif; background: #0b0f17; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }\n"
+            + ".card { background: rgba(23,32,48,0.75); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 48px 36px; max-width: 500px; width: 100%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }\n"
+            + ".badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 20px; }\n"
+            + ".dot { width: 8px; height: 8px; background-color: #f59e0b; border-radius: 50%; animation: blink 2s infinite; }\n"
+            + "@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }\n"
+            + "h1 { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 12px; }\n"
+            + "p { font-size: 15px; color: #94a3b8; line-height: 1.6; margin-bottom: 28px; }\n"
+            + ".footer { font-size: 12px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px; }\n"
+            + "</style>\n</head>\n<body>\n"
+            + "<div class=\"card\">\n"
+            + "<div class=\"badge\"><span class=\"dot\"></span> Servis Bilgisi</div>\n"
+            + $"<h1>{title}</h1>\n"
+            + "<p>Bu sayfa \u015fu anda bak\u0131mdad\u0131r. L\u00fctfen daha sonra tekrar ziyaret ediniz.</p>\n"
+            + "<div class=\"footer\">DockerPanel Sunucu Y\u00f6netimi</div>\n"
+            + "</div>\n</body>\n</html>";
     }
 
     private async Task RestartProject(ProjectCardDto project)
@@ -1839,6 +2197,7 @@ else
         public ProjectStatus Status { get; set; }
         public DateTimeOffset? StartedAt { get; set; }
         public bool EnablePhp { get; set; }
+        public Guid? ActiveMaintenancePageId { get; set; }
         public List<SubdomainDto> Subdomains { get; set; } = new();
         
         // Canlı Değerler
@@ -1852,6 +2211,16 @@ else
         public string SubdomainName { get; set; } = string.Empty;
         public string DomainName { get; set; } = string.Empty;
         public bool SslEnabled { get; set; }
+    }
+
+    public class MaintenancePageDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string HtmlContent { get; set; } = string.Empty;
+        public int ActiveProjectCount { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset UpdatedAt { get; set; }
     }
 
     public enum ProjectType

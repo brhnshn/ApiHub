@@ -309,6 +309,7 @@ public static class DatabaseSyncHelper
             }
         }
 
+        await SeedDefaultMaintenancePagesAsync(db, defaultUser.Id);
         Console.WriteLine("[Sync] Sistem eşitleme işlemi başarıyla tamamlandı!");
     }
 
@@ -355,5 +356,167 @@ public static class DatabaseSyncHelper
             }
         }
         return config;
+    }
+
+    private static async Task SeedDefaultMaintenancePagesAsync(DockerPanelDbContext db, Guid userId)
+    {
+        if (await db.MaintenancePages.AnyAsync()) return;
+
+        var templates = new List<MaintenancePage>
+        {
+            new MaintenancePage
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Name = "Sistem Bakımda",
+                HtmlContent = @"<!DOCTYPE html>
+<html lang=""tr"">
+<head>
+<meta charset=""UTF-8"">
+<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+<title>Sistem Bakımda</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0b0f17; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.card { background: rgba(23,32,48,0.8); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 48px 36px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.6); backdrop-filter: blur(12px); }
+.badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 24px; }
+.dot { width: 8px; height: 8px; background-color: #f59e0b; border-radius: 50%; animation: blink 1.8s infinite; }
+@keyframes blink { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.8); } }
+h1 { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 12px; letter-spacing: -0.5px; }
+p { font-size: 15px; color: #94a3b8; line-height: 1.6; margin-bottom: 28px; }
+.footer { font-size: 12px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px; }
+</style>
+</head>
+<body>
+<div class=""card"">
+<div class=""badge""><span class=""dot""></span> Planlı Bakım</div>
+<h1>Sistem Bakımdadır</h1>
+<p>Sistemlerimizi daha iyi bir deneyim sunmak için güncelliyoruz. Kısa süre içinde tekrar hizmetinizde olacağız.</p>
+<div class=""footer"">DockerPanel Sunucu Yönetimi</div>
+</div>
+</body>
+</html>",
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            },
+            new MaintenancePage
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Name = "Yakında Açılıyor",
+                HtmlContent = @"<!DOCTYPE html>
+<html lang=""tr"">
+<head>
+<meta charset=""UTF-8"">
+<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+<title>Yakında Açılıyor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #090d16; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.card { background: rgba(30,41,59,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 48px 36px; max-width: 520px; width: 100%; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+.rocket { font-size: 48px; margin-bottom: 16px; display: inline-block; animation: float 3s ease-in-out infinite; }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+h1 { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 12px; }
+p { font-size: 15px; color: #94a3b8; line-height: 1.6; margin-bottom: 32px; }
+.timer { display: flex; justify-content: center; gap: 16px; margin-bottom: 32px; }
+.box { background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.06); padding: 12px 18px; border-radius: 12px; min-width: 70px; }
+.num { font-size: 22px; font-weight: 800; color: #60a5fa; }
+.label { font-size: 11px; color: #64748b; text-transform: uppercase; margin-top: 4px; }
+.footer { font-size: 12px; color: #475569; }
+</style>
+</head>
+<body>
+<div class=""card"">
+<div class=""rocket"">🚀</div>
+<h1>Yakında Hizmetinizdeyiz</h1>
+<p>Yeni versiyonumuz üzerinde son kontrolleri yapıyoruz. Çok yakında yayındayız!</p>
+<div class=""timer"">
+<div class=""box""><div class=""num"">00</div><div class=""label"">Gün</div></div>
+<div class=""box""><div class=""num"">02</div><div class=""label"">Saat</div></div>
+<div class=""box""><div class=""num"">45</div><div class=""label"">Dakika</div></div>
+</div>
+<div class=""footer"">Bizi takip etmeye devam edin.</div>
+</div>
+</body>
+</html>",
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            },
+            new MaintenancePage
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Name = "Geçici Kapalı",
+                HtmlContent = @"<!DOCTYPE html>
+<html lang=""tr"">
+<head>
+<meta charset=""UTF-8"">
+<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+<title>Geçici Olarak Kapalı</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #cbd5e1; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 40px 32px; max-width: 440px; width: 100%; text-align: center; }
+.icon { font-size: 42px; color: #ef4444; margin-bottom: 16px; }
+h1 { font-size: 22px; font-weight: 700; color: #f8fafc; margin-bottom: 12px; }
+p { font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px; }
+.contact { font-size: 13px; color: #38bdf8; text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class=""card"">
+<div class=""icon"">⏸</div>
+<h1>Servis Geçici Olarak Kapalıdır</h1>
+<p>Bu servis şu anda aktif değildir. Acil durumlar için destek ekibimizle iletişime geçebilirsiniz.</p>
+<a href=""mailto:support@example.com"" class=""contact"">Destek Ekibine Ulaşın &rarr;</a>
+</div>
+</body>
+</html>",
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            },
+            new MaintenancePage
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Name = "Güncelleme Yapılıyor",
+                HtmlContent = @"<!DOCTYPE html>
+<html lang=""tr"">
+<head>
+<meta charset=""UTF-8"">
+<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+<title>Güncelleme Yapılıyor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0c; color: #e4e4e7; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.card { background: #18181b; border: 1px solid #27272a; border-radius: 20px; padding: 44px 36px; max-width: 480px; width: 100%; text-align: center; }
+.gear { font-size: 40px; margin-bottom: 16px; display: inline-block; animation: spin 8s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+h1 { font-size: 24px; font-weight: 700; color: #fafafa; margin-bottom: 12px; }
+p { font-size: 14px; color: #a1a1aa; line-height: 1.6; margin-bottom: 28px; }
+.progress-bar { background: #27272a; border-radius: 10px; height: 8px; width: 100%; overflow: hidden; margin-bottom: 16px; }
+.progress-inner { background: linear-gradient(90deg, #a855f7, #ec4899); height: 100%; width: 65%; border-radius: 10px; animation: pulse-width 2s ease-in-out infinite alternate; }
+@keyframes pulse-width { 0% { width: 50%; } 100% { width: 85%; } }
+.status-text { font-size: 12px; color: #71717a; }
+</style>
+</head>
+<body>
+<div class=""card"">
+<div class=""gear"">⚙️</div>
+<h1>Sistem Güncelleniyor</h1>
+<p>Güvenlik ve performans güncellemeleri uygulanıyor. Verileriniz güvendedir.</p>
+<div class=""progress-bar""><div class=""progress-inner""></div></div>
+<div class=""status-text"">Güncelleme paketi yükleniyor (%75)...</div>
+</div>
+</body>
+</html>",
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            }
+        };
+
+        db.MaintenancePages.AddRange(templates);
+        await db.SaveChangesAsync();
+        Console.WriteLine("[Sync] 4 adet varsayılan bakım sayfası şablonu veritabanına eklendi.");
     }
 }

@@ -1544,4 +1544,184 @@ server {{
             return false;
         }
     }
+
+    /// <summary>
+    /// Belirtilen subdomain için Nginx konfigürasyonunu bakım modu olarak günceller.
+    /// proxy_pass yerine doğrudan statik HTML dosyası servis eder (HTTP 200).
+    /// Cloudflare 502 görmez çünkü Nginx kendisi 200 döndürür.
+    /// </summary>
+    public async Task ActivateMaintenanceModeAsync(string subdomainName, string domainName, string htmlFilePath, bool sslEnabled = false)
+    {
+        if (!InputValidator.IsSubdomainName(subdomainName) || !InputValidator.IsDomainName(domainName))
+            throw new ArgumentException("Geçersiz subdomain veya alan adı formatı!");
+
+        await EnsureDefaultPanelConfigAsync();
+
+        string cleanSubdomain = (subdomainName ?? "").Trim();
+        bool isApex = cleanSubdomain == "" || cleanSubdomain == "@";
+
+        string serverNames = isApex
+            ? $"{domainName} www.{domainName}"
+            : $"{cleanSubdomain}.{domainName}";
+
+        string configFilename = isApex
+            ? $"_apex_.{domainName}.conf"
+            : $"{cleanSubdomain}.{domainName}.conf";
+
+        string fullDomain = isApex ? domainName : $"{cleanSubdomain}.{domainName}";
+
+        // SSL sertifikası var mı kontrol et
+        string certPath = $"/etc/letsencrypt/live/{fullDomain}/fullchain.pem";
+        string keyPath = $"/etc/letsencrypt/live/{fullDomain}/privkey.pem";
+
+        bool hasCert = false;
+        try
+        {
+            hasCert = (File.Exists(ResolvePath(certPath, false)) && File.Exists(ResolvePath(keyPath, false))) ||
+                           (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && sslEnabled);
+
+            if (!hasCert && !isApex)
+            {
+                string wildcardCert = $"/etc/letsencrypt/live/{domainName}/fullchain.pem";
+                string wildcardKey = $"/etc/letsencrypt/live/{domainName}/privkey.pem";
+                if (File.Exists(ResolvePath(wildcardCert, false)) && File.Exists(ResolvePath(wildcardKey, false)))
+                {
+                    certPath = wildcardCert;
+                    keyPath = wildcardKey;
+                    hasCert = true;
+                }
+            }
+        }
+        catch { }
+
+        // Bakım modu HTML dosyasının bulunduğu dizin
+        var maintenancePagesDir = "/opt/dockerpanel/maintenance-pages";
+        var resolvedDir = ResolvePath(maintenancePagesDir);
+        var htmlFileName = Path.GetFileName(htmlFilePath);
+
+        string compiledConfig;
+
+        if (hasCert)
+        {
+            compiledConfig = $@"# MAINTENANCE MODE - {fullDomain}
+server {{
+    listen 80;
+    server_name {serverNames};
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
+
+    location / {{
+        return 301 https://$host$request_uri;
+    }}
+}}
+
+server {{
+    listen 443 ssl;
+    server_name {serverNames};
+
+    ssl_certificate {certPath};
+    ssl_certificate_key {keyPath};
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    root {maintenancePagesDir};
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
+
+    location / {{
+        try_files /{htmlFileName} =503;
+        add_header Content-Type ""text/html; charset=utf-8"";
+    }}
+}}";
+        }
+        else
+        {
+            compiledConfig = $@"# MAINTENANCE MODE - {fullDomain}
+server {{
+    listen 80;
+    server_name {serverNames};
+
+    root {maintenancePagesDir};
+
+    location /.well-known/acme-challenge/ {{
+        root /var/www/html;
+    }}
+
+    location / {{
+        try_files /{htmlFileName} =503;
+        add_header Content-Type ""text/html; charset=utf-8"";
+    }}
+}}";
+        }
+
+        var availablePath = Path.Combine(SitesAvailableDir, configFilename);
+        var resolvedAvailablePath = ResolvePath(availablePath);
+
+        string? backupContent = null;
+        if (File.Exists(resolvedAvailablePath))
+            backupContent = await File.ReadAllTextAsync(resolvedAvailablePath, Utf8WithoutBom);
+
+        await File.WriteAllTextAsync(resolvedAvailablePath, compiledConfig, Utf8WithoutBom);
+
+        var enabledPath = Path.Combine(SitesEnabledDir, configFilename);
+        var resolvedEnabledPath = ResolvePath(enabledPath);
+
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
+            {
+                var linkInfo = new FileInfo(resolvedEnabledPath);
+                if (linkInfo.Exists || linkInfo.LinkTarget != null)
+                    linkInfo.Delete();
+
+                File.CreateSymbolicLink(resolvedEnabledPath, resolvedAvailablePath);
+
+                await ExecuteCommandAsync("sudo", "-n /usr/sbin/nginx -t");
+
+                await ReloadNginxAsync();
+
+                SystemLogQueue.Log("info", $"[Nginx Bakım Modu] Aktif edildi: {fullDomain} -> {htmlFileName}");
+            }
+            catch (Exception ex)
+            {
+                if (File.Exists(resolvedEnabledPath)) File.Delete(resolvedEnabledPath);
+                if (backupContent != null) await File.WriteAllTextAsync(resolvedAvailablePath, backupContent, Utf8WithoutBom);
+                else if (File.Exists(resolvedAvailablePath)) File.Delete(resolvedAvailablePath);
+
+                throw new InvalidOperationException($"Bakım modu Nginx konfigürasyonu uygulanamadı: {ex.Message}");
+            }
+        }
+        else
+        {
+            await File.WriteAllTextAsync(resolvedEnabledPath, compiledConfig, Utf8WithoutBom);
+            SystemLogQueue.Log("info", $"[Windows Simülasyonu] Bakım modu aktif edildi: {fullDomain}");
+        }
+    }
+
+    /// <summary>
+    /// Bakım modunu devre dışı bırakır ve orijinal proxy_pass konfigürasyonuna döner.
+    /// ProvisionSubdomainAsync çağrısı ile aynı sonucu verir.
+    /// </summary>
+    public async Task DeactivateMaintenanceModeAsync(string subdomainName, string domainName, string containerName, int containerPort, ProjectType projectType, bool sslEnabled = false)
+    {
+        SystemLogQueue.Log("info", $"[Nginx Bakım Modu] Devre dışı bırakılıyor: {subdomainName}.{domainName} -> proxy {containerName}:{containerPort}");
+
+        await ProvisionSubdomainAsync(
+            subdomainName,
+            domainName,
+            containerName,
+            containerPort,
+            projectType,
+            null,
+            null,
+            sslEnabled,
+            reloadNginx: true
+        );
+    }
 }
