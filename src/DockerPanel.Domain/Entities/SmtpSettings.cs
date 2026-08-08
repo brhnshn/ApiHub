@@ -16,5 +16,6 @@ public class SmtpSettings
     public string EncryptedPassword { get; set; } = string.Empty;
     
     public bool IsEnabled { get; set; } = false;
+    public bool AcceptSelfSignedCert { get; set; } = false;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

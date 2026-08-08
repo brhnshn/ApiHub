@@ -52,6 +52,9 @@
                     <MudNumericField @bind-Value="_smtpSettings.Port" Label="Port" Variant="Variant.Outlined" Margin="Margin.Dense" />
                     <MudSwitch @bind-Value="_smtpSettings.EnableSsl" Label="SSL/TLS" Color="Color.Primary" Class="mt-1" />
                 </div>
+                <div class="mb-3">
+                    <MudSwitch @bind-Value="_smtpSettings.AcceptSelfSignedCert" Label="Geçersiz/Oto-İmzalı Sertifikaları Kabul Et" Color="Color.Warning" Size="Size.Small" />
+                </div>
                 <MudTextField @bind-Value="_smtpSettings.Username" Label="Kullanıcı Adı / E-Posta" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
                 <MudTextField @bind-Value="_smtpSettings.Password" Label="Şifre" InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" HelperText="@(_smtpSettings.HasPassword ? "Şifre ayarlanmış. Değiştirmek için yeni şifre girin." : "Şifre giriniz.")" />
 
@@ -411,5 +414,6 @@
         public string Password { get; set; } = string.Empty;
         public bool IsEnabled { get; set; } = false;
         public bool HasPassword { get; set; } = false;
+        public bool AcceptSelfSignedCert { get; set; } = false;
     }
 }

@@ -318,6 +318,12 @@ Content-Type: text/html; charset=utf-8
                 var decPass = _encryptionService.Decrypt(settings.EncryptedPassword);
                 var secureSocketOptions = settings.EnableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
                 
+                // Self-signed sertifika kabulü
+                if (settings.AcceptSelfSignedCert)
+                {
+                    smtpClient.ServerCertificateValidationCallback = (s, c, h, e) => true;
+                }
+                
                 await smtpClient.ConnectAsync(settings.Host, settings.Port, secureSocketOptions);
                 await smtpClient.AuthenticateAsync(settings.Username, decPass);
                 await smtpClient.SendAsync(mimeMessage);

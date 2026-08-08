@@ -523,6 +523,7 @@ public class DockerPanelDbContext : DbContext
             entity.Property(e => e.Port).IsRequired();
             entity.Property(e => e.EnableSsl).IsRequired();
             entity.Property(e => e.IsEnabled).IsRequired();
+            entity.Property(e => e.AcceptSelfSignedCert).HasDefaultValue(false);
         });
     }
 }

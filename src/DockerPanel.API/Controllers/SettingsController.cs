@@ -54,7 +54,8 @@ public class SettingsController : ControllerBase
             EnableSsl = settings.EnableSsl,
             Username = settings.Username,
             IsEnabled = settings.IsEnabled,
-            HasPassword = !string.IsNullOrEmpty(settings.EncryptedPassword)
+            HasPassword = !string.IsNullOrEmpty(settings.EncryptedPassword),
+            AcceptSelfSignedCert = settings.AcceptSelfSignedCert
         });
     }
 
@@ -76,6 +77,7 @@ public class SettingsController : ControllerBase
         settings.EnableSsl = request.EnableSsl;
         settings.Username = request.Username;
         settings.IsEnabled = request.IsEnabled;
+        settings.AcceptSelfSignedCert = request.AcceptSelfSignedCert;
         settings.UpdatedAt = DateTimeOffset.UtcNow;
 
         if (!string.IsNullOrEmpty(request.Password))
@@ -96,7 +98,14 @@ public class SettingsController : ControllerBase
         try
         {
             using var smtpClient = new MailKit.Net.Smtp.SmtpClient();
-            var secureSocketOptions = request.EnableSsl ? MailKit.Security.SecureSocketOptions.StartTls : MailKit.Security.SecureSocketOptions.Auto;
+            
+            // Self-signed veya kurumsal CA sertifikalarını kabul et
+            smtpClient.ServerCertificateValidationCallback = (sender, cert, chain, errors) =>
+                errors == System.Net.Security.SslPolicyErrors.None || request.AcceptSelfSignedCert;
+
+            var secureSocketOptions = request.EnableSsl
+                ? MailKit.Security.SecureSocketOptions.StartTls
+                : MailKit.Security.SecureSocketOptions.Auto;
             
             await smtpClient.ConnectAsync(request.Host, request.Port, secureSocketOptions);
 
@@ -133,6 +142,7 @@ public class SmtpSettingsDto
     public string Username { get; set; } = string.Empty;
     public bool IsEnabled { get; set; } = false;
     public bool HasPassword { get; set; } = false;
+    public bool AcceptSelfSignedCert { get; set; } = false;
 }
 
 public class SaveSmtpSettingsRequest
@@ -143,4 +153,5 @@ public class SaveSmtpSettingsRequest
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public bool IsEnabled { get; set; } = false;
+    public bool AcceptSelfSignedCert { get; set; } = false;
 }
