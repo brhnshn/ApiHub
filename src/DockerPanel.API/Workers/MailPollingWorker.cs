@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MimeKit;
 
 namespace DockerPanel.API.Workers;
 
@@ -94,19 +95,36 @@ public class MailPollingWorker : BackgroundService
             {
                 try
                 {
-                    // Dosyayı oku ve konu vs. al (isteğe bağlı)
-                    // Hızlı bildirim için parsing kısmını basitleştirebiliriz.
-                    var content = await File.ReadAllTextAsync(file);
-                    var subjectLine = content.Split('\n').FirstOrDefault(l => l.StartsWith("Subject:"));
-                    var subject = subjectLine?.Replace("Subject:", "").Trim() ?? "Yeni İleti";
+                    // EML dosyasını MimeKit ile düzgün UTF-8 formatında oku
+                    var mimeMessage = await MimeMessage.LoadAsync(file);
+                    var subject = mimeMessage.Subject ?? "Yeni İleti";
+                    var sender = mimeMessage.From.FirstOrDefault()?.ToString() ?? "Bilinmeyen Gönderici";
+                    var bodyText = mimeMessage.TextBody ?? "Bu e-postada metin içeriği bulunmuyor.";
 
-                    // 1. FCM Push
+                    // 1. FCM Push Bildirimi (UTF-8 destekli doğru konu başlığı ile)
                     await pushService.SendNotificationToUserAsync(
                         account.UserId, 
                         $"📧 Yeni E-posta: {subject}", 
-                        $"{account.EmailAddress} adresine yeni bir ileti geldi.", 
+                        $"{sender} kişisinden yeni bir ileti geldi.", 
                         "apihub://navigate?path=/webmail");
 
+                    // 2. Yönlendirme (Forwarding) - Özel Format
+                    if (account.ForwardingEnabled && !string.IsNullOrEmpty(account.ForwardingAddress))
+                    {
+                        _logger.LogInformation($"[Forwarding] {account.EmailAddress} adresinden {account.ForwardingAddress} adresine yönlendirme yapılıyor.");
+                        
+                        var forwardSubject = $"İletildi: {subject}";
+                        var forwardBody = $@"Bu e-posta sisteminizdeki {account.EmailAddress} adresine gelmiş olup otomatik olarak size yönlendirilmiştir.
+
+--- ORİJİNAL MESAJ BİLGİLERİ ---
+Kimden: {sender}
+Tarih: {mimeMessage.Date.ToString("dd.MM.yyyy HH:mm")}
+Konu: {subject}
+
+{bodyText}
+";
+                        await mailService.SendMailAsync(account.EmailAddress, account.DisplayName, account.ForwardingAddress, forwardSubject, forwardBody);
+                    }
                 }
                 catch (Exception ex)
                 {

@@ -764,19 +764,9 @@ Content-Type: text/html; charset=utf-8
 
     public async Task UpdateForwardingAsync(string emailAddress, string forwardingAddress, bool isEnabled)
     {
-        if (isEnabled && !string.IsNullOrEmpty(forwardingAddress))
-        {
-            // Hem yerel kutuya düşsün hem de hedefe yönlendirilsin: "orjinal_mail,yonlenecek_mail"
-            var aliasTarget = $"{emailAddress},{forwardingAddress}";
-            SystemLogQueue.Log("info", $"[Mail] E-posta yönlendirmesi ayarlanıyor: {emailAddress} -> {aliasTarget}");
-            var command = new List<string> { "setup", "alias", "add", emailAddress, aliasTarget };
-            await RunMailserverExecAsync(command);
-        }
-        else
-        {
-            SystemLogQueue.Log("info", $"[Mail] E-posta yönlendirmesi kaldırılıyor: {emailAddress}");
-            var command = new List<string> { "setup", "alias", "del", emailAddress };
-            await RunMailserverExecAsync(command);
-        }
+        // Yönlendirme işlemi MailPollingWorker üzerinden özel şablonla C# tarafında yapıldığı için
+        // docker-mailserver üzerinden alias ekleme işlemi iptal edilmiştir.
+        SystemLogQueue.Log("info", $"[Mail] E-posta yönlendirme durumu güncellendi: {emailAddress} -> {forwardingAddress} (Aktif: {isEnabled})");
+        await Task.CompletedTask;
     }
 }
