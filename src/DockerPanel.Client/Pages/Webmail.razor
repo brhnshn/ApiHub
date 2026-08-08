@@ -87,218 +87,210 @@
 @if (Platform.IsMobileApp)
 {
     <!-- ========================================== -->
-    <!--          GMAIL-STYLE MOBILE VIEW           -->
+    <!--     UI/UX PRO MAX PREMIUM MOBILE VIEW      -->
     <!-- ========================================== -->
-    <div class="fixed inset-0 h-[100dvh] bg-[#0b0e15] overflow-hidden flex flex-col text-[#e1e2ec] font-sans pt-safe z-10" 
+    <div class="fixed inset-0 h-[100dvh] bg-[#09090b] overflow-hidden flex flex-col text-slate-200 font-sans pt-safe z-10" 
          @ontouchstart="HandlePageTouchStart" 
          @ontouchmove="HandlePageTouchMove" 
          @ontouchend="HandlePageTouchEnd">
         
         @if (_selectedMail == null && !_isComposing)
         {
-            <!-- 1. MOBİL ARAMA VE ÜST BAR (GMAIL STYLE SEARCH BAR) -->
-            <div class="p-3 shrink-0">
-                <div class="bg-[#171a21]/90 backdrop-blur-md rounded-2xl px-4 py-2.5 flex items-center justify-between border border-white/5 gap-3 shadow-lg shadow-black/20">
-                    <button @onclick="OpenMobileDrawer" class="text-gray-400 hover:text-white flex items-center justify-center select-none cursor-pointer">
-                        <span class="material-symbols-outlined text-xl">menu</span>
+            <!-- 1. APP BAR (GLASSMORPHISM) -->
+            <div class="sticky top-0 z-20 px-4 py-3 shrink-0 bg-[#09090b]/80 backdrop-blur-xl border-b border-white/5">
+                <div class="flex items-center justify-between gap-4">
+                    <button @onclick="OpenMobileDrawer" class="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10 active:scale-95 transition-transform">
+                        <span class="material-symbols-outlined text-white text-xl">menu</span>
                     </button>
-                    <input class="flex-grow bg-transparent border-none focus:outline-none text-xs text-white placeholder-gray-500 font-semibold outline-none py-1" 
-                           placeholder="E-postalarda ara..." 
-                           type="text" 
-                           @bind="_searchQuery" 
-                           @bind:event="oninput" />
-                    <!-- Aktif Hesap Avatarlı Switcher -->
+                    
+                    <div class="flex-grow flex flex-col items-center justify-center">
+                        <h1 class="text-sm font-bold text-white tracking-wide">
+                            @(_activeFolder switch {
+                                "inbox" => "Gelen Kutusu",
+                                "sent" => "Gönderilenler",
+                                "draft" => "Taslaklar",
+                                "spam" => "Spam",
+                                "trash" => "Çöp Kutusu",
+                                "archive" => "Arşiv",
+                                _ => "Klasör"
+                            })
+                        </h1>
+                        <p class="text-[10px] text-gray-500 font-medium">@(_activeAccount ?? "Hesap Seçin")</p>
+                    </div>
+
                     <button @onclick="ToggleAccountDropdown" 
-                            class="w-7 h-7 rounded-full bg-[#4edea3] text-[#0f172a] flex items-center justify-center font-bold text-[10px] shadow-sm select-none cursor-pointer active:scale-90 transition-transform">
+                            class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-blue-600/20 active:scale-95 transition-transform ring-2 ring-blue-600/30">
                         @if (!string.IsNullOrEmpty(_activeAccount))
                         {
                             @(_activeAccount.Substring(0, Math.Min(2, _activeAccount.Length)).ToUpper())
                         }
-                        else
-                        {
-                            <span>??</span>
-                        }
                     </button>
+                </div>
+                
+                <!-- Arama Kutusu -->
+                <div class="mt-4 relative">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">search</span>
+                    <input class="w-full bg-[#18181b] border border-white/10 rounded-2xl py-2.5 pl-9 pr-4 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all" 
+                           placeholder="E-postalarda ara..." 
+                           type="text" 
+                           @bind="_searchQuery" 
+                           @bind:event="oninput" />
                 </div>
             </div>
 
-            <!-- MOBİL KLASÖR BAŞLIĞI VE YENİLEME -->
-            <div class="px-4 py-2 flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest shrink-0">
-                <span>
-                    @(_activeFolder switch {
-                        "inbox" => "Gelen Kutusu",
-                        "sent" => "Gönderilenler",
-                        "draft" => "Taslaklar",
-                        "spam" => "Spam",
-                        "trash" => "Çöp Kutusu",
-                        "archive" => "Arşiv",
-                        _ => "Klasör"
-                    })
-                </span>
-                <button @onclick="RefreshMailsAsync" class="text-[#4edea3] flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm @(_isRefreshing ? "animate-spin" : "")">refresh</span>
-                    <span>@(_isRefreshing ? "Yenileniyor" : "Yenile")</span>
-                </button>
-            </div>
+            <!-- 2. MAİL LİSTESİ -->
+            <div class="flex-grow overflow-y-auto px-4 py-2 space-y-3 no-scrollbar relative">
+                @if (_isRefreshing)
+                {
+                    <div class="flex justify-center py-2">
+                        <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                }
 
-            <!-- 2. MOBİL E-POSTA AKIŞI (SWIPE DESTEKLİ LISTE) -->
-            <div class="flex-grow overflow-y-auto p-3 space-y-2 no-scrollbar">
                 @if (!GetFilteredMails().Any())
                 {
-                    <div class="py-24 text-center text-gray-500">
-                        <span class="material-symbols-outlined text-6xl mb-3" style="font-variation-settings: 'wght' 200;">mail</span>
-                        <p class="text-xs font-semibold">Bu klasörde e-posta bulunmuyor.</p>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 pointer-events-none">
+                        <span class="material-symbols-outlined text-5xl mb-3 opacity-20" style="font-variation-settings: 'wght' 200;">inbox</span>
+                        <p class="text-xs font-medium">Klasör boş</p>
                     </div>
                 }
                 else
                 {
                     @foreach (var mail in GetFilteredMails())
                     {
-                        var isSelected = mail.Id == _selectedMail?.Id;
                         var isUnread = !mail.IsRead && _activeFolder == "inbox";
+                        var senderInitials = (mail.SenderName ?? "?").Substring(0, Math.Min(1, (mail.SenderName ?? "?").Length)).ToUpper();
                         
-                        <!-- Kaydırma (Swipe) Kapsayıcı Kartı -->
-                        <div class="relative overflow-hidden rounded-2xl bg-[#171a21]/40 border border-white/5 shadow-md shadow-black/10 select-none" style="border-radius: 16px;">
-                            
-                            <!-- Arka Plan Kaydırma Eylemleri Göstergeleri -->
-                            <div class="absolute inset-0 flex items-center justify-between px-6 z-0 rounded-2xl overflow-hidden pointer-events-none">
-                                <!-- Sağa Kaydırma: Arşivle (Yeşil) -->
-                                <div class="absolute inset-y-0 left-0 bg-emerald-600 flex items-center pl-6 pr-16 transition-opacity duration-200"
-                                     style="opacity: @(GetSwipeDirection(mail.Id) > 0 ? "1" : "0");">
-                                    <span class="material-symbols-outlined text-white text-xl animate-pulse">archive</span>
+                        <div class="relative overflow-hidden rounded-2xl bg-[#18181b] border border-white/5 select-none touch-pan-y" 
+                             @ontouchstart="(e) => HandleTouchStart(e, mail.Id)"
+                             @ontouchmove="HandleTouchMove"
+                             @ontouchend="() => HandleTouchEnd(mail)">
+                             
+                            <!-- Arka Plan Swipes -->
+                            <div class="absolute inset-0 flex items-center justify-between px-5 z-0 pointer-events-none">
+                                <div class="absolute inset-y-0 left-0 bg-blue-600 flex items-center pl-5 pr-12 transition-opacity" style="opacity: @(GetSwipeDirection(mail.Id) > 0 ? "1" : "0");">
+                                    <span class="material-symbols-outlined text-white">archive</span>
                                 </div>
-                                
-                                <!-- Sola Kaydırma: Sil (Kırmızı) -->
-                                <div class="absolute inset-y-0 right-0 bg-rose-600 flex items-center pr-6 pl-16 transition-opacity duration-200"
-                                     style="opacity: @(GetSwipeDirection(mail.Id) < 0 ? "1" : "0");">
-                                    <span class="material-symbols-outlined text-white text-xl animate-pulse">delete</span>
+                                <div class="absolute inset-y-0 right-0 bg-red-600 flex items-center pr-5 pl-12 transition-opacity" style="opacity: @(GetSwipeDirection(mail.Id) < 0 ? "1" : "0");">
+                                    <span class="material-symbols-outlined text-white">delete</span>
                                 </div>
                             </div>
 
-                            <!-- Ön Plan Kart İçeriği (Tetikleyiciler Dahil) -->
-                            <div class="relative z-10 p-4 transition-transform duration-150 bg-[#141720]/95 cursor-pointer"
-                                 style="transform: translateX(@(GetSwipeOffset(mail.Id))px); border-radius: 16px;"
-                                 @ontouchstart="(e) => HandleTouchStart(e, mail.Id)"
-                                 @ontouchmove="HandleTouchMove"
-                                 @ontouchend="() => HandleTouchEnd(mail)"
+                            <!-- Kart İçeriği -->
+                            <div class="relative z-10 p-3.5 bg-[#18181b] transition-transform duration-200 cursor-pointer active:bg-[#27272a] rounded-2xl flex gap-3"
+                                 style="transform: translateX(@(GetSwipeOffset(mail.Id))px);"
                                  @onclick="() => SelectMail(mail)">
-                                
-                                <div class="flex justify-between items-baseline mb-1">
-                                    <span class="text-xs font-bold flex items-center gap-1.5 @(isUnread ? "text-[#4edea3] font-black" : "text-gray-300 font-medium")">
-                                        @if (isUnread)
-                                        {
-                                            <span class="w-1.5 h-1.5 bg-[#4edea3] rounded-full shrink-0"></span>
-                                        }
-                                        @if (_activeFolder == "sent")
-                                        {
-                                            <span>Kime: @mail.To</span>
-                                        }
-                                        else
-                                        {
-                                            <span>@mail.SenderName</span>
-                                        }
-                                    </span>
-                                    <span class="text-[10px] text-gray-500">@mail.Date.ToString("HH:mm")</span>
+                                 
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-900 to-blue-600 flex items-center justify-center font-bold text-white text-sm shrink-0 ring-2 ring-[#09090b]">
+                                    @senderInitials
                                 </div>
                                 
-                                <h3 class="text-xs text-white leading-snug truncate @(isUnread ? "font-extrabold" : "font-semibold")">
-                                    @mail.Subject
-                                </h3>
-                                
-                                <p class="text-[10px] text-gray-400 line-clamp-2 mt-1 font-medium">
-                                    @mail.Snippet
-                                </p>
+                                <div class="flex-grow min-w-0">
+                                    <div class="flex justify-between items-baseline mb-0.5">
+                                        <span class="text-xs font-bold truncate pr-2 @(isUnread ? "text-white" : "text-gray-300")">
+                                            @(_activeFolder == "sent" ? $"Kime: {mail.To}" : mail.SenderName)
+                                        </span>
+                                        <span class="text-[10px] text-blue-400 font-medium shrink-0">@mail.Date.ToString("HH:mm")</span>
+                                    </div>
+                                    <h3 class="text-[11px] truncate mb-1 @(isUnread ? "text-blue-400 font-semibold" : "text-gray-400 font-normal")">
+                                        @mail.Subject
+                                    </h3>
+                                    <p class="text-[10px] text-gray-500 line-clamp-1">
+                                        @mail.Snippet
+                                    </p>
+                                </div>
+                                @if (isUnread)
+                                {
+                                    <div class="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
+                                }
                             </div>
                         </div>
                     }
                 }
             </div>
 
-            <!-- MOBİL YAZMA/OLUŞTUR FAB BUTONU -->
-            <button class="fixed bottom-24 right-6 w-14 h-14 bg-[#4edea3] text-slate-900 rounded-full shadow-lg shadow-[#4edea3]/20 flex items-center justify-center z-40 hover:scale-105 active:scale-95 transition-transform" 
+            <!-- FAB: Yeni E-posta -->
+            <button class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-900/50 flex items-center justify-center z-40 active:scale-90 transition-transform" 
                     @onclick="OpenComposePane">
-                <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'wght' 600;">edit</span>
+                <span class="material-symbols-outlined text-2xl">edit</span>
             </button>
         }
         else if (_selectedMail != null)
         {
-            <!-- 3. MOBİL E-POSTA OKUMA DETAY SAYFASI (GMAIL STYLE DETAIL VIEW) -->
-            <div class="flex-grow flex flex-col bg-[#0b0e15] overflow-hidden relative">
-                <!-- Üst Toolbar -->
-                <div class="px-2 py-2 border-b border-white/5 flex items-center justify-between bg-[#10131a]">
-                    <button type="button" @onclick="GoBackToList" class="flex items-center justify-center p-2 text-[#4edea3] rounded-lg active:scale-95 transition-transform bg-white/5">
-                        <span class="material-symbols-outlined text-xl">arrow_back</span>
+            <!-- 3. DETAIL VIEW (OKUMA) -->
+            <div class="flex-grow flex flex-col bg-[#09090b] overflow-hidden">
+                <div class="flex items-center justify-between p-3 bg-[#09090b]/90 backdrop-blur-md border-b border-white/5 sticky top-0 z-20">
+                    <button @onclick="GoBackToList" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 active:scale-95 transition-transform text-white">
+                        <span class="material-symbols-outlined">arrow_back</span>
                     </button>
-                    
-                    <div class="flex gap-4 items-center">
-                        <button class="text-gray-400 hover:text-white flex items-center justify-center" title="Arşivle" @onclick="ArchiveSelectedMail">
-                            <span class="material-symbols-outlined text-xl">archive</span>
+                    <div class="flex gap-2">
+                        <button @onclick="ArchiveSelectedMail" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-gray-400 active:scale-95 transition-transform">
+                            <span class="material-symbols-outlined text-[18px]">archive</span>
                         </button>
-                        <button class="text-rose-400 hover:text-rose-500 flex items-center justify-center" title="Sil" @onclick="DeleteSelectedMail">
-                            <span class="material-symbols-outlined text-xl">delete</span>
-                        </button>
-                        <button class="text-gray-400 hover:text-white flex items-center justify-center" title="Cevapla" @onclick="OpenReplyModal">
-                            <span class="material-symbols-outlined text-xl">reply</span>
+                        <button @onclick="DeleteSelectedMail" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-red-400 active:scale-95 transition-transform">
+                            <span class="material-symbols-outlined text-[18px]">delete</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Başlık & Gönderici -->
-                <div class="p-4 border-b border-white/5 bg-[#10131a]/40">
-                    <h2 class="text-base font-extrabold text-white leading-tight mb-4">@_selectedMail.Subject</h2>
-                    
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-full bg-[#171a21] border border-white/10 flex items-center justify-center text-[#4edea3] font-bold text-xs shrink-0">
-                            @((_selectedMail.SenderName ?? "?").Substring(0, Math.Min(2, (_selectedMail.SenderName ?? "?").Length)).ToUpper())
-                        </div>
-                        <div class="min-w-0 flex-grow">
-                            <div class="flex justify-between items-baseline">
-                                <h4 class="font-bold text-gray-200 text-xs truncate">@_selectedMail.SenderName</h4>
-                                <span class="text-[9px] text-gray-500">@_selectedMail.Date.ToString("dd MMM, HH:mm")</span>
+                <div class="flex-grow overflow-y-auto p-4 space-y-6 no-scrollbar pb-24">
+                    <div>
+                        <h2 class="text-xl font-bold text-white leading-tight mb-4">@_selectedMail.Subject</h2>
+                        
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                @((_selectedMail.SenderName ?? "?").Substring(0, Math.Min(1, (_selectedMail.SenderName ?? "?").Length)).ToUpper())
                             </div>
-                            <p class="text-[9px] text-gray-400 truncate mt-0.5">@_selectedMail.SenderEmail</p>
+                            <div class="flex-grow min-w-0">
+                                <h4 class="font-bold text-gray-200 text-xs truncate">@_selectedMail.SenderName</h4>
+                                <p class="text-[10px] text-gray-500 truncate mt-0.5">@_selectedMail.SenderEmail</p>
+                            </div>
+                            <span class="text-[10px] text-gray-500 shrink-0 bg-white/5 px-2 py-1 rounded-lg">@_selectedMail.Date.ToString("dd MMM HH:mm")</span>
                         </div>
                     </div>
-                </div>
 
-                <!-- Gövde Metni (HTML render) -->
-                <div class="flex-grow overflow-y-auto p-4 bg-[#0d1016]/40 text-xs leading-relaxed space-y-4 no-scrollbar">
-                    <div class="p-4 rounded-2xl bg-[#171a21]/50 border border-white/5 max-w-4xl mx-auto shadow-sm">
+                    <div class="bg-[#18181b] rounded-2xl p-4 text-xs text-gray-300 leading-relaxed overflow-x-auto shadow-inner border border-white/5">
                         @((MarkupString)(_selectedMail.Body ?? ""))
                     </div>
 
-                    <!-- Dosya Ekleri listesi -->
                     @if (_selectedMail.Attachments != null && _selectedMail.Attachments.Any())
                     {
-                        <div class="border-t border-white/5 pt-4 mt-6 max-w-4xl mx-auto text-left">
-                            <p class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-2">Dosya Ekleri (@_selectedMail.Attachments.Count)</p>
-                            <div class="flex flex-col gap-2">
-                                @foreach (var att in _selectedMail.Attachments)
-                                {
-                                    <div class="p-2.5 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between text-[11px] text-slate-300">
-                                        <div class="min-width-0 flex-grow truncate mr-2">
-                                            <span>📂 @att.FileName</span>
-                                            <span class="text-[9px] text-slate-400 ml-1.5">(@FormatBytes(att.FileSize))</span>
+                        <div class="space-y-2">
+                            <h5 class="text-[10px] font-bold text-gray-500 uppercase">Ekler</h5>
+                            @foreach (var att in _selectedMail.Attachments)
+                            {
+                                <div class="flex items-center justify-between bg-[#18181b] border border-white/5 p-3 rounded-xl">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
+                                            <span class="material-symbols-outlined text-sm">description</span>
                                         </div>
-                                        <a href="api/mail/@Uri.EscapeDataString(_activeAccount)/emails/attachment?folder=@Uri.EscapeDataString(_activeFolder)&mailFile=@Uri.EscapeDataString(_selectedMail.FilePath)&attachmentId=@Uri.EscapeDataString(att.Id)" 
-                                           target="_blank" download="@att.FileName"
-                                           class="text-[#4edea3] hover:underline font-bold text-[10px] shrink-0">İndir</a>
+                                        <div class="truncate">
+                                            <p class="text-[11px] text-gray-200 font-medium truncate">@att.FileName</p>
+                                            <p class="text-[9px] text-gray-500">@FormatBytes(att.FileSize)</p>
+                                        </div>
                                     </div>
-                                }
-                            </div>
+                                    <a href="api/mail/@Uri.EscapeDataString(_activeAccount)/emails/attachment?folder=@Uri.EscapeDataString(_activeFolder)&mailFile=@Uri.EscapeDataString(_selectedMail.FilePath)&attachmentId=@Uri.EscapeDataString(att.Id)" 
+                                       target="_blank" download="@att.FileName"
+                                       class="text-blue-400 p-2 rounded-full hover:bg-white/5">
+                                        <span class="material-symbols-outlined text-[18px]">download</span>
+                                    </a>
+                                </div>
+                            }
                         </div>
                     }
                 </div>
 
-                <!-- Hızlı Yanıt Kutusu (Gmail-Style Quick Reply) -->
-                <div class="p-3 border-t border-white/5 bg-[#10131a] flex flex-col gap-2">
-                    <div class="flex items-end gap-2 bg-[#171a21] border border-white/10 rounded-2xl p-2">
-                        <textarea @bind="_quickReplyText" placeholder="Hızlıca yanıt yazın..." 
-                                  class="flex-grow bg-transparent border-none text-xs text-white placeholder-gray-500 focus:outline-none outline-none resize-none p-1 max-h-24 stitch-scrollbar"></textarea>
-                        
+                <!-- Hızlı Yanıt -->
+                <div class="fixed bottom-0 left-0 right-0 p-3 bg-[#09090b]/80 backdrop-blur-xl border-t border-white/5">
+                    <div class="flex gap-2 items-end bg-[#18181b] border border-white/10 rounded-2xl p-2 focus-within:border-blue-500/50 transition-colors">
+                        <button @onclick="OpenReplyModal" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 text-gray-400 active:scale-95">
+                            <span class="material-symbols-outlined text-[18px]">reply</span>
+                        </button>
+                        <textarea @bind="_quickReplyText" placeholder="Yanıt yazın..." 
+                                  class="flex-grow bg-transparent border-none text-xs text-white placeholder-gray-500 outline-none resize-none p-1.5 max-h-24 no-scrollbar"></textarea>
                         <button @onclick="SendQuickReply" disabled="@(string.IsNullOrWhiteSpace(_quickReplyText))"
-                                class="w-8 h-8 rounded-xl bg-[#4edea3] text-slate-900 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-40 disabled:scale-100 shrink-0 select-none cursor-pointer">
-                            <span class="material-symbols-outlined text-sm font-bold">send</span>
+                                class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center active:scale-95 disabled:opacity-30 disabled:scale-100">
+                            <span class="material-symbols-outlined text-sm">send</span>
                         </button>
                     </div>
                 </div>
@@ -306,315 +298,193 @@
         }
         else if (_isComposing)
         {
-            <!-- 4. MOBİL OLUŞTURMA / YAZMA EKRANI (FULL SCREEN EDIT FORM) -->
-            <div class="flex-grow flex flex-col bg-[#0b0e15] overflow-y-auto stitch-scrollbar h-full">
-                <!-- Mobil Üst Bar -->
-                <div class="px-2 py-2 bg-[#10131a] border-b border-white/5 flex items-center justify-between">
-                    <button type="button" @onclick="GoBackToList" class="flex items-center justify-center p-2 text-[#4edea3] rounded-lg active:scale-95 transition-transform bg-white/5">
-                        <span class="material-symbols-outlined text-xl">arrow_back</span>
-                    </button>
-                    <span class="text-xs font-bold text-white">Yeni İleti</span>
+            <!-- 4. OLUŞTURMA (COMPOSE) -->
+            <div class="flex-grow flex flex-col bg-[#09090b] overflow-hidden">
+                <div class="flex items-center justify-between p-3 bg-[#09090b]/90 backdrop-blur-md border-b border-white/5 sticky top-0 z-20">
+                    <div class="flex items-center gap-3">
+                        <button @onclick="GoBackToList" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 active:scale-95 transition-transform text-white">
+                            <span class="material-symbols-outlined text-[20px]">close</span>
+                        </button>
+                        <span class="text-sm font-bold text-white">Yeni İleti</span>
+                    </div>
                     <button @onclick="HandleSendMail" disabled="@_isSending"
-                            class="text-[#4edea3] font-bold text-xs flex items-center gap-1 select-none">
+                            class="bg-blue-600 text-white px-4 py-2 rounded-full font-bold text-[11px] flex items-center gap-1 active:scale-95 transition-transform shadow-lg shadow-blue-600/20 disabled:opacity-50">
                         @if (_isSending)
                         {
-                            <div class="w-3.5 h-3.5 border-2 border-[#4edea3] border-t-transparent rounded-full animate-spin"></div>
+                            <div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                         }
                         else
                         {
                             <span>Gönder</span>
-                            <span class="material-symbols-outlined text-sm">send</span>
+                            <span class="material-symbols-outlined text-[14px]">send</span>
                         }
                     </button>
                 </div>
 
-                <!-- Form -->
-                <div class="p-4 border-b border-white/5 flex flex-col gap-3 bg-[#10131a]/40">
-                    <div class="flex items-center gap-3">
-                        <span class="text-gray-400 font-bold text-xs w-12">Kime:</span>
-                        <input class="flex-1 bg-white/5 border border-white/10 rounded-xl focus:outline-none py-1.5 px-3 text-xs text-white placeholder:text-gray-600 outline-none" 
-                               type="text" 
-                               @bind="_composeModel.To" 
-                               placeholder="alici@domain.com" />
-                    </div>
-                    <div class="flex items-center gap-3 border-t border-white/5 pt-3">
-                        <span class="text-gray-400 font-bold text-xs w-12">Konu:</span>
-                        <input class="flex-1 bg-white/5 border border-white/10 rounded-xl focus:outline-none py-1.5 px-3 text-xs text-white placeholder:text-gray-600 outline-none" 
-                               type="text" 
-                               @bind="_composeModel.Subject" 
-                               placeholder="Konu başlığı" />
-                    </div>
-                </div>
-
-                <!-- Gövde Yazma -->
-                <div class="p-4 bg-[#0d1016]/20 flex flex-col gap-2">
-                    <!-- Premium WYSIWYG Toolbar -->
-                    <div class="flex flex-wrap gap-1 bg-[#171a21]/80 border border-white/5 p-1.5 rounded-xl shadow-inner">
-                        <button type="button" @onclick='() => ExecuteEditorCommand("bold")' class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Kalın">
-                            <span class="material-symbols-outlined text-sm font-bold">format_bold</span>
-                        </button>
-                        <button type="button" @onclick='() => ExecuteEditorCommand("italic")' class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Eğik">
-                            <span class="material-symbols-outlined text-sm font-bold">format_italic</span>
-                        </button>
-                        <button type="button" @onclick='() => ExecuteEditorCommand("underline")' class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Altı Çizili">
-                            <span class="material-symbols-outlined text-sm font-bold">format_underlined</span>
-                        </button>
-                        <button type="button" @onclick='() => ExecuteEditorCommand("formatBlock", "<h3>")' class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Başlık (H3)">
-                            <span class="material-symbols-outlined text-sm font-bold">title</span>
-                        </button>
-                        <button type="button" @onclick='() => ExecuteEditorCommand("formatBlock", "<p>")' class="px-2.5 py-1.5 bg-white/5 hover:bg-[#4edea3]/15 hover:text-[#4edea3] rounded-lg text-xs font-bold text-gray-300 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-sm select-none cursor-pointer" title="Paragraf">
-                            <span class="material-symbols-outlined text-sm font-bold">notes</span>
-                        </button>
-                    </div>
-                    <div id="emailBodyEditorMobile" 
-                         class="w-full h-auto min-h-[12rem] bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-white focus:outline-none outline-none overflow-y-auto stitch-scrollbar webmail-mobile-editor mb-4"
-                         contenteditable="true"
-                         placeholder="E-posta gövdesini yazın..."></div>
-                </div>
-
-                <!-- Dosya Ekleme -->
-                <div class="p-3 bg-[#10131a] border-t border-white/5">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-[10px] font-bold text-gray-400 flex items-center gap-1">
-                            <span class="material-symbols-outlined text-sm">attachment</span> Ekler
-                        </span>
-                        <label class="text-[10px] font-bold text-[#4edea3] hover:underline cursor-pointer">
-                            Dosya Ekle
-                            <InputFile OnChange="OnInputFileChange" multiple style="display: none;" />
-                        </label>
-                    </div>
-
-                    @if (_attachments.Any())
-                    {
-                        <div class="flex flex-wrap gap-1.5">
-                            @foreach (var file in _attachments)
-                            {
-                                <div class="flex items-center gap-2 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5 text-[10px] text-gray-300">
-                                    <span class="truncate max-w-[150px]">📂 @file.FileName</span>
-                                    <button class="text-rose-400 hover:text-rose-500 ml-1" @onclick="() => RemoveAttachment(file)">
-                                        <span class="material-symbols-outlined text-xs">close</span>
-                                    </button>
-                                </div>
-                            }
+                <div class="flex-grow overflow-y-auto no-scrollbar pb-24">
+                    <div class="px-4 py-1 divide-y divide-white/5 border-b border-white/5">
+                        <div class="flex items-center py-2.5">
+                            <span class="text-gray-500 text-[11px] font-medium w-12">Kime</span>
+                            <input type="email" @bind="_composeModel.To" class="flex-grow bg-transparent border-none outline-none text-white text-xs font-medium" placeholder="alici@domain.com" />
                         </div>
-                    }
+                        <div class="flex items-center py-2.5">
+                            <span class="text-gray-500 text-[11px] font-medium w-12">Konu</span>
+                            <input type="text" @bind="_composeModel.Subject" class="flex-grow bg-transparent border-none outline-none text-white text-xs font-semibold" placeholder="Konu başlığı" />
+                        </div>
+                    </div>
+
+                    <div class="p-2">
+                        <!-- Toolbar -->
+                        <div class="flex gap-1 bg-[#18181b] p-1.5 rounded-xl border border-white/5 mb-3 overflow-x-auto no-scrollbar">
+                            <button type="button" @onclick='() => ExecuteEditorCommand("bold")' class="p-2 rounded-lg bg-white/5 text-gray-300 active:bg-blue-600 shrink-0"><span class="material-symbols-outlined text-[16px]">format_bold</span></button>
+                            <button type="button" @onclick='() => ExecuteEditorCommand("italic")' class="p-2 rounded-lg bg-white/5 text-gray-300 active:bg-blue-600 shrink-0"><span class="material-symbols-outlined text-[16px]">format_italic</span></button>
+                            <button type="button" @onclick='() => ExecuteEditorCommand("underline")' class="p-2 rounded-lg bg-white/5 text-gray-300 active:bg-blue-600 shrink-0"><span class="material-symbols-outlined text-[16px]">format_underlined</span></button>
+                        </div>
+                        <div id="emailBodyEditorMobile" 
+                             class="w-full min-h-[250px] text-xs text-gray-200 outline-none p-2 bg-transparent"
+                             contenteditable="true"
+                             placeholder="E-posta metninizi buraya yazın..."></div>
+                    </div>
                 </div>
-                <!-- Ekstra boşluk (Klavye için) -->
-                <div class="h-24"></div>
+
+                <div class="fixed bottom-0 left-0 right-0 p-3 bg-[#18181b] border-t border-white/5 flex justify-between items-center z-20">
+                    <label class="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl text-gray-300 text-[11px] font-medium active:scale-95 transition-transform cursor-pointer">
+                        <span class="material-symbols-outlined text-[16px]">attach_file</span> Dosya Ekle
+                        <InputFile OnChange="OnInputFileChange" multiple style="display: none;" />
+                    </label>
+                    <span class="text-[9px] text-gray-500">@_attachments.Count ek</span>
+                </div>
             </div>
         }
 
-        <!-- 5. MOBİL SLIDING LEFT DRAWER (GMAIL DRAWERS OVERLAY) -->
-        <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[99999] transition-opacity duration-300 @(_mobileDrawerOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")" 
+        <!-- 5. DRAWER (SOL MENÜ) -->
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 @(_mobileDrawerOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")" 
              @onclick="CloseMobileDrawer"></div>
 
-        <div class="fixed top-0 bottom-0 left-0 w-[280px] bg-[#10131a] border-r border-white/10 z-[100000] shadow-2xl transition-transform duration-500 flex flex-col justify-between p-4 @(_mobileDrawerOpen ? "translate-x-0" : "-translate-x-full")"
+        <div class="fixed top-0 bottom-0 left-0 w-[280px] bg-[#09090b] border-r border-white/5 z-[101] shadow-2xl transition-transform duration-300 flex flex-col p-4 @(_mobileDrawerOpen ? "translate-x-0" : "-translate-x-full")"
              @ontouchstart="HandleDrawerTouchStart"
              @ontouchmove="HandleDrawerTouchMove"
              @ontouchend="HandleDrawerTouchEnd">
-            <div class="space-y-6 overflow-y-auto no-scrollbar flex-grow">
-                <!-- Drawer Header & Accordion Hesap Seçici -->
-                <div>
-                    <h2 class="text-lg font-black text-[#4edea3] leading-none tracking-tight">ApiHubMail</h2>
-                    
-                    <button type="button" @onclick="ToggleMobileDrawerAccountList" 
-                            class="w-full mt-4 p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-between gap-2 shadow-sm text-left transition-colors">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <div class="w-8 h-8 rounded-full bg-[#4edea3] text-slate-900 flex items-center justify-center font-black text-xs shrink-0">
-                                @if (!string.IsNullOrEmpty(_activeAccount))
-                                {
-                                    @(_activeAccount.Substring(0, Math.Min(2, _activeAccount.Length)).ToUpper())
-                                }
-                            </div>
-                            <div class="min-w-0 flex-grow">
-                                <p class="text-xs font-semibold text-white truncate">@(_activeAccount ?? "Hesap Seçin")</p>
-                                <p class="text-[9px] text-gray-500 truncate">Hesap Değiştir</p>
-                            </div>
-                        </div>
-                        <span class="material-symbols-outlined text-gray-400 text-sm shrink-0 transition-transform duration-300 @(_mobileDrawerAccountListOpen ? "rotate-180" : "")">expand_more</span>
-                    </button>
-
-                    <!-- Accordion İçeriği (Aşağı Açılan Hesap Listesi) -->
-                    @if (_mobileDrawerAccountListOpen)
-                    {
-                        <div class="mt-2 bg-black/20 border border-white/5 rounded-xl p-1.5 flex flex-col gap-1 max-h-48 overflow-y-auto animate-fade-in">
-                            @foreach (var acc in _accounts)
-                            {
-                                var isActive = acc == _activeAccount;
-                                <button type="button" @onclick="() => SwitchAccount(acc)" 
-                                        class="w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-center gap-3 border @(isActive ? "bg-[#4edea3]/10 border-[#4edea3]/20" : "border-transparent hover:bg-white/5")">
-                                    <div class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 @(isActive ? "bg-[#4edea3] text-slate-900" : "bg-white/10 text-gray-400")">
-                                        @(acc.Substring(0, Math.Min(2, acc.Length)).ToUpper())
-                                    </div>
-                                    <div class="min-w-0 flex-grow">
-                                        <p class="text-xs font-semibold truncate @(isActive ? "text-[#4edea3]" : "text-gray-300")">@acc</p>
-                                    </div>
-                                    @if (isActive)
-                                    {
-                                        <span class="material-symbols-outlined text-[#4edea3] text-sm shrink-0">check</span>
-                                    }
-                                </button>
-                            }
-                            
-                            <a href="/email" class="w-full mt-1 py-2 bg-transparent text-center border border-white/10 hover:border-[#4edea3] hover:bg-[#4edea3]/5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 text-[#4edea3]">
-                                <span class="material-symbols-outlined text-xs">settings</span>
-                                <span>E-Posta Hesaplarını Yönet</span>
-                            </a>
-                        </div>
-                    }
-                </div>
-
-                <!-- Klasör Listesi -->
-                <nav class="flex flex-col gap-1.5">
-                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "inbox" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
-                            @onclick='() => SetFolder("inbox")'>
-                        <span class="material-symbols-outlined text-base">inbox</span>
-                        <span class="flex-grow text-left">Gelen Kutusu</span>
-                        @if (_unreadCount > 0)
-                        {
-                            <span class="text-[9px] bg-[#4edea3]/20 text-[#4edea3] px-2 py-0.5 rounded-full font-bold">@_unreadCount</span>
-                        }
-                    </button>
-
-                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "sent" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
-                            @onclick='() => SetFolder("sent")'>
-                        <span class="material-symbols-outlined text-base">send</span>
-                        <span class="flex-grow text-left">Gönderilenler</span>
-                    </button>
-
-                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "draft" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
-                            @onclick='() => SetFolder("draft")'>
-                        <span class="material-symbols-outlined text-base">drafts</span>
-                        <span class="flex-grow text-left">Taslaklar</span>
-                    </button>
-
-                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "spam" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
-                            @onclick='() => SetFolder("spam")'>
-                        <span class="material-symbols-outlined text-base">report</span>
-                        <span class="flex-grow text-left">Spam</span>
-                    </button>
-
-                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "trash" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
-                            @onclick='() => SetFolder("trash")'>
-                        <span class="material-symbols-outlined text-base">delete</span>
-                        <span class="flex-grow text-left">Çöp Kutusu</span>
-                    </button>
-
-                    <button class="w-full flex items-center justify-start text-left gap-3 px-3 py-2.5 rounded-xl transition-all text-xs font-semibold @(_activeFolder == "archive" ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
-                            @onclick='() => SetFolder("archive")'>
-                        <span class="material-symbols-outlined text-base">archive</span>
-                        <span class="flex-grow text-left">Arşiv</span>
-                    </button>
-                </nav>
-
-                <!-- Özel Etiketler (Mobil) -->
-                <div class="mt-4 border-t border-white/5 pt-4">
-                    <div class="flex justify-between items-center mb-2 px-3 text-[10px] font-bold text-gray-500 tracking-wider uppercase">
-                        <span>Özel Etiketler</span>
-                        <button @onclick="ToggleNewLabelInput" class="text-[#4edea3] hover:text-[#38c18c] transition-colors flex items-center justify-center p-0.5 rounded hover:bg-white/5">
-                            <span class="material-symbols-outlined text-sm font-bold">add</span>
-                        </button>
-                    </div>
-
-                    @if (_showNewLabelInput)
-                    {
-                        <div class="flex items-center gap-1.5 mb-2.5 mx-3 p-1 bg-white/5 border border-white/10 rounded-xl">
-                            <input class="flex-grow bg-transparent border-none text-xs p-1 focus:ring-0 outline-none text-white placeholder-gray-600 font-semibold" 
-                                   placeholder="Etiket adı..." 
-                                   @bind="_newLabelName" 
-                                   @onkeyup="HandleNewLabelKeyup" />
-                            <button @onclick="CreateLabelAsync" class="text-[#4edea3] hover:text-[#38c18c] flex items-center justify-center p-1">
-                                <span class="material-symbols-outlined text-sm font-bold">check</span>
-                            </button>
-                        </div>
-                    }
-
-                    <div class="flex flex-col gap-1 max-h-36 overflow-y-auto stitch-scrollbar">
-                        @if (_customLabels.Any())
-                        {
-                            @foreach (var label in _customLabels)
-                            {
-                                var folderKey = "label-" + label.ToLower();
-                                var isActive = _activeFolder == folderKey;
-                                var capturedLabel = label;
-                                <div class="w-full flex items-center gap-1 group px-3">
-                                    <button class="flex-grow flex items-center gap-3 px-2 py-2 rounded-xl transition-all text-xs font-semibold text-left @(isActive ? "bg-[#4edea3]/10 text-[#4edea3] border border-[#4edea3]/20" : "text-gray-400 hover:bg-white/5 hover:text-white")"
-                                            @onclick="() => SetFolder(folderKey)">
-                                        <span class="material-symbols-outlined text-base" style="font-variation-settings: 'FILL' @(isActive ? "1" : "0");">label</span>
-                                        <span class="flex-grow truncate leading-none">@label</span>
-                                    </button>
-                                    <button class="opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-500 p-1 rounded transition-all duration-150 shrink-0" 
-                                            title="Etiketi Sil"
-                                            @onclick="() => DeleteLabelAsync(capturedLabel)"
-                                            @onclick:stopPropagation="true">
-                                        <span class="material-symbols-outlined text-xs">close</span>
-                                    </button>
-                                </div>
-                            }
-                        }
-                        else
-                        {
-                            <p class="text-[10px] text-gray-600 italic px-4 py-1">Özel etiket bulunmuyor.</p>
-                        }
-                    </div>
-                </div>
+             
+            <!-- Drawer Başlık -->
+            <div class="mb-6 mt-2 flex items-center justify-between">
+                <h2 class="text-xl font-black text-blue-500 tracking-tight">ApiHubMail</h2>
+                <button @onclick="CloseMobileDrawer" class="text-gray-500 active:scale-95"><span class="material-symbols-outlined">close</span></button>
             </div>
 
-            <!-- Alt Kota ve Hesap Kontrolleri -->
-            <div class="space-y-4 pt-4 border-t border-white/5 shrink-0">
-                <!-- Kota Barları -->
-                <div class="p-2.5 bg-white/5 rounded-xl border border-white/5">
-                    <div class="flex justify-between items-center mb-1 text-[8px] font-bold tracking-wider">
-                        <span class="text-gray-500">KOTA KULLANIMI</span>
-                        <span class="text-[#4edea3]">@_quotaPercent%</span>
+            <!-- Menü Listesi -->
+            <div class="flex-grow overflow-y-auto no-scrollbar flex flex-col gap-1">
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "inbox" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                        @onclick='() => SetFolder("inbox")'>
+                    <span class="material-symbols-outlined text-[18px]">inbox</span>
+                    <span class="flex-grow text-left">Gelen Kutusu</span>
+                    @if (_unreadCount > 0)
+                    {
+                        <span class="text-[9px] bg-blue-500 text-white px-2 py-0.5 rounded-full font-bold">@_unreadCount</span>
+                    }
+                </button>
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "sent" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                        @onclick='() => SetFolder("sent")'>
+                    <span class="material-symbols-outlined text-[18px]">send</span>
+                    <span class="flex-grow text-left">Gönderilenler</span>
+                </button>
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "draft" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                        @onclick='() => SetFolder("draft")'>
+                    <span class="material-symbols-outlined text-[18px]">drafts</span>
+                    <span class="flex-grow text-left">Taslaklar</span>
+                </button>
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "spam" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                        @onclick='() => SetFolder("spam")'>
+                    <span class="material-symbols-outlined text-[18px]">report</span>
+                    <span class="flex-grow text-left">Spam</span>
+                </button>
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "trash" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                        @onclick='() => SetFolder("trash")'>
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                    <span class="flex-grow text-left">Çöp Kutusu</span>
+                </button>
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "archive" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                        @onclick='() => SetFolder("archive")'>
+                    <span class="material-symbols-outlined text-[18px]">archive</span>
+                    <span class="flex-grow text-left">Arşiv</span>
+                </button>
+
+                <!-- Etiketler -->
+                <div class="mt-6 mb-2 flex items-center justify-between px-4">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase">Etiketler</span>
+                    <button @onclick="ToggleNewLabelInput" class="text-blue-500 active:scale-95"><span class="material-symbols-outlined text-[16px]">add</span></button>
+                </div>
+                @if (_showNewLabelInput)
+                {
+                    <div class="px-2 mb-2">
+                        <div class="flex items-center bg-[#18181b] border border-white/5 rounded-xl p-1">
+                            <input type="text" @bind="_newLabelName" @onkeyup="HandleNewLabelKeyup" class="flex-grow bg-transparent text-xs text-white outline-none px-2" placeholder="Etiket adı..." />
+                            <button @onclick="CreateLabelAsync" class="text-blue-500 p-1"><span class="material-symbols-outlined text-[16px]">check</span></button>
+                        </div>
                     </div>
-                    <div class="w-full bg-white/10 h-1 rounded-full overflow-hidden">
-                        <div class="bg-[#4edea3] h-full transition-all duration-500" style="width: @_quotaPercent%"></div>
+                }
+                @foreach (var label in _customLabels)
+                {
+                    var folderKey = "label-" + label.ToLower();
+                    <div class="flex items-center group">
+                        <button class="flex-grow flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == folderKey ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                                @onclick="() => SetFolder(folderKey)">
+                            <span class="material-symbols-outlined text-[16px]">label</span>
+                            <span class="flex-grow text-left">@label</span>
+                        </button>
+                        <button class="text-red-400 opacity-50 active:opacity-100 p-2" @onclick="() => DeleteLabelAsync(label)"><span class="material-symbols-outlined text-[14px]">close</span></button>
                     </div>
-                    <p class="text-[7px] text-gray-500 mt-0.5 text-right">@FormatBytes(_usedBytes) / @FormatBytes(_quotaBytes)</p>
+                }
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-white/5">
+                <div class="flex justify-between items-center mb-1 text-[8px] font-bold text-gray-500 tracking-wider">
+                    <span>KOTA</span>
+                    <span class="text-blue-500">@_quotaPercent%</span>
+                </div>
+                <div class="h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div class="h-full bg-blue-500 transition-all duration-500" style="width: @_quotaPercent%"></div>
                 </div>
             </div>
         </div>
 
-        <!-- 6. GÜZEL GOOGLE SWITCHER HESAP DEĞİŞTİRİCİ MODAL (CENTER OVERLAY) -->
+        <!-- 6. BOTTOM SHEET: HESAP SEÇİCİ -->
         @if (_isAccountDropdownOpen)
         {
-            <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[999999] flex items-center justify-center p-4 animate-fade-in" @onclick="ToggleAccountDropdown">
-                <div class="glass max-w-sm w-full rounded-2xl bg-[#171a21]/95 border border-white/10 p-5 text-[#e1e2ec] shadow-2xl relative space-y-4" @onclick:stopPropagation>
-                    <div class="flex justify-between items-center border-b border-white/5 pb-2">
-                        <span class="text-[9px] font-black text-gray-400 uppercase tracking-wider">Hesap Değiştir</span>
-                        <button @onclick="ToggleAccountDropdown" class="text-gray-500 hover:text-rose-500">
-                            <span class="material-symbols-outlined text-sm">close</span>
-                        </button>
+            <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end animate-fade-in" @onclick="ToggleAccountDropdown">
+                <div class="w-full bg-[#18181b] rounded-t-3xl border-t border-white/10 p-5 pb-8 shadow-2xl relative transition-transform translate-y-0" @onclick:stopPropagation>
+                    <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-5"></div>
+                    
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-sm font-bold text-white">Hesap Değiştir</h3>
+                        <button @onclick="ToggleAccountDropdown" class="text-gray-500 active:scale-95"><span class="material-symbols-outlined text-[20px]">close</span></button>
                     </div>
 
-                    <div class="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
+                    <div class="flex flex-col gap-2 max-h-60 overflow-y-auto no-scrollbar mb-4">
                         @foreach (var acc in _accounts)
                         {
                             var isActive = acc == _activeAccount;
                             <button @onclick="() => SwitchAccount(acc)" 
-                                    class="w-full text-left p-2 rounded-xl transition-all flex items-center gap-3 border @(isActive ? "bg-[#4edea3]/10 border-[#4edea3]/20" : "border-transparent hover:bg-white/5")">
-                                <div class="w-6.5 h-6.5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 @(isActive ? "bg-[#4edea3] text-slate-900" : "bg-white/5 text-gray-400")">
+                                    class="w-full flex items-center gap-4 p-3 rounded-2xl border @(isActive ? "bg-blue-600/10 border-blue-500/30" : "bg-[#09090b] border-white/5 active:bg-white/5")">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm @(isActive ? "bg-blue-600 text-white" : "bg-white/5 text-gray-400")">
                                     @(acc.Substring(0, Math.Min(2, acc.Length)).ToUpper())
                                 </div>
-                                <div class="min-w-0 flex-grow">
-                                    <p class="text-xs font-semibold truncate @(isActive ? "text-[#4edea3]" : "text-gray-300")">@acc</p>
+                                <div class="flex-grow text-left">
+                                    <p class="text-xs font-bold @(isActive ? "text-blue-400" : "text-gray-200")">@acc</p>
                                 </div>
                                 @if (isActive)
                                 {
-                                    <span class="material-symbols-outlined text-[#4edea3] text-sm shrink-0">check</span>
+                                    <span class="material-symbols-outlined text-blue-500 text-[18px]">check_circle</span>
                                 }
                             </button>
                         }
                     </div>
 
-                    <div class="border-t border-white/5 pt-3">
-                        <a href="/email" @onclick="ToggleAccountDropdown"
-                           class="w-full py-2 bg-transparent text-center border border-white/10 hover:border-[#4edea3] hover:bg-[#4edea3]/5 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-[#4edea3]">
-                            <span class="material-symbols-outlined text-xs">settings</span>
-                            <span>E-Posta Hesaplarını Yönet</span>
-                        </a>
-                    </div>
+                    <a href="/email" @onclick="ToggleAccountDropdown"
+                       class="w-full py-3 bg-[#09090b] text-center border border-white/5 active:bg-white/5 text-[11px] font-bold rounded-2xl flex items-center justify-center gap-2 text-blue-400">
+                        <span class="material-symbols-outlined text-[16px]">settings</span>
+                        Hesapları Yönet
+                    </a>
                 </div>
             </div>
         }
