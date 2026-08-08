@@ -225,8 +225,8 @@
             <!-- 3. MOBİL E-POSTA OKUMA DETAY SAYFASI (GMAIL STYLE DETAIL VIEW) -->
             <div class="flex-grow flex flex-col bg-[#0b0e15] overflow-hidden relative">
                 <!-- Üst Toolbar -->
-                <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-[#10131a]">
-                    <button @onclick="GoBackToList" class="flex items-center justify-center p-1.5 text-[#4edea3] rounded-lg">
+                <div class="px-2 py-2 border-b border-white/5 flex items-center justify-between bg-[#10131a]">
+                    <button type="button" @onclick="GoBackToList" class="flex items-center justify-center p-2 text-[#4edea3] rounded-lg active:scale-95 transition-transform bg-white/5">
                         <span class="material-symbols-outlined text-xl">arrow_back</span>
                     </button>
                     
@@ -309,8 +309,8 @@
             <!-- 4. MOBİL OLUŞTURMA / YAZMA EKRANI (FULL SCREEN EDIT FORM) -->
             <div class="flex-grow flex flex-col bg-[#0b0e15] overflow-y-auto stitch-scrollbar h-full">
                 <!-- Mobil Üst Bar -->
-                <div class="px-4 py-3 bg-[#10131a] border-b border-white/5 flex items-center justify-between">
-                    <button @onclick="GoBackToList" class="flex items-center gap-1 text-[#4edea3] font-bold text-xs">
+                <div class="px-2 py-2 bg-[#10131a] border-b border-white/5 flex items-center justify-between">
+                    <button type="button" @onclick="GoBackToList" class="flex items-center justify-center p-2 text-[#4edea3] rounded-lg active:scale-95 transition-transform bg-white/5">
                         <span class="material-symbols-outlined text-xl">arrow_back</span>
                     </button>
                     <span class="text-xs font-bold text-white">Yeni İleti</span>
@@ -416,7 +416,24 @@
                 <!-- Drawer Header -->
                 <div>
                     <h2 class="text-lg font-black text-[#4edea3] leading-none tracking-tight">ApiHubMail</h2>
-                    <p class="text-[9px] text-gray-500 mt-1 font-medium">Kurumsal Mobil E-posta Yönetimi</p>
+                    
+                    <!-- Mobil Drawer Hesap Değiştirici -->
+                    <button type="button" @onclick="ToggleAccountDropdown" 
+                            class="w-full mt-4 p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-between gap-2 shadow-sm text-left transition-colors">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div class="w-8 h-8 rounded-full bg-[#4edea3] text-slate-900 flex items-center justify-center font-black text-xs shrink-0">
+                                @if (!string.IsNullOrEmpty(_activeAccount))
+                                {
+                                    @(_activeAccount.Substring(0, Math.Min(2, _activeAccount.Length)).ToUpper())
+                                }
+                            </div>
+                            <div class="min-w-0 flex-grow">
+                                <p class="text-xs font-semibold text-white truncate">@(_activeAccount ?? "Hesap Seçin")</p>
+                                <p class="text-[9px] text-gray-500 truncate">Hesap Değiştir</p>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined text-gray-400 text-sm shrink-0">expand_more</span>
+                    </button>
                 </div>
 
                 <!-- Klasör Listesi -->
