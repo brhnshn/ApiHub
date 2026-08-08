@@ -762,18 +762,21 @@ Content-Type: text/html; charset=utf-8
         }
     }
 
-    public async Task UpdateForwardingAsync(string emailAddress, string? forwardingAddress, bool enabled)
+    public async Task UpdateForwardingAsync(string emailAddress, string forwardingAddress, bool isEnabled)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
-        
-        var account = db.MailAccounts.FirstOrDefault(a => a.EmailAddress == emailAddress);
-        if (account != null)
+        if (isEnabled && !string.IsNullOrEmpty(forwardingAddress))
         {
-            account.ForwardingAddress = forwardingAddress;
-            account.ForwardingEnabled = enabled;
-            await db.SaveChangesAsync();
-            SystemLogQueue.Log("info", $"[Mail] Yönlendirme ayarı güncellendi ({emailAddress} -> {forwardingAddress ?? "yok"})");
+            // Hem yerel kutuya düşsün hem de hedefe yönlendirilsin: "orjinal_mail,yonlenecek_mail"
+            var aliasTarget = $"{emailAddress},{forwardingAddress}";
+            SystemLogQueue.Log("info", $"[Mail] E-posta yönlendirmesi ayarlanıyor: {emailAddress} -> {aliasTarget}");
+            var command = new List<string> { "setup", "alias", "add", emailAddress, aliasTarget };
+            await RunMailserverExecAsync(command);
+        }
+        else
+        {
+            SystemLogQueue.Log("info", $"[Mail] E-posta yönlendirmesi kaldırılıyor: {emailAddress}");
+            var command = new List<string> { "setup", "alias", "del", emailAddress };
+            await RunMailserverExecAsync(command);
         }
     }
 }

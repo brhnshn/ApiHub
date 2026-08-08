@@ -107,17 +107,6 @@ public class MailPollingWorker : BackgroundService
                         $"{account.EmailAddress} adresine yeni bir ileti geldi.", 
                         "apihub://navigate?path=/webmail");
 
-                    // 2. Forwarding Aktif mi?
-                    if (account.ForwardingEnabled && !string.IsNullOrEmpty(account.ForwardingAddress))
-                    {
-                        // Mail yönlendirmeyi IMailService üzerinden Relay ile gönder
-                        _logger.LogInformation($"[Forwarding] {account.EmailAddress} adresine gelen mail {account.ForwardingAddress} adresine yönlendiriliyor...");
-                        
-                        // Yönlendirme işlemi: Gelen maili doğrudan ilet
-                        // Buraya gelişmiş MimeMessage parsing + forward logic eklenebilir, şimdilik subject ve body ile gönderiyoruz
-                        var body = $"Bu e-posta {account.EmailAddress} adresinize geldiği için otomatik olarak yönlendirilmiştir.\n\n---\n\n";
-                        await mailService.SendMailAsync(account.EmailAddress, account.DisplayName, account.ForwardingAddress, $"Fwd: {subject}", body);
-                    }
                 }
                 catch (Exception ex)
                 {

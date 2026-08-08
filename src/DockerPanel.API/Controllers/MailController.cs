@@ -193,6 +193,9 @@ public class MailController : ControllerBase
             account.ForwardingAddress = request.ForwardingAddress;
             account.ForwardingEnabled = request.ForwardingEnabled;
 
+            // Docker mailserver alias güncellemesi
+            await _mailService.UpdateForwardingAsync(account.EmailAddress, account.ForwardingAddress ?? "", account.ForwardingEnabled);
+
             if (!string.IsNullOrEmpty(request.NewPassword))
             {
                 await _mailService.UpdateMailPasswordAsync(account.EmailAddress, request.NewPassword);
