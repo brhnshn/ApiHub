@@ -35,35 +35,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Dış SMTP Ayarları (Sadece Admin) -->
-        <div class="glass-panel pa-6 d-flex flex-column justify-between" style="border-radius: 12px !important;">
-            <div>
-                <div class="d-flex justify-between align-center mb-4">
-                    <MudText Typo="Typo.h6" Style="font-weight: 700; color: var(--text-main); font-family: 'Outfit', sans-serif;">Dış SMTP (Relay) Ayarları</MudText>
-                </div>
-                
-                <div class="mb-3">
-                    <MudSwitch @bind-Value="_smtpSettings.IsEnabled" Label="Dış SMTP Aktif" Color="Color.Primary" />
-                </div>
-
-                <MudTextField @bind-Value="_smtpSettings.Host" Label="SMTP Host (örn: smtp.gmail.com)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
-                <div class="d-flex gap-2 mb-3">
-                    <MudNumericField @bind-Value="_smtpSettings.Port" Label="Port" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    <MudSwitch @bind-Value="_smtpSettings.EnableSsl" Label="SSL/TLS" Color="Color.Primary" Class="mt-1" />
-                </div>
-                <div class="mb-3">
-                    <MudSwitch @bind-Value="_smtpSettings.AcceptSelfSignedCert" Label="Geçersiz/Oto-İmzalı Sertifikaları Kabul Et" Color="Color.Warning" Size="Size.Small" />
-                </div>
-                <MudTextField @bind-Value="_smtpSettings.Username" Label="Kullanıcı Adı / E-Posta" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
-                <MudTextField @bind-Value="_smtpSettings.Password" Label="Şifre" InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" HelperText="@(_smtpSettings.HasPassword ? "Şifre ayarlanmış. Değiştirmek için yeni şifre girin." : "Şifre giriniz.")" />
-
-                <div class="d-flex gap-2">
-                    <MudButton OnClick="SaveSmtpSettings" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Style="text-transform: none;">Kaydet</MudButton>
-                    <MudButton OnClick="TestSmtpConnection" Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" Style="text-transform: none;">Test Et</MudButton>
-                </div>
-            </div>
-        </div>
     </MudItem>
 
     <!-- Kayıtlı E-Postalar Tablosu -->

@@ -303,43 +303,20 @@ Content-Type: text/html; charset=utf-8
             }
         }
 
-        // 3. Dış Posta (SMTP Relay veya Localhost docker-mailserver)
+        // 3. Dış Posta (Localhost docker-mailserver relay)
         try
         {
-            using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
-            var settings = db.SmtpSettings.FirstOrDefault(); // Şimdilik global 1 kayıt varsayılıyor
-
             using var smtpClient = new MailKit.Net.Smtp.SmtpClient();
             
-            if (settings != null && settings.IsEnabled)
-            {
-                // DB'de konfigüre edilmiş dış SMTP (örn: Gmail) kullan
-                var decPass = _encryptionService.Decrypt(settings.EncryptedPassword);
-                var secureSocketOptions = settings.EnableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
-                
-                // Self-signed sertifika kabulü
-                if (settings.AcceptSelfSignedCert)
-                {
-                    smtpClient.ServerCertificateValidationCallback = (s, c, h, e) => true;
-                }
-                
-                await smtpClient.ConnectAsync(settings.Host, settings.Port, secureSocketOptions);
-                await smtpClient.AuthenticateAsync(settings.Username, decPass);
-                await smtpClient.SendAsync(mimeMessage);
-                await smtpClient.DisconnectAsync(true);
-                
-                SystemLogQueue.Log("info", $"[Mail] E-posta harici SMTP ({settings.Host}) üzerinden iletildi: {fromEmail} -> {to}");
-            }
-            else
-            {
-                // Localhost (docker-mailserver) port 25 relay kullan (Şifresiz mynetworks bypass)
-                await smtpClient.ConnectAsync("127.0.0.1", 25, SecureSocketOptions.None);
-                await smtpClient.SendAsync(mimeMessage);
-                await smtpClient.DisconnectAsync(true);
-                
-                SystemLogQueue.Log("info", $"[Mail] E-posta yerel SMTP üzerinden iletildi: {fromEmail} -> {to}");
-            }
+            // Localhost (docker-mailserver) port 25 relay kullan (Şifresiz mynetworks bypass)
+            // Kendi sunucumuzdaki SSL'i es geçmesi için
+            smtpClient.ServerCertificateValidationCallback = (s, c, h, e) => true;
+
+            await smtpClient.ConnectAsync("127.0.0.1", 25, SecureSocketOptions.None);
+            await smtpClient.SendAsync(mimeMessage);
+            await smtpClient.DisconnectAsync(true);
+            
+            SystemLogQueue.Log("info", $"[Mail] E-posta yerel SMTP üzerinden iletildi: {fromEmail} -> {to}");
         }
         catch (Exception ex)
         {
