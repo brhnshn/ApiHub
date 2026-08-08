@@ -90,7 +90,7 @@
     <!--     UI/UX PRO MAX PREMIUM MOBILE VIEW      -->
     <!-- ========================================== -->
     <!-- Container: h-full flex flex-col (MainLayout'a tam oturması için fixed kaldırıldı) -->
-    <div class="relative w-full h-full min-h-[calc(100vh-140px)] bg-[#09090b] overflow-hidden flex flex-col text-slate-200 font-sans z-10 rounded-2xl sm:rounded-none shadow-xl border border-white/5 sm:border-none" 
+    <div class="fixed inset-x-0 top-[64px] bottom-[80px] bg-[#09090b] overflow-hidden flex flex-col text-slate-200 font-sans z-[45]" 
          @ontouchstart="HandlePageTouchStart" 
          @ontouchmove="HandlePageTouchMove" 
          @ontouchend="HandlePageTouchEnd">
@@ -98,7 +98,7 @@
         @if (_selectedMail == null && !_isComposing)
         {
             <!-- 1. APP BAR & SEARCH (SINGLE ROW GLASSMORPHISM) -->
-            <div class="sticky top-0 z-20 px-3 py-3 shrink-0 bg-[#09090b]/90 backdrop-blur-xl border-b border-white/5">
+            <div class="sticky top-0 z-30 px-3 py-3 shrink-0 bg-[#09090b]/90 backdrop-blur-xl border-b border-white/5">
                 <div class="flex items-center justify-between bg-[#18181b] border border-white/10 rounded-2xl shadow-lg relative h-12">
                     <button @onclick="OpenMobileDrawer" class="w-12 h-full flex items-center justify-center text-gray-400 active:text-white shrink-0 transition-colors rounded-l-2xl hover:bg-white/5">
                         <span class="material-symbols-outlined text-xl">menu</span>
@@ -124,7 +124,14 @@
                 </div>
             </div>
 
-            <!-- MOBİL KLASÖR BAŞLIĞI VE YENİLEME -->
+            <!-- PULL TO REFRESH INDICATOR -->
+            <div class="w-full flex justify-center transition-all duration-200 overflow-hidden relative z-20 shrink-0" style="height: @(_pullDownDistance > 0 || _isRefreshing ? Math.Max(_pullDownDistance, _isRefreshing ? 50 : 0) : 0)px; opacity: @((_pullDownDistance > 0 || _isRefreshing) ? 1 : 0);">
+                <div class="mt-2 w-8 h-8 rounded-full bg-[#18181b] shadow-lg flex items-center justify-center border border-white/10 transition-transform" style="transform: rotate(@(_isRefreshing ? "0" : (_pullDownDistance * 4).ToString())deg);">
+                    <span class="material-symbols-outlined text-blue-500 @(_isRefreshing ? "animate-spin" : "") text-lg">refresh</span>
+                </div>
+            </div>
+
+            <!-- MOBİL KLASÖR BAŞLIĞI -->
             <div class="px-4 py-2 flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest shrink-0 bg-[#09090b]">
                 <span>
                     @(_activeFolder switch {
@@ -137,10 +144,6 @@
                         _ => "Klasör"
                     })
                 </span>
-                <button @onclick="RefreshMailsAsync" class="text-blue-500 flex items-center gap-1 active:scale-95 transition-transform">
-                    <span class="material-symbols-outlined text-sm @(_isRefreshing ? "animate-spin" : "")">refresh</span>
-                    <span>@(_isRefreshing ? "Yenileniyor" : "Yenile")</span>
-                </button>
             </div>
 
             <!-- 2. MAİL LİSTESİ -->
@@ -1176,13 +1179,26 @@ else
         return 0;
     }
 
-    // Ekran Kenarından Çekerek Çekmeceyi Açma (Edge Swipe-to-Drawer)
+    // Ekran Kenarından Çekerek Çekmeceyi Açma ve Yukarıdan Çekerek Yenileme
+    private double _touchStartY;
+    private double _pullDownDistance;
+    private bool _isPullingDown = false;
+
     private void HandlePageTouchStart(TouchEventArgs e)
     {
+        // Sol kenardan çekmece açma
         if (e.Touches[0].ClientX < 35 && !IsShowingDetailOnMobile())
         {
             _isPageSwiping = true;
             _pageTouchStartX = e.Touches[0].ClientX;
+        }
+
+        // Yukarıdan aşağı çekerek yenileme (Pull to Refresh)
+        if (e.Touches[0].ClientY < 180 && !IsShowingDetailOnMobile())
+        {
+            _touchStartY = e.Touches[0].ClientY;
+            _isPullingDown = true;
+            _pullDownDistance = 0;
         }
     }
 
@@ -1198,11 +1214,37 @@ else
                 StateHasChanged();
             }
         }
+
+        if (_isPullingDown && !_isRefreshing)
+        {
+            var diff = e.Touches[0].ClientY - _touchStartY;
+            if (diff > 0 && diff < 120) // Sadece aşağı doğru çekildiğinde ve max 120px
+            {
+                _pullDownDistance = diff;
+            }
+            else if (diff <= 0)
+            {
+                _pullDownDistance = 0;
+            }
+        }
     }
 
-    private void HandlePageTouchEnd()
+    private async Task HandlePageTouchEnd()
     {
         _isPageSwiping = false;
+
+        if (_isPullingDown)
+        {
+            _isPullingDown = false;
+            if (_pullDownDistance > 70 && !_isRefreshing)
+            {
+                _pullDownDistance = 50; // Animasyon için tut
+                StateHasChanged();
+                await RefreshMailsAsync();
+            }
+            _pullDownDistance = 0;
+            StateHasChanged();
+        }
     }
 
     private double _drawerTouchStartX;
