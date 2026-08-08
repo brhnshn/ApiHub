@@ -6,25 +6,23 @@
 
 <PageTitle>E-Posta Yönetimi - ApiHub</PageTitle>
 
-
-
 <div class="mb-6">
     <MudText Typo="Typo.h4" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px;">E-Posta Sunucusu Yönetimi</MudText>
-    <MudText Typo="Typo.body2" Class="mud-text-secondary">docker-mailserver kurumsal posta sunucusu altyapısı üzerindeki e-posta hesaplarını ve kotalarını yönetin.</MudText>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">E-posta hesaplarınızı, SMTP ayarlarınızı ve yönlendirmeleri buradan yönetin.</MudText>
 </div>
 
 <MudGrid Class="mb-6">
     <!-- E-Posta İstemci Bilgileri Kartı -->
     <MudItem xs="12" md="4">
-        <div class="glass-panel pa-6 h-100 d-flex flex-column justify-between" style="border-radius: 12px !important;">
+        <div class="glass-panel pa-6 h-100 d-flex flex-column justify-between mb-4" style="border-radius: 12px !important;">
             <div>
-                <MudText Typo="Typo.h6" Style="font-weight: 700; color: var(--text-main); font-family: 'Outfit', sans-serif;" Class="mb-4">E-Posta İstemci Bilgileri</MudText>
+                <MudText Typo="Typo.h6" Style="font-weight: 700; color: var(--text-main); font-family: 'Outfit', sans-serif;" Class="mb-4">İstemci Bilgileri</MudText>
                 
                 <div class="mb-4">
                     <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; display: block; margin-bottom: 4px;">IMAP (Gelen Posta)</span>
                     <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-main); background: var(--bg-sub); padding: 8px; border-radius: 6px; border: 1px solid var(--border-color);">
                         Host: mail.burhansahin.com.tr<br>
-                        Port: 993 (SSL/TLS)
+                        Port: 993 (SSL)
                     </div>
                 </div>
 
@@ -32,13 +30,35 @@
                     <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; display: block; margin-bottom: 4px;">SMTP (Giden Posta)</span>
                     <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-main); background: var(--bg-sub); padding: 8px; border-radius: 6px; border: 1px solid var(--border-color);">
                         Host: mail.burhansahin.com.tr<br>
-                        Port: 587 (STARTTLS)
+                        Port: 587 (TLS)
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="pt-4" style="border-top: 1px solid rgba(255,255,255,0.05); font-size: 11px; color: #64748b; font-style: italic;">
-                * Outlook, Thunderbird veya mobil cihazlarınıza posta kurulumu yaparken yukarıdaki parametreleri ve hesap şifrenizi kullanın.
+        <!-- Dış SMTP Ayarları (Sadece Admin) -->
+        <div class="glass-panel pa-6 d-flex flex-column justify-between" style="border-radius: 12px !important;">
+            <div>
+                <div class="d-flex justify-between align-center mb-4">
+                    <MudText Typo="Typo.h6" Style="font-weight: 700; color: var(--text-main); font-family: 'Outfit', sans-serif;">Dış SMTP (Relay) Ayarları</MudText>
+                </div>
+                
+                <div class="mb-3">
+                    <MudSwitch @bind-Value="_smtpSettings.IsEnabled" Label="Dış SMTP Aktif" Color="Color.Primary" />
+                </div>
+
+                <MudTextField @bind-Value="_smtpSettings.Host" Label="SMTP Host (örn: smtp.gmail.com)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                <div class="d-flex gap-2 mb-3">
+                    <MudNumericField @bind-Value="_smtpSettings.Port" Label="Port" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudSwitch @bind-Value="_smtpSettings.EnableSsl" Label="SSL/TLS" Color="Color.Primary" Class="mt-1" />
+                </div>
+                <MudTextField @bind-Value="_smtpSettings.Username" Label="Kullanıcı Adı / E-Posta" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                <MudTextField @bind-Value="_smtpSettings.Password" Label="Şifre" InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" HelperText="@(_smtpSettings.HasPassword ? "Şifre ayarlanmış. Değiştirmek için yeni şifre girin." : "Şifre giriniz.")" />
+
+                <div class="d-flex gap-2">
+                    <MudButton OnClick="SaveSmtpSettings" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Style="text-transform: none;">Kaydet</MudButton>
+                    <MudButton OnClick="TestSmtpConnection" Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" Style="text-transform: none;">Test Et</MudButton>
+                </div>
             </div>
         </div>
     </MudItem>
@@ -48,7 +68,7 @@
         <div class="glass-panel pa-6 h-100" style="border-radius: 12px !important;">
             <div class="d-flex align-center justify-between mb-6">
                 <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--text-main);">Aktif E-Posta Hesapları</MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateModal" Style="text-transform: none; border-radius: 8px;">Yeni E-Posta Ekle</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateModal" Style="text-transform: none; border-radius: 8px;">Yeni Hesap</MudButton>
             </div>
 
             @if (_isLoading)
@@ -61,35 +81,35 @@
             {
                 <MudTable Items="_accounts" Elevation="0" Hover="true" Breakpoint="Breakpoint.Sm" Class="glass-panel" Style="border: none !important;">
                     <HeaderContent>
+                        <MudTh Style="color: #94a3b8; font-weight: 700;">Görünen Ad</MudTh>
                         <MudTh Style="color: #94a3b8; font-weight: 700;">E-Posta Adresi</MudTh>
-                        <MudTh Style="color: #94a3b8; font-weight: 700;">Posta Kutusu Kotası</MudTh>
-                        <MudTh Style="color: #94a3b8; font-weight: 700;">Güvenlik & Spam</MudTh>
+                        <MudTh Style="color: #94a3b8; font-weight: 700;">Durum</MudTh>
                         <MudTh Style="color: #94a3b8; font-weight: 700; text-align: right;">İşlemler</MudTh>
                     </HeaderContent>
                     <RowTemplate>
+                        <MudTd DataLabel="Görünen Ad">
+                            <span style="font-weight: 600; color: var(--text-main);">@(string.IsNullOrEmpty(context.DisplayName) ? "-" : context.DisplayName)</span>
+                        </MudTd>
                         <MudTd DataLabel="E-Posta Adresi">
                             <span style="font-family: 'JetBrains Mono', monospace; color: #10b981; font-weight: 700;">@context.EmailAddress</span>
                         </MudTd>
-                        <MudTd DataLabel="Posta Kutusu Kotası">
-                            <div style="width: 150px;">
-                                <div class="d-flex justify-between" style="font-size: 11px; margin-bottom: 2px;">
-                                    <span style="color: #64748b;">Kullanılan: %0.0</span>
-                                    <span style="color: var(--text-main);">@(context.QuotaBytes / 1048576) MB</span>
-                                </div>
-                                <MudProgressLinear Color="Color.Primary" Value="0" Class="rounded-pill" Style="height: 4px;" />
-                            </div>
-                        </MudTd>
-                        <MudTd DataLabel="Güvenlik & Spam">
-                            <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Icon="@Icons.Material.Filled.Security" Variant="Variant.Text">
-                                SpamAssassin Aktif
-                            </MudChip>
+                        <MudTd DataLabel="Durum">
+                            @if (context.ForwardingEnabled)
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Text">Yönlendiriliyor</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Text">Aktif</MudChip>
+                            }
                         </MudTd>
                         <MudTd DataLabel="İşlemler" Style="text-align: right;">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="@(() => OpenEditModal(context))" />
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteAccount(context))" />
                         </MudTd>
                     </RowTemplate>
                     <NoRecordsContent>
-                        <MudText Typo="Typo.body2" Class="text-center py-6 mud-text-secondary">Henüz açılmış bir kurumsal e-posta hesabı bulunmamaktadır.</MudText>
+                        <MudText Typo="Typo.body2" Class="text-center py-6 mud-text-secondary">Henüz açılmış bir hesap bulunmamaktadır.</MudText>
                     </NoRecordsContent>
                 </MudTable>
             }
@@ -97,43 +117,68 @@
     </MudItem>
 </MudGrid>
 
-<!-- Yeni Hesap Ekleme Modalı -->
+<!-- Yeni E-Posta Modalı -->
 <MudDialog @bind-Visible="_createModalVisible">
     <TitleContent>
-        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Yeni E-Posta Hesabı Ekle</MudText>
+        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Yeni E-Posta Ekle</MudText>
     </TitleContent>
     <DialogContent>
         <EditForm Model="@_createModel" OnValidSubmit="HandleCreate">
             <DataAnnotationsValidator />
-
+            
             <div class="mb-4">
-                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">E-Posta Adresi</label>
-                <MudTextField @bind-Value="_createModel.EmailAddress" Placeholder="örn: info@alanadi.com" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.EmailAddress)" />
+                <MudTextField @bind-Value="_createModel.EmailAddress" Label="E-Posta Adresi" Placeholder="örn: info@alanadi.com" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.EmailAddress)" />
+            </div>
+            
+            <div class="mb-4">
+                <MudTextField @bind-Value="_createModel.DisplayName" Label="Görünen Ad" Placeholder="örn: ApiHub Destek" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.DisplayName)" />
             </div>
 
             <div class="mb-4">
-                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">Hesap Şifresi</label>
-                <MudTextField @bind-Value="_createModel.Password" Placeholder="Hesap güvenli şifresi" InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.Password)" />
+                <MudTextField @bind-Value="_createModel.Password" Label="Hesap Şifresi" InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.Password)" />
             </div>
 
             <div class="mb-6">
-                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">Kota Sınırı (MB)</label>
-                <MudNumericField T="int" @bind-Value="_createModel.QuotaMb" Min="100" Max="10240" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudNumericField T="int" @bind-Value="_createModel.QuotaMb" Label="Kota Sınırı (MB)" Min="100" Max="10240" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </div>
 
             <div class="d-flex justify-end gap-2">
-                <MudButton OnClick="CloseCreateModal" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none;">İptal</MudButton>
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_isCreating" Style="text-transform: none; font-weight: 700;">
-                    @if (_isCreating)
-                    {
-                        <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        <span>Posta Kutusu Yaratılıyor...</span>
-                    }
-                    else
-                    {
-                        <span>Hesabı Oluştur</span>
-                    }
-                </MudButton>
+                <MudButton OnClick="() => _createModalVisible = false" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none;">İptal</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_isProcessing" Style="text-transform: none;">Oluştur</MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+<!-- Düzenleme Modalı -->
+<MudDialog @bind-Visible="_editModalVisible">
+    <TitleContent>
+        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Hesabı Düzenle: @_editModel.EmailAddress</MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="@_editModel" OnValidSubmit="HandleEdit">
+            <DataAnnotationsValidator />
+            
+            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="pa-4">
+                <MudTabPanel Text="Genel">
+                    <MudTextField @bind-Value="_editModel.DisplayName" Label="Görünen Ad" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                    <MudNumericField T="int" @bind-Value="_editModel.QuotaMb" Label="Kota Sınırı (MB)" Min="100" Max="10240" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudTabPanel>
+                
+                <MudTabPanel Text="Yönlendirme">
+                    <MudSwitch @bind-Value="_editModel.ForwardingEnabled" Label="Yönlendirme Aktif" Color="Color.Primary" Class="mb-4" />
+                    <MudTextField @bind-Value="_editModel.ForwardingAddress" Label="Yönlendirilecek E-Posta" Disabled="!_editModel.ForwardingEnabled" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">Bu hesaba gelen tüm postalar arka planda girilen adrese iletilir.</MudText>
+                </MudTabPanel>
+                
+                <MudTabPanel Text="Şifre Sıfırlama">
+                    <MudTextField @bind-Value="_editModel.NewPassword" Label="Yeni Şifre" InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Değiştirmek istemiyorsanız boş bırakın." />
+                </MudTabPanel>
+            </MudTabs>
+
+            <div class="d-flex justify-end gap-2 mt-4">
+                <MudButton OnClick="() => _editModalVisible = false" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none;">İptal</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_isProcessing" Style="text-transform: none;">Kaydet</MudButton>
             </div>
         </EditForm>
     </DialogContent>
@@ -141,27 +186,36 @@
 
 @code {
     private List<MailAccountDto> _accounts = new();
+    private SmtpSettingsDto _smtpSettings = new();
+    
     private bool _isLoading = true;
     private bool _createModalVisible = false;
-    private bool _isCreating = false;
+    private bool _editModalVisible = false;
+    private bool _isProcessing = false;
+    
     private readonly CreateMailModel _createModel = new();
+    private readonly UpdateMailModel _editModel = new();
+    private Guid _editingAccountId;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadAccountsAsync();
+        await LoadDataAsync();
     }
 
-    private async Task LoadAccountsAsync()
+    private async Task LoadDataAsync()
     {
         _isLoading = true;
         try
         {
-            var raw = await Http.GetFromJsonAsync<List<MailAccountDto>>("api/mail");
-            _accounts = raw ?? new List<MailAccountDto>();
+            var rawAccounts = await Http.GetFromJsonAsync<List<MailAccountDto>>("api/mail");
+            _accounts = rawAccounts ?? new List<MailAccountDto>();
+
+            var smtp = await Http.GetFromJsonAsync<SmtpSettingsDto>("api/settings/smtp");
+            if (smtp != null) _smtpSettings = smtp;
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"E-posta hesapları çekilirken hata oluştu: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Veriler çekilirken hata oluştu: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -172,39 +226,36 @@
     private void OpenCreateModal()
     {
         _createModel.EmailAddress = "";
+        _createModel.DisplayName = "";
         _createModel.Password = "";
         _createModel.QuotaMb = 1024;
         _createModalVisible = true;
     }
 
-    private void CloseCreateModal()
-    {
-        _createModalVisible = false;
-    }
-
     private async Task HandleCreate()
     {
-        _isCreating = true;
+        _isProcessing = true;
         try
         {
             var apiPayload = new
             {
                 EmailAddress = _createModel.EmailAddress,
+                DisplayName = _createModel.DisplayName,
                 Password = _createModel.Password,
-                QuotaBytes = (long)_createModel.QuotaMb * 1048576 // MB to Bytes
+                QuotaBytes = (long)_createModel.QuotaMb * 1048576
             };
 
             var response = await Http.PostAsJsonAsync("api/mail", apiPayload);
             if (response.IsSuccessStatusCode)
             {
-                Snackbar.Add("E-posta hesabı docker-mailserver üzerinde başarıyla oluşturuldu!", Severity.Success);
+                Snackbar.Add("Hesap oluşturuldu!", Severity.Success);
                 _createModalVisible = false;
-                await LoadAccountsAsync();
+                await LoadDataAsync();
             }
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                Snackbar.Add($"Hesap oluşturulamadı: {error}", Severity.Error);
+                Snackbar.Add($"Hata: {error}", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -213,7 +264,56 @@
         }
         finally
         {
-            _isCreating = false;
+            _isProcessing = false;
+        }
+    }
+
+    private void OpenEditModal(MailAccountDto account)
+    {
+        _editingAccountId = account.Id;
+        _editModel.EmailAddress = account.EmailAddress;
+        _editModel.DisplayName = account.DisplayName;
+        _editModel.QuotaMb = (int)(account.QuotaBytes / 1048576);
+        _editModel.ForwardingEnabled = account.ForwardingEnabled;
+        _editModel.ForwardingAddress = account.ForwardingAddress;
+        _editModel.NewPassword = "";
+        _editModalVisible = true;
+    }
+
+    private async Task HandleEdit()
+    {
+        _isProcessing = true;
+        try
+        {
+            var apiPayload = new
+            {
+                DisplayName = _editModel.DisplayName,
+                QuotaBytes = (long)_editModel.QuotaMb * 1048576,
+                ForwardingEnabled = _editModel.ForwardingEnabled,
+                ForwardingAddress = _editModel.ForwardingAddress,
+                NewPassword = _editModel.NewPassword
+            };
+
+            var response = await Http.PutAsJsonAsync($"api/mail/{_editingAccountId}", apiPayload);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Ayarlar kaydedildi!", Severity.Success);
+                _editModalVisible = false;
+                await LoadDataAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Hata: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
         }
     }
 
@@ -224,13 +324,8 @@
             var response = await Http.DeleteAsync($"api/mail/{item.Id}");
             if (response.IsSuccessStatusCode)
             {
-                Snackbar.Add("E-posta hesabı ve posta kutusu dizinleri başarıyla yok edildi.", Severity.Success);
-                await LoadAccountsAsync();
-            }
-            else
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                Snackbar.Add($"Hesap silinemedi: {error}", Severity.Error);
+                Snackbar.Add("Hesap silindi.", Severity.Success);
+                await LoadDataAsync();
             }
         }
         catch (Exception ex)
@@ -239,26 +334,82 @@
         }
     }
 
-    // DTO Sınıfları
+    private async Task SaveSmtpSettings()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/settings/smtp", _smtpSettings);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("SMTP Ayarları Kaydedildi", Severity.Success);
+                await LoadDataAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task TestSmtpConnection()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/settings/smtp/test", _smtpSettings);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Bağlantı Başarılı!", Severity.Success);
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Test Başarısız: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
     public class MailAccountDto
     {
         public Guid Id { get; set; }
         public string EmailAddress { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
         public long QuotaBytes { get; set; }
-        public DateTime CreatedAt { get; set; }
+        public string? ForwardingAddress { get; set; }
+        public bool ForwardingEnabled { get; set; }
     }
 
-    // Form Model Tanımları
     public class CreateMailModel
     {
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "E-posta adresi zorunludur!")]
-        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Geçerli bir e-posta formatı girin.")]
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Zorunlu")]
         public string EmailAddress { get; set; } = string.Empty;
-
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Hesap şifresi zorunludur!")]
-        [System.ComponentModel.DataAnnotations.MinLength(6, ErrorMessage = "Şifre en az 6 karakter olmalıdır.")]
+        public string DisplayName { get; set; } = string.Empty;
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Zorunlu")]
         public string Password { get; set; } = string.Empty;
-
         public int QuotaMb { get; set; } = 1024;
+    }
+
+    public class UpdateMailModel
+    {
+        public string EmailAddress { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public int QuotaMb { get; set; } = 1024;
+        public bool ForwardingEnabled { get; set; }
+        public string? ForwardingAddress { get; set; }
+        public string? NewPassword { get; set; }
+    }
+
+    public class SmtpSettingsDto
+    {
+        public string Host { get; set; } = string.Empty;
+        public int Port { get; set; } = 587;
+        public bool EnableSsl { get; set; } = true;
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public bool IsEnabled { get; set; } = false;
+        public bool HasPassword { get; set; } = false;
     }
 }

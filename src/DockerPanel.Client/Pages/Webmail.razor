@@ -89,7 +89,7 @@
     <!-- ========================================== -->
     <!--          GMAIL-STYLE MOBILE VIEW           -->
     <!-- ========================================== -->
-    <div class="fixed inset-0 bg-[#0b0e15] overflow-hidden flex flex-col text-[#e1e2ec] font-sans pt-16 z-10" 
+    <div class="fixed inset-0 h-[100dvh] bg-[#0b0e15] overflow-hidden flex flex-col text-[#e1e2ec] font-sans pt-safe z-10" 
          @ontouchstart="HandlePageTouchStart" 
          @ontouchmove="HandlePageTouchMove" 
          @ontouchend="HandlePageTouchEnd">
@@ -307,7 +307,7 @@
         else if (_isComposing)
         {
             <!-- 4. MOBİL OLUŞTURMA / YAZMA EKRANI (FULL SCREEN EDIT FORM) -->
-            <div class="flex-grow flex flex-col bg-[#0b0e15] overflow-hidden">
+            <div class="flex-grow flex flex-col bg-[#0b0e15] overflow-y-auto stitch-scrollbar h-full">
                 <!-- Mobil Üst Bar -->
                 <div class="px-4 py-3 bg-[#10131a] border-b border-white/5 flex items-center justify-between">
                     <button @onclick="GoBackToList" class="flex items-center gap-1 text-[#4edea3] font-bold text-xs">
@@ -367,7 +367,7 @@
                         </button>
                     </div>
                     <div id="emailBodyEditorMobile" 
-                         class="w-full h-48 bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-white focus:outline-none outline-none overflow-y-auto stitch-scrollbar min-h-[12rem] webmail-mobile-editor"
+                         class="w-full h-auto min-h-[12rem] bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-white focus:outline-none outline-none overflow-y-auto stitch-scrollbar webmail-mobile-editor mb-4"
                          contenteditable="true"
                          placeholder="E-posta gövdesini yazın..."></div>
                 </div>
@@ -399,6 +399,8 @@
                         </div>
                     }
                 </div>
+                <!-- Ekstra boşluk (Klavye için) -->
+                <div class="h-24"></div>
             </div>
         }
 

@@ -25,6 +25,7 @@ public class DockerPanelDbContext : DbContext
     public DbSet<DeploymentStep>     DeploymentSteps   => Set<DeploymentStep>();
     public DbSet<DeploymentResource> DeploymentResources => Set<DeploymentResource>();
     public DbSet<MaintenancePage>    MaintenancePages  => Set<MaintenancePage>();
+    public DbSet<SmtpSettings>       SmtpSettings      => Set<SmtpSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -286,6 +287,16 @@ public class DockerPanelDbContext : DbContext
             entity.HasIndex(e => e.EmailAddress)
                 .IsUnique();
 
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(100)
+                .HasDefaultValue("");
+
+            entity.Property(e => e.ForwardingAddress)
+                .HasMaxLength(254);
+
+            entity.Property(e => e.ForwardingEnabled)
+                .HasDefaultValue(false);
+
             entity.Property(e => e.QuotaBytes)
                 .IsRequired();
 
@@ -498,6 +509,20 @@ public class DockerPanelDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+        // 17. SmtpSettings Entity Configuration
+        modelBuilder.Entity<SmtpSettings>(entity =>
+        {
+            entity.ToTable("SmtpSettings");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Host).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Username).HasMaxLength(254).IsRequired();
+            entity.Property(e => e.EncryptedPassword).HasMaxLength(1024).IsRequired();
+            entity.Property(e => e.Port).IsRequired();
+            entity.Property(e => e.EnableSsl).IsRequired();
+            entity.Property(e => e.IsEnabled).IsRequired();
         });
     }
 }

@@ -56,6 +56,7 @@ builder.Services.AddScoped<IFirewallService, FirewallService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IBackupService, BackupService>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+builder.Services.AddSingleton<EncryptionService>();
 builder.Services.AddHttpClient<ICloudflareService, CloudflareService>();
 
 // 3. Real-Time Akış (SignalR) ve Metrik Arka Plan İşçisi
@@ -70,6 +71,7 @@ if (!builder.Environment.IsDevelopment())
 }
 builder.Services.AddHostedService<DeploymentCleanupWorker>();
 builder.Services.AddHostedService<DeploymentWorker>();
+builder.Services.AddHostedService<MailPollingWorker>();
 
 builder.Services.AddRateLimiter(options =>
 {

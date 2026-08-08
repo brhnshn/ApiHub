@@ -24,12 +24,14 @@ public class MailController : ControllerBase
     private readonly DockerPanelDbContext _dbContext;
     private readonly IMailService _mailService;
     private readonly IAuditLogService _auditLogService;
+    private readonly IPushNotificationService _pushNotificationService;
 
-    public MailController(DockerPanelDbContext dbContext, IMailService mailService, IAuditLogService auditLogService)
+    public MailController(DockerPanelDbContext dbContext, IMailService mailService, IAuditLogService auditLogService, IPushNotificationService pushNotificationService)
     {
         _dbContext = dbContext;
         _mailService = mailService;
         _auditLogService = auditLogService;
+        _pushNotificationService = pushNotificationService;
     }
 
     private async Task LogAuditAsync(string action, string entity, Guid? targetId, string details)
@@ -93,6 +95,7 @@ public class MailController : ControllerBase
             {
                 UserId = userId,
                 EmailAddress = request.EmailAddress.ToLower(),
+                DisplayName = request.DisplayName,
                 QuotaBytes = request.QuotaBytes,
                 CreatedAt = DateTimeOffset.UtcNow
             };
@@ -166,6 +169,46 @@ public class MailController : ControllerBase
         }
     }
 
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateMailRequest request)
+    {
+        var account = await _dbContext.MailAccounts.FindAsync(id);
+        if (account == null) return NotFound("E-posta hesabı bulunamadı.");
+
+        if (!IsAdmin() && account.UserId != GetUserId()) return Forbid();
+
+        try
+        {
+            account.DisplayName = request.DisplayName ?? "";
+            account.QuotaBytes = request.QuotaBytes;
+            
+            if (request.ForwardingEnabled)
+            {
+                if (!string.IsNullOrEmpty(request.ForwardingAddress) && !SecurityHelper.IsValidEmail(request.ForwardingAddress))
+                {
+                    return BadRequest(new { Message = "Geçersiz yönlendirme e-posta adresi biçimi!" });
+                }
+            }
+
+            account.ForwardingAddress = request.ForwardingAddress;
+            account.ForwardingEnabled = request.ForwardingEnabled;
+
+            if (!string.IsNullOrEmpty(request.NewPassword))
+            {
+                await _mailService.UpdateMailPasswordAsync(account.EmailAddress, request.NewPassword);
+            }
+
+            await _dbContext.SaveChangesAsync();
+            await LogAuditAsync("UpdateMailAccount", "MailAccounts", account.Id, $"Hesap güncellendi: {account.EmailAddress}");
+
+            return Ok(account);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = ex.Message });
+        }
+    }
+
     [HttpPost("{emailAddress}/send")]
     public async Task<IActionResult> SendEmail(string emailAddress, [FromBody] SendEmailRequest request)
     {
@@ -188,7 +231,19 @@ public class MailController : ControllerBase
                 ContentType = a.ContentType
             }).ToList();
 
-            await _mailService.SendMailAsync(emailAddress, request.To, request.Subject, request.Body, domainAttachments);
+            await _mailService.SendMailAsync(emailAddress, account.DisplayName, request.To, request.Subject, request.Body, domainAttachments);
+            
+            // Eğer alıcı da bizim sistemdeyse FCM push at
+            var receiverAccount = await _dbContext.MailAccounts.FirstOrDefaultAsync(m => m.EmailAddress.ToLower() == request.To.ToLower());
+            if (receiverAccount != null)
+            {
+                await _pushNotificationService.SendNotificationToUserAsync(
+                    receiverAccount.UserId, 
+                    $"📧 Yeni E-posta: {request.Subject}", 
+                    $"{account.DisplayName} ({account.EmailAddress})", 
+                    "apihub://navigate?path=/webmail");
+            }
+
             return Ok(new { Message = "E-posta başarıyla gönderildi." });
         }
         catch (Exception ex)
@@ -403,8 +458,18 @@ public class AttachmentRequest
 public class CreateMailRequest
 {
     public string EmailAddress { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public long QuotaBytes { get; set; } = 1073741824; // Varsayılan 1 GB
+}
+
+public class UpdateMailRequest
+{
+    public string DisplayName { get; set; } = string.Empty;
+    public long QuotaBytes { get; set; }
+    public string? NewPassword { get; set; }
+    public string? ForwardingAddress { get; set; }
+    public bool ForwardingEnabled { get; set; }
 }
 
 public class MoveEmailRequest

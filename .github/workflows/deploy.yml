@@ -136,12 +136,13 @@ jobs:
           MASTER_CONNECTION_STRING: ${{ secrets.MASTER_CONNECTION_STRING }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          envs: DB_CONNECTION_STRING,MASTER_CONNECTION_STRING,JWT_SECRET_KEY,FIREBASE_SERVICE_ACCOUNT_JSON
+          envs: DB_CONNECTION_STRING,MASTER_CONNECTION_STRING,JWT_SECRET_KEY,FIREBASE_SERVICE_ACCOUNT_JSON,ENCRYPTION_KEY
           script: |
             sudo systemctl stop dockerpanel-api
             sudo fuser -k 5002/tcp || true
@@ -167,10 +168,11 @@ jobs:
             unzip -q DockerPanel.API.zip -d DockerPanel_V1
 
             # appsettings.Production.json dosyasini secretlardan olustur
-            printf '{\n  "ConnectionStrings": {\n    "DefaultConnection": "%s",\n    "MasterPostgresConnection": "%s"\n  },\n  "JwtSettings": {\n    "SecretKey": "%s"\n  }\n}\n' \
+            printf '{\n  "ConnectionStrings": {\n    "DefaultConnection": "%s",\n    "MasterPostgresConnection": "%s"\n  },\n  "JwtSettings": {\n    "SecretKey": "%s"\n  },\n  "Encryption": {\n    "Key": "%s"\n  }\n}\n' \
               "${DB_CONNECTION_STRING}" \
               "${MASTER_CONNECTION_STRING}" \
               "${JWT_SECRET_KEY}" \
+              "${ENCRYPTION_KEY}" \
               > DockerPanel_V1/appsettings.Production.json
 
             # firebase-service-account.json dosyasini secrettan olustur

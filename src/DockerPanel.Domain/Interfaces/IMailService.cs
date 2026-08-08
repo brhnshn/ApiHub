@@ -10,7 +10,9 @@ public interface IMailService
     Task CreateMailAccountAsync(string emailAddress, string password);
     Task DeleteMailAccountAsync(string emailAddress);
     Task<List<MailItemDto>> GetMailsAsync(string emailAddress, string folder = "inbox", int take = 75);
-    Task SendMailAsync(string from, string to, string subject, string body, List<AttachmentDto>? attachments = null);
+    Task SendMailAsync(string fromEmail, string fromDisplayName, string to, string subject, string body, List<AttachmentDto>? attachments = null);
+    Task UpdateForwardingAsync(string emailAddress, string? forwardingAddress, bool enabled);
+    Task UpdateMailPasswordAsync(string emailAddress, string newPassword);
     Task DeleteMailAsync(string emailAddress, string folder, string fileName);
     Task MoveMailAsync(string emailAddress, string sourceFolder, string destFolder, string fileName);
     Task MarkMailAsReadAsync(string emailAddress, string folder, string fileName);

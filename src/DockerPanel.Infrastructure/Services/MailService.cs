@@ -11,17 +11,28 @@ using Docker.DotNet;
 using Docker.DotNet.Models;
 using DockerPanel.Domain.Interfaces;
 using DockerPanel.Domain.Entities;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using DockerPanel.Infrastructure.Data;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 
 namespace DockerPanel.Infrastructure.Services;
 
 public class MailService : IMailService
 {
     private readonly DockerClient _dockerClient;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly EncryptionService _encryptionService;
+    private readonly IConfiguration _configuration;
     private const string MailContainerName = "dockerpanel-mailserver";
     private const string PhysicalMailDataDir = "/opt/dockerpanel/mail/data";
 
-    public MailService()
+    public MailService(IServiceProvider serviceProvider, EncryptionService encryptionService, IConfiguration configuration)
     {
+        _serviceProvider = serviceProvider;
+        _encryptionService = encryptionService;
+        _configuration = configuration;
         Uri dockerUri;
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -110,26 +121,25 @@ public class MailService : IMailService
             var fileName = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}.welcome.eml";
             var welcomeFilePath = Path.Combine(newDir, fileName);
 
-            var emailContent = $@"From: DockerPanel Team <support@dockerpanel.dev>
+            var emailContent = $@"From: ApiHub Mail <info@burhansahin.com.tr>
 To: {emailAddress}
-Subject: Hoş Geldiniz! DockerPanel Altyapısı Aktif Edildi.
+Subject: Hoş Geldiniz! Altyapınız Aktif Edildi.
 Date: {DateTimeOffset.UtcNow:r}
 MIME-Version: 1.0
 Content-Type: text/html; charset=utf-8
 
 <html>
 <body style='font-family: sans-serif; background-color: #0f172a; color: #e2e8f0; padding: 20px;'>
-<h2 style='color: #10b981;'>DockerPanel Mail Sunucusuna Hoş Geldiniz!</h2>
+<h2 style='color: #10b981;'>Mail Sunucusuna Hoş Geldiniz!</h2>
 <p>Merhaba,</p>
-<p>E-posta hesabınız <strong>docker-mailserver</strong> üzerinde başarıyla aktif edilmiştir.</p>
-<p>Bu e-posta, sistemimiz tarafından Dovecot/Postfix Maildir dizininizde gerçek bir dosya olarak oluşturulmuştur.</p>
+<p>E-posta hesabınız <strong>ApiHub Mail Sunucusu</strong> üzerinde başarıyla aktif edilmiştir.</p>
+<p>Bu e-posta, sistemimiz tarafından dizininizde gerçek bir dosya olarak oluşturulmuştur.</p>
 <p>Aşağıdaki bilgilerle dış istemcilerinizi (Outlook, Thunderbird vb.) yapılandırabilirsiniz:</p>
 <ul>
-    <li><strong>IMAP Sunucusu:</strong> sunucu_ip_adresiniz (Port: 993 SSL)</li>
-    <li><strong>SMTP Sunucusu:</strong> sunucu_ip_adresiniz (Port: 587 TLS)</li>
+    <li><strong>IMAP Sunucusu:</strong> mail.burhansahin.com.tr (Port: 993 SSL)</li>
+    <li><strong>SMTP Sunucusu:</strong> mail.burhansahin.com.tr (Port: 587 TLS)</li>
 </ul>
-<p>Herhangi bir sorunuz olursa destek ekibimizle iletişime geçebilirsiniz.</p>
-<p>Saygılarımızla,<br/>DockerPanel Geliştirici Ekibi</p>
+<p>Saygılarımızla,<br/>Geliştirici Ekibi</p>
 </body>
 </html>";
 
@@ -242,99 +252,91 @@ Content-Type: text/html; charset=utf-8
         return result.OrderByDescending(m => m.Date).ToList();
     }
 
-    public async Task SendMailAsync(string from, string to, string subject, string body, List<AttachmentDto>? attachments = null)
+    public async Task SendMailAsync(string fromEmail, string fromDisplayName, string to, string subject, string body, List<AttachmentDto>? attachments = null)
     {
         // Construct standard compliant MIME message via MimeKit
         var mimeMessage = new MimeKit.MimeMessage();
-        mimeMessage.From.Add(MimeKit.MailboxAddress.Parse(from));
+        
+        var displayName = string.IsNullOrWhiteSpace(fromDisplayName) ? fromEmail : fromDisplayName;
+        mimeMessage.From.Add(new MimeKit.MailboxAddress(displayName, fromEmail));
         mimeMessage.To.Add(MimeKit.MailboxAddress.Parse(to));
+        
         mimeMessage.Subject = subject;
-        mimeMessage.Date = DateTimeOffset.UtcNow;
-
-        var bodyBuilder = new MimeKit.BodyBuilder { HtmlBody = body };
-
+        
+        var builder = new MimeKit.BodyBuilder { HtmlBody = body };
+        
         if (attachments != null)
         {
             foreach (var att in attachments)
             {
-                try
-                {
-                    var bytes = Convert.FromBase64String(att.Base64Data);
-                    bodyBuilder.Attachments.Add(att.FileName, bytes, MimeKit.ContentType.Parse(att.ContentType));
-                }
-                catch (Exception ex)
-                {
-                    SystemLogQueue.Log("warning", $"[Mail] Eklenti eklenirken hata: {att.FileName}, {ex.Message}");
-                }
+                var bytes = Convert.FromBase64String(att.Base64Data);
+                builder.Attachments.Add(att.FileName, bytes, MimeKit.ContentType.Parse(att.ContentType));
+            }
+        }
+        
+        mimeMessage.Body = builder.ToMessageBody();
+
+        // 1. Gönderenin "Sent" (Gönderilmiş Öğeler) dizinine yerel kopyasını kaydet
+        if (fromEmail.Contains('@'))
+        {
+            var parts = fromEmail.Split('@');
+            var maildirPath = GetActualMaildirPath(parts[1], parts[0]);
+            var sentCurDir = Path.Combine(maildirPath, ".Sent", "cur");
+            if (Directory.Exists(sentCurDir))
+            {
+                var fileName = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}.V0I0M0.sent:2,S";
+                await mimeMessage.WriteToAsync(Path.Combine(sentCurDir, fileName));
             }
         }
 
-        mimeMessage.Body = bodyBuilder.ToMessageBody();
-
-        var fileName = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}.eml";
-
-        // 1. Gönderenin Sent dizinine kaydet
-        if (from.Contains('@'))
-        {
-            var fromParts = from.Split('@');
-            var fromUsername = fromParts[0];
-            var fromDomain = fromParts[1];
-            var maildirPath = GetActualMaildirPath(fromDomain, fromUsername);
-            var fromSentDir = Path.Combine(maildirPath, ".Sent", "cur");
-            Directory.CreateDirectory(fromSentDir);
-            await mimeMessage.WriteToAsync(Path.Combine(fromSentDir, fileName));
-        }
-
-        // 2. Alıcı bizim sunucumuzdaysa, onun Inbox/new dizinine kaydet (Yerel Anlık Teslimat)
+        // 2. Eğer alıcı da bizim sunucudaysa doğrudan "new" dizinine bırak (MTA'yı bypass et)
         if (to.Contains('@'))
         {
             var toParts = to.Split('@');
-            var toUsername = toParts[0];
-            var toDomain = toParts[1];
-            var toFolder = ResolveMailPath(toDomain, toUsername);
-            
-            if (Directory.Exists(toFolder))
+            var toMaildirPath = GetActualMaildirPath(toParts[1], toParts[0]);
+            if (Directory.Exists(toMaildirPath))
             {
-                var maildirPath = GetActualMaildirPath(toDomain, toUsername);
-                var toInboxNewDir = Path.Combine(maildirPath, "new");
+                var toInboxNewDir = Path.Combine(toMaildirPath, "new");
+                var fileName = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}.V0I0M0.inbox:2,";
                 Directory.CreateDirectory(toInboxNewDir);
                 await mimeMessage.WriteToAsync(Path.Combine(toInboxNewDir, fileName));
             }
         }
 
-        // 3. SMTP Relay aracılığıyla dış dünyaya gönder (docker-mailserver SMTP port 25 localhost üzerinden)
+        // 3. Dış Posta (SMTP Relay veya Localhost docker-mailserver)
         try
         {
-            using (var smtpClient = new System.Net.Mail.SmtpClient("127.0.0.1", 25))
+            using var scope = _serviceProvider.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
+            var settings = db.SmtpSettings.FirstOrDefault(); // Şimdilik global 1 kayıt varsayılıyor
+
+            using var smtpClient = new MailKit.Net.Smtp.SmtpClient();
+            
+            if (settings != null && settings.IsEnabled)
             {
-                var mailMessage = new System.Net.Mail.MailMessage
-                {
-                    From = new System.Net.Mail.MailAddress(from),
-                    Subject = subject,
-                    Body = body,
-                    IsBodyHtml = true
-                };
-                mailMessage.To.Add(to);
+                // DB'de konfigüre edilmiş dış SMTP (örn: Gmail) kullan
+                var decPass = _encryptionService.Decrypt(settings.EncryptedPassword);
+                var secureSocketOptions = settings.EnableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
                 
-                if (attachments != null)
-                {
-                    foreach (var att in attachments)
-                    {
-                        var bytes = Convert.FromBase64String(att.Base64Data);
-                        var ms = new System.IO.MemoryStream(bytes);
-                        var attachment = new System.Net.Mail.Attachment(ms, att.FileName, att.ContentType);
-                        mailMessage.Attachments.Add(attachment);
-                    }
-                }
+                await smtpClient.ConnectAsync(settings.Host, settings.Port, secureSocketOptions);
+                await smtpClient.AuthenticateAsync(settings.Username, decPass);
+                await smtpClient.SendAsync(mimeMessage);
+                await smtpClient.DisconnectAsync(true);
                 
-                // Localhost üzerinden bağlandığı için mynetworks kapsamında şifresiz gönderim yapılır.
-                await smtpClient.SendMailAsync(mailMessage);
-                SystemLogQueue.Log("info", $"[Mail] E-posta SMTP üzerinden dış dünyaya başarıyla iletildi: {from} -> {to}");
+                SystemLogQueue.Log("info", $"[Mail] E-posta harici SMTP ({settings.Host}) üzerinden iletildi: {fromEmail} -> {to}");
+            }
+            else
+            {
+                // Localhost (docker-mailserver) port 25 relay kullan (Şifresiz mynetworks bypass)
+                await smtpClient.ConnectAsync("127.0.0.1", 25, SecureSocketOptions.None);
+                await smtpClient.SendAsync(mimeMessage);
+                await smtpClient.DisconnectAsync(true);
+                
+                SystemLogQueue.Log("info", $"[Mail] E-posta yerel SMTP üzerinden iletildi: {fromEmail} -> {to}");
             }
         }
         catch (Exception ex)
         {
-            // Windows test ortamında veya 25 portu kapalı olduğunda programın çökmesini önler, log yazıp devam eder
             SystemLogQueue.Log("warning", $"[Mail] E-posta SMTP üzerinden dış dünyaya gönderilemedi: {ex.Message}");
         }
     }
@@ -758,6 +760,37 @@ Content-Type: text/html; charset=utf-8
         catch (Exception ex)
         {
             return (false, ex.Message);
+        }
+    }
+
+    public async Task UpdateMailPasswordAsync(string emailAddress, string newPassword)
+    {
+        if (!emailAddress.Contains('@') || string.IsNullOrEmpty(newPassword))
+            throw new ArgumentException("Geçersiz e-posta veya şifre.");
+
+        SystemLogQueue.Log("info", $"[Mail] E-posta şifresi güncelleniyor: {emailAddress}");
+        var command = new List<string> { "setup", "email", "update", emailAddress, newPassword };
+        var (success, errorOutput) = await RunMailserverExecAsync(command);
+
+        if (!success)
+        {
+            SystemLogQueue.Log("error", $"[Mail] Şifre güncellenemedi! Hata: {errorOutput}");
+            throw new InvalidOperationException($"Şifre güncellenemedi: {errorOutput}");
+        }
+    }
+
+    public async Task UpdateForwardingAsync(string emailAddress, string? forwardingAddress, bool enabled)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DockerPanelDbContext>();
+        
+        var account = db.MailAccounts.FirstOrDefault(a => a.EmailAddress == emailAddress);
+        if (account != null)
+        {
+            account.ForwardingAddress = forwardingAddress;
+            account.ForwardingEnabled = enabled;
+            await db.SaveChangesAsync();
+            SystemLogQueue.Log("info", $"[Mail] Yönlendirme ayarı güncellendi ({emailAddress} -> {forwardingAddress ?? "yok"})");
         }
     }
 }
