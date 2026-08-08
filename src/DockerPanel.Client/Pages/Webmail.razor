@@ -89,69 +89,67 @@
     <!-- ========================================== -->
     <!--     UI/UX PRO MAX PREMIUM MOBILE VIEW      -->
     <!-- ========================================== -->
-    <div class="fixed inset-0 h-[100dvh] bg-[#09090b] overflow-hidden flex flex-col text-slate-200 font-sans pt-safe z-10" 
+    <!-- Container: h-full flex flex-col (MainLayout'a tam oturması için fixed kaldırıldı) -->
+    <div class="relative w-full h-full min-h-[calc(100vh-140px)] bg-[#09090b] overflow-hidden flex flex-col text-slate-200 font-sans z-10 rounded-2xl sm:rounded-none shadow-xl border border-white/5 sm:border-none" 
          @ontouchstart="HandlePageTouchStart" 
          @ontouchmove="HandlePageTouchMove" 
          @ontouchend="HandlePageTouchEnd">
         
         @if (_selectedMail == null && !_isComposing)
         {
-            <!-- 1. APP BAR (GLASSMORPHISM) -->
-            <div class="sticky top-0 z-20 px-4 py-3 shrink-0 bg-[#09090b]/80 backdrop-blur-xl border-b border-white/5">
-                <div class="flex items-center justify-between gap-4">
-                    <button @onclick="OpenMobileDrawer" class="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10 active:scale-95 transition-transform">
-                        <span class="material-symbols-outlined text-white text-xl">menu</span>
+            <!-- 1. APP BAR & SEARCH (SINGLE ROW GLASSMORPHISM) -->
+            <div class="sticky top-0 z-20 px-3 py-3 shrink-0 bg-[#09090b]/90 backdrop-blur-xl border-b border-white/5">
+                <div class="flex items-center justify-between bg-[#18181b] border border-white/10 rounded-2xl shadow-lg relative h-12">
+                    <button @onclick="OpenMobileDrawer" class="w-12 h-full flex items-center justify-center text-gray-400 active:text-white shrink-0 transition-colors rounded-l-2xl hover:bg-white/5">
+                        <span class="material-symbols-outlined text-xl">menu</span>
                     </button>
                     
-                    <div class="flex-grow flex flex-col items-center justify-center">
-                        <h1 class="text-sm font-bold text-white tracking-wide">
-                            @(_activeFolder switch {
-                                "inbox" => "Gelen Kutusu",
-                                "sent" => "Gönderilenler",
-                                "draft" => "Taslaklar",
-                                "spam" => "Spam",
-                                "trash" => "Çöp Kutusu",
-                                "archive" => "Arşiv",
-                                _ => "Klasör"
-                            })
-                        </h1>
-                        <p class="text-[10px] text-gray-500 font-medium">@(_activeAccount ?? "Hesap Seçin")</p>
-                    </div>
-
+                    <input type="text" 
+                           placeholder="@(_activeFolder switch { "inbox" => "Gelen Kutusunda ara...", "sent" => "Gönderilenlerde ara...", _ => "E-postalarda ara..." })" 
+                           class="flex-grow bg-transparent border-none text-xs text-white placeholder-gray-500 focus:outline-none px-1 h-full"
+                           @bind="_searchQuery" 
+                           @bind:event="oninput" />
+                           
                     <button @onclick="ToggleAccountDropdown" 
-                            class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-blue-600/20 active:scale-95 transition-transform ring-2 ring-blue-600/30">
+                            class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px] mx-2 shrink-0 ring-2 ring-[#18181b] active:scale-95 transition-transform shadow-md shadow-blue-600/30">
                         @if (!string.IsNullOrEmpty(_activeAccount))
                         {
                             @(_activeAccount.Substring(0, Math.Min(2, _activeAccount.Length)).ToUpper())
                         }
+                        else
+                        {
+                            <span class="material-symbols-outlined text-sm">person</span>
+                        }
                     </button>
-                </div>
-                
-                <!-- Arama Kutusu -->
-                <div class="mt-4 relative">
-                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">search</span>
-                    <input class="w-full bg-[#18181b] border border-white/10 rounded-2xl py-2.5 pl-9 pr-4 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all" 
-                           placeholder="E-postalarda ara..." 
-                           type="text" 
-                           @bind="_searchQuery" 
-                           @bind:event="oninput" />
                 </div>
             </div>
 
-            <!-- 2. MAİL LİSTESİ -->
-            <div class="flex-grow overflow-y-auto px-4 py-2 space-y-3 no-scrollbar relative">
-                @if (_isRefreshing)
-                {
-                    <div class="flex justify-center py-2">
-                        <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                }
+            <!-- MOBİL KLASÖR BAŞLIĞI VE YENİLEME -->
+            <div class="px-4 py-2 flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest shrink-0 bg-[#09090b]">
+                <span>
+                    @(_activeFolder switch {
+                        "inbox" => "Gelen Kutusu",
+                        "sent" => "Gönderilenler",
+                        "draft" => "Taslaklar",
+                        "spam" => "Spam",
+                        "trash" => "Çöp Kutusu",
+                        "archive" => "Arşiv",
+                        _ => "Klasör"
+                    })
+                </span>
+                <button @onclick="RefreshMailsAsync" class="text-blue-500 flex items-center gap-1 active:scale-95 transition-transform">
+                    <span class="material-symbols-outlined text-sm @(_isRefreshing ? "animate-spin" : "")">refresh</span>
+                    <span>@(_isRefreshing ? "Yenileniyor" : "Yenile")</span>
+                </button>
+            </div>
 
+            <!-- 2. MAİL LİSTESİ -->
+            <div class="flex-grow overflow-y-auto px-3 py-1 space-y-2 no-scrollbar relative bg-[#09090b]">
                 @if (!GetFilteredMails().Any())
                 {
-                    <div class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 pointer-events-none">
+                    <div class="py-24 flex flex-col items-center justify-center text-gray-500 pointer-events-none">
                         <span class="material-symbols-outlined text-5xl mb-3 opacity-20" style="font-variation-settings: 'wght' 200;">inbox</span>
-                        <p class="text-xs font-medium">Klasör boş</p>
+                        <p class="text-xs font-medium">Bu klasörde e-posta bulunmuyor.</p>
                     </div>
                 }
                 else
@@ -161,13 +159,13 @@
                         var isUnread = !mail.IsRead && _activeFolder == "inbox";
                         var senderInitials = (mail.SenderName ?? "?").Substring(0, Math.Min(1, (mail.SenderName ?? "?").Length)).ToUpper();
                         
-                        <div class="relative overflow-hidden rounded-2xl bg-[#18181b] border border-white/5 select-none touch-pan-y" 
+                        <div class="relative overflow-hidden rounded-2xl bg-[#18181b] border border-white/5 select-none touch-pan-y shadow-sm shadow-black/20" 
                              @ontouchstart="(e) => HandleTouchStart(e, mail.Id)"
                              @ontouchmove="HandleTouchMove"
                              @ontouchend="() => HandleTouchEnd(mail)">
                              
                             <!-- Arka Plan Swipes -->
-                            <div class="absolute inset-0 flex items-center justify-between px-5 z-0 pointer-events-none">
+                            <div class="absolute inset-0 flex items-center justify-between px-5 z-0 pointer-events-none rounded-2xl overflow-hidden">
                                 <div class="absolute inset-y-0 left-0 bg-blue-600 flex items-center pl-5 pr-12 transition-opacity" style="opacity: @(GetSwipeDirection(mail.Id) > 0 ? "1" : "0");">
                                     <span class="material-symbols-outlined text-white">archive</span>
                                 </div>
@@ -187,30 +185,30 @@
                                 
                                 <div class="flex-grow min-w-0">
                                     <div class="flex justify-between items-baseline mb-0.5">
-                                        <span class="text-xs font-bold truncate pr-2 @(isUnread ? "text-white" : "text-gray-300")">
+                                        <span class="text-xs font-bold truncate pr-2 flex items-center gap-1.5 @(isUnread ? "text-white" : "text-gray-300")">
+                                            @if (isUnread)
+                                            {
+                                                <span class="w-1.5 h-1.5 bg-blue-500 rounded-full shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.6)]"></span>
+                                            }
                                             @(_activeFolder == "sent" ? $"Kime: {mail.To}" : mail.SenderName)
                                         </span>
-                                        <span class="text-[10px] text-blue-400 font-medium shrink-0">@mail.Date.ToString("HH:mm")</span>
+                                        <span class="text-[10px] @(isUnread ? "text-blue-400 font-bold" : "text-gray-500 font-medium") shrink-0">@mail.Date.ToString("HH:mm")</span>
                                     </div>
                                     <h3 class="text-[11px] truncate mb-1 @(isUnread ? "text-blue-400 font-semibold" : "text-gray-400 font-normal")">
                                         @mail.Subject
                                     </h3>
-                                    <p class="text-[10px] text-gray-500 line-clamp-1">
+                                    <p class="text-[10px] text-gray-500 line-clamp-1 font-medium">
                                         @mail.Snippet
                                     </p>
                                 </div>
-                                @if (isUnread)
-                                {
-                                    <div class="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
-                                }
                             </div>
                         </div>
                     }
                 }
             </div>
 
-            <!-- FAB: Yeni E-posta -->
-            <button class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-900/50 flex items-center justify-center z-40 active:scale-90 transition-transform" 
+            <!-- FAB: Yeni E-posta (Absolute bottom-6) -->
+            <button class="absolute bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-900/50 flex items-center justify-center z-40 hover:scale-105 active:scale-95 transition-transform" 
                     @onclick="OpenComposePane">
                 <span class="material-symbols-outlined text-2xl">edit</span>
             </button>
@@ -218,16 +216,16 @@
         else if (_selectedMail != null)
         {
             <!-- 3. DETAIL VIEW (OKUMA) -->
-            <div class="flex-grow flex flex-col bg-[#09090b] overflow-hidden">
-                <div class="flex items-center justify-between p-3 bg-[#09090b]/90 backdrop-blur-md border-b border-white/5 sticky top-0 z-20">
-                    <button @onclick="GoBackToList" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 active:scale-95 transition-transform text-white">
+            <div class="flex-grow flex flex-col bg-[#09090b] overflow-hidden relative">
+                <div class="flex items-center justify-between p-3 bg-[#09090b]/90 backdrop-blur-md border-b border-white/5 sticky top-0 z-20 shrink-0">
+                    <button @onclick="GoBackToList" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 active:scale-95 transition-transform text-white hover:bg-white/10">
                         <span class="material-symbols-outlined">arrow_back</span>
                     </button>
                     <div class="flex gap-2">
-                        <button @onclick="ArchiveSelectedMail" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-gray-400 active:scale-95 transition-transform">
+                        <button @onclick="ArchiveSelectedMail" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:text-white active:scale-95 transition-all">
                             <span class="material-symbols-outlined text-[18px]">archive</span>
                         </button>
-                        <button @onclick="DeleteSelectedMail" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-red-400 active:scale-95 transition-transform">
+                        <button @onclick="DeleteSelectedMail" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-red-400 hover:text-red-500 active:scale-95 transition-all">
                             <span class="material-symbols-outlined text-[18px]">delete</span>
                         </button>
                     </div>
@@ -235,17 +233,17 @@
 
                 <div class="flex-grow overflow-y-auto p-4 space-y-6 no-scrollbar pb-24">
                     <div>
-                        <h2 class="text-xl font-bold text-white leading-tight mb-4">@_selectedMail.Subject</h2>
+                        <h2 class="text-lg font-extrabold text-white leading-tight mb-4">@_selectedMail.Subject</h2>
                         
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-900 to-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg">
                                 @((_selectedMail.SenderName ?? "?").Substring(0, Math.Min(1, (_selectedMail.SenderName ?? "?").Length)).ToUpper())
                             </div>
                             <div class="flex-grow min-w-0">
                                 <h4 class="font-bold text-gray-200 text-xs truncate">@_selectedMail.SenderName</h4>
                                 <p class="text-[10px] text-gray-500 truncate mt-0.5">@_selectedMail.SenderEmail</p>
                             </div>
-                            <span class="text-[10px] text-gray-500 shrink-0 bg-white/5 px-2 py-1 rounded-lg">@_selectedMail.Date.ToString("dd MMM HH:mm")</span>
+                            <span class="text-[9px] text-gray-500 shrink-0 bg-white/5 px-2 py-1.5 rounded-lg border border-white/5">@_selectedMail.Date.ToString("dd MMM HH:mm")</span>
                         </div>
                     </div>
 
@@ -255,11 +253,11 @@
 
                     @if (_selectedMail.Attachments != null && _selectedMail.Attachments.Any())
                     {
-                        <div class="space-y-2">
-                            <h5 class="text-[10px] font-bold text-gray-500 uppercase">Ekler</h5>
+                        <div class="space-y-2 border-t border-white/5 pt-4">
+                            <h5 class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-2">Dosya Ekleri (@_selectedMail.Attachments.Count)</h5>
                             @foreach (var att in _selectedMail.Attachments)
                             {
-                                <div class="flex items-center justify-between bg-[#18181b] border border-white/5 p-3 rounded-xl">
+                                <div class="flex items-center justify-between bg-[#18181b] border border-white/5 p-3 rounded-xl hover:bg-white/5 transition-colors">
                                     <div class="flex items-center gap-3 min-w-0">
                                         <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
                                             <span class="material-symbols-outlined text-sm">description</span>
@@ -271,7 +269,7 @@
                                     </div>
                                     <a href="api/mail/@Uri.EscapeDataString(_activeAccount)/emails/attachment?folder=@Uri.EscapeDataString(_activeFolder)&mailFile=@Uri.EscapeDataString(_selectedMail.FilePath)&attachmentId=@Uri.EscapeDataString(att.Id)" 
                                        target="_blank" download="@att.FileName"
-                                       class="text-blue-400 p-2 rounded-full hover:bg-white/5">
+                                       class="text-blue-400 p-2 rounded-full hover:bg-blue-500/20 active:scale-95 transition-all">
                                         <span class="material-symbols-outlined text-[18px]">download</span>
                                     </a>
                                 </div>
@@ -280,16 +278,16 @@
                     }
                 </div>
 
-                <!-- Hızlı Yanıt -->
-                <div class="fixed bottom-0 left-0 right-0 p-3 bg-[#09090b]/80 backdrop-blur-xl border-t border-white/5">
-                    <div class="flex gap-2 items-end bg-[#18181b] border border-white/10 rounded-2xl p-2 focus-within:border-blue-500/50 transition-colors">
-                        <button @onclick="OpenReplyModal" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 text-gray-400 active:scale-95">
+                <!-- Hızlı Yanıt (Absolute bottom-0) -->
+                <div class="absolute bottom-0 left-0 right-0 p-3 bg-[#09090b]/90 backdrop-blur-xl border-t border-white/5 z-20">
+                    <div class="flex gap-2 items-end bg-[#18181b] border border-white/10 rounded-2xl p-2 focus-within:border-blue-500/50 transition-colors shadow-lg">
+                        <button @onclick="OpenReplyModal" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 text-gray-400 hover:text-white active:scale-95 transition-colors shrink-0">
                             <span class="material-symbols-outlined text-[18px]">reply</span>
                         </button>
                         <textarea @bind="_quickReplyText" placeholder="Yanıt yazın..." 
                                   class="flex-grow bg-transparent border-none text-xs text-white placeholder-gray-500 outline-none resize-none p-1.5 max-h-24 no-scrollbar"></textarea>
                         <button @onclick="SendQuickReply" disabled="@(string.IsNullOrWhiteSpace(_quickReplyText))"
-                                class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center active:scale-95 disabled:opacity-30 disabled:scale-100">
+                                class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center active:scale-95 disabled:opacity-30 disabled:scale-100 transition-all shrink-0 cursor-pointer">
                             <span class="material-symbols-outlined text-sm">send</span>
                         </button>
                     </div>
@@ -299,16 +297,16 @@
         else if (_isComposing)
         {
             <!-- 4. OLUŞTURMA (COMPOSE) -->
-            <div class="flex-grow flex flex-col bg-[#09090b] overflow-hidden">
-                <div class="flex items-center justify-between p-3 bg-[#09090b]/90 backdrop-blur-md border-b border-white/5 sticky top-0 z-20">
+            <div class="flex-grow flex flex-col bg-[#09090b] overflow-hidden relative">
+                <div class="flex items-center justify-between p-3 bg-[#09090b]/90 backdrop-blur-md border-b border-white/5 sticky top-0 z-20 shrink-0">
                     <div class="flex items-center gap-3">
-                        <button @onclick="GoBackToList" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 active:scale-95 transition-transform text-white">
+                        <button @onclick="GoBackToList" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 active:scale-95 transition-transform text-white hover:bg-white/10">
                             <span class="material-symbols-outlined text-[20px]">close</span>
                         </button>
                         <span class="text-sm font-bold text-white">Yeni İleti</span>
                     </div>
                     <button @onclick="HandleSendMail" disabled="@_isSending"
-                            class="bg-blue-600 text-white px-4 py-2 rounded-full font-bold text-[11px] flex items-center gap-1 active:scale-95 transition-transform shadow-lg shadow-blue-600/20 disabled:opacity-50">
+                            class="bg-blue-600 text-white px-4 py-2 rounded-full font-bold text-[11px] flex items-center gap-1 hover:bg-blue-500 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50">
                         @if (_isSending)
                         {
                             <div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -321,47 +319,67 @@
                     </button>
                 </div>
 
-                <div class="flex-grow overflow-y-auto no-scrollbar pb-24">
-                    <div class="px-4 py-1 divide-y divide-white/5 border-b border-white/5">
+                <div class="flex-grow overflow-y-auto no-scrollbar pb-24 flex flex-col">
+                    <div class="px-4 py-1 divide-y divide-white/5 border-b border-white/5 bg-[#18181b]/30">
                         <div class="flex items-center py-2.5">
-                            <span class="text-gray-500 text-[11px] font-medium w-12">Kime</span>
-                            <input type="email" @bind="_composeModel.To" class="flex-grow bg-transparent border-none outline-none text-white text-xs font-medium" placeholder="alici@domain.com" />
+                            <span class="text-gray-500 text-[11px] font-bold w-12 tracking-wide">Kime</span>
+                            <input type="email" @bind="_composeModel.To" class="flex-grow bg-transparent border-none outline-none text-white text-xs font-medium placeholder-gray-600" placeholder="alici@domain.com" />
                         </div>
                         <div class="flex items-center py-2.5">
-                            <span class="text-gray-500 text-[11px] font-medium w-12">Konu</span>
-                            <input type="text" @bind="_composeModel.Subject" class="flex-grow bg-transparent border-none outline-none text-white text-xs font-semibold" placeholder="Konu başlığı" />
+                            <span class="text-gray-500 text-[11px] font-bold w-12 tracking-wide">Konu</span>
+                            <input type="text" @bind="_composeModel.Subject" class="flex-grow bg-transparent border-none outline-none text-white text-xs font-semibold placeholder-gray-600" placeholder="Konu başlığı" />
                         </div>
                     </div>
 
-                    <div class="p-2">
+                    <div class="p-3 flex-grow flex flex-col">
                         <!-- Toolbar -->
-                        <div class="flex gap-1 bg-[#18181b] p-1.5 rounded-xl border border-white/5 mb-3 overflow-x-auto no-scrollbar">
-                            <button type="button" @onclick='() => ExecuteEditorCommand("bold")' class="p-2 rounded-lg bg-white/5 text-gray-300 active:bg-blue-600 shrink-0"><span class="material-symbols-outlined text-[16px]">format_bold</span></button>
-                            <button type="button" @onclick='() => ExecuteEditorCommand("italic")' class="p-2 rounded-lg bg-white/5 text-gray-300 active:bg-blue-600 shrink-0"><span class="material-symbols-outlined text-[16px]">format_italic</span></button>
-                            <button type="button" @onclick='() => ExecuteEditorCommand("underline")' class="p-2 rounded-lg bg-white/5 text-gray-300 active:bg-blue-600 shrink-0"><span class="material-symbols-outlined text-[16px]">format_underlined</span></button>
+                        <div class="flex flex-wrap gap-1 bg-[#18181b] p-1.5 rounded-xl border border-white/5 mb-3 shadow-sm">
+                            <button type="button" @onclick='() => ExecuteEditorCommand("bold")' class="p-2 rounded-lg bg-white/5 text-gray-300 hover:text-white hover:bg-blue-600/20 active:bg-blue-600 shrink-0 transition-colors"><span class="material-symbols-outlined text-[16px]">format_bold</span></button>
+                            <button type="button" @onclick='() => ExecuteEditorCommand("italic")' class="p-2 rounded-lg bg-white/5 text-gray-300 hover:text-white hover:bg-blue-600/20 active:bg-blue-600 shrink-0 transition-colors"><span class="material-symbols-outlined text-[16px]">format_italic</span></button>
+                            <button type="button" @onclick='() => ExecuteEditorCommand("underline")' class="p-2 rounded-lg bg-white/5 text-gray-300 hover:text-white hover:bg-blue-600/20 active:bg-blue-600 shrink-0 transition-colors"><span class="material-symbols-outlined text-[16px]">format_underlined</span></button>
+                            <div class="w-px h-6 bg-white/10 mx-1 my-auto"></div>
+                            <button type="button" @onclick='() => ExecuteEditorCommand("formatBlock", "<h3>")' class="p-2 rounded-lg bg-white/5 text-gray-300 hover:text-white hover:bg-blue-600/20 active:bg-blue-600 shrink-0 transition-colors"><span class="material-symbols-outlined text-[16px]">title</span></button>
                         </div>
+                        
                         <div id="emailBodyEditorMobile" 
-                             class="w-full min-h-[250px] text-xs text-gray-200 outline-none p-2 bg-transparent"
+                             class="flex-grow w-full min-h-[250px] text-xs text-gray-200 outline-none p-3 bg-[#18181b]/50 border border-white/5 rounded-2xl focus:border-blue-500/30 transition-colors"
                              contenteditable="true"
                              placeholder="E-posta metninizi buraya yazın..."></div>
                     </div>
                 </div>
 
-                <div class="fixed bottom-0 left-0 right-0 p-3 bg-[#18181b] border-t border-white/5 flex justify-between items-center z-20">
-                    <label class="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl text-gray-300 text-[11px] font-medium active:scale-95 transition-transform cursor-pointer">
+                <!-- Dosya Ekleme (Absolute bottom-0) -->
+                <div class="absolute bottom-0 left-0 right-0 p-3 bg-[#18181b] border-t border-white/5 flex justify-between items-center z-20">
+                    <label class="flex items-center gap-2 px-4 py-2.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-[11px] font-bold active:scale-95 transition-all cursor-pointer border border-blue-500/20">
                         <span class="material-symbols-outlined text-[16px]">attach_file</span> Dosya Ekle
                         <InputFile OnChange="OnInputFileChange" multiple style="display: none;" />
                     </label>
-                    <span class="text-[9px] text-gray-500">@_attachments.Count ek</span>
+                    
+                    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-[60%]">
+                        @if (_attachments.Count == 0)
+                        {
+                            <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Ek Yok</span>
+                        }
+                        else
+                        {
+                            @foreach(var file in _attachments)
+                            {
+                                <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
+                                    <span class="text-[9px] text-gray-300 truncate max-w-[60px]">@file.FileName</span>
+                                    <button type="button" @onclick="() => RemoveAttachment(file)" class="text-red-400 hover:text-red-500"><span class="material-symbols-outlined text-[10px]">close</span></button>
+                                </div>
+                            }
+                        }
+                    </div>
                 </div>
             </div>
         }
 
         <!-- 5. DRAWER (SOL MENÜ) -->
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 @(_mobileDrawerOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")" 
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 @(_mobileDrawerOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")" 
              @onclick="CloseMobileDrawer"></div>
 
-        <div class="fixed top-0 bottom-0 left-0 w-[280px] bg-[#09090b] border-r border-white/5 z-[101] shadow-2xl transition-transform duration-300 flex flex-col p-4 @(_mobileDrawerOpen ? "translate-x-0" : "-translate-x-full")"
+        <div class="absolute top-0 bottom-0 left-0 w-[280px] bg-[#09090b] border-r border-white/5 z-[101] shadow-2xl transition-transform duration-300 flex flex-col p-4 @(_mobileDrawerOpen ? "translate-x-0" : "-translate-x-full")"
              @ontouchstart="HandleDrawerTouchStart"
              @ontouchmove="HandleDrawerTouchMove"
              @ontouchend="HandleDrawerTouchEnd">
@@ -369,12 +387,12 @@
             <!-- Drawer Başlık -->
             <div class="mb-6 mt-2 flex items-center justify-between">
                 <h2 class="text-xl font-black text-blue-500 tracking-tight">ApiHubMail</h2>
-                <button @onclick="CloseMobileDrawer" class="text-gray-500 active:scale-95"><span class="material-symbols-outlined">close</span></button>
+                <button @onclick="CloseMobileDrawer" class="text-gray-500 hover:text-white active:scale-95 transition-colors p-1 rounded-lg hover:bg-white/5"><span class="material-symbols-outlined">close</span></button>
             </div>
 
             <!-- Menü Listesi -->
             <div class="flex-grow overflow-y-auto no-scrollbar flex flex-col gap-1">
-                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "inbox" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "inbox" ? "bg-blue-600/10 text-blue-500 border border-blue-500/20" : "text-gray-400 hover:bg-white/5 active:bg-white/10")"
                         @onclick='() => SetFolder("inbox")'>
                     <span class="material-symbols-outlined text-[18px]">inbox</span>
                     <span class="flex-grow text-left">Gelen Kutusu</span>
@@ -383,27 +401,27 @@
                         <span class="text-[9px] bg-blue-500 text-white px-2 py-0.5 rounded-full font-bold">@_unreadCount</span>
                     }
                 </button>
-                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "sent" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "sent" ? "bg-blue-600/10 text-blue-500 border border-blue-500/20" : "text-gray-400 hover:bg-white/5 active:bg-white/10")"
                         @onclick='() => SetFolder("sent")'>
                     <span class="material-symbols-outlined text-[18px]">send</span>
                     <span class="flex-grow text-left">Gönderilenler</span>
                 </button>
-                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "draft" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "draft" ? "bg-blue-600/10 text-blue-500 border border-blue-500/20" : "text-gray-400 hover:bg-white/5 active:bg-white/10")"
                         @onclick='() => SetFolder("draft")'>
                     <span class="material-symbols-outlined text-[18px]">drafts</span>
                     <span class="flex-grow text-left">Taslaklar</span>
                 </button>
-                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "spam" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "spam" ? "bg-blue-600/10 text-blue-500 border border-blue-500/20" : "text-gray-400 hover:bg-white/5 active:bg-white/10")"
                         @onclick='() => SetFolder("spam")'>
                     <span class="material-symbols-outlined text-[18px]">report</span>
                     <span class="flex-grow text-left">Spam</span>
                 </button>
-                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "trash" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "trash" ? "bg-blue-600/10 text-blue-500 border border-blue-500/20" : "text-gray-400 hover:bg-white/5 active:bg-white/10")"
                         @onclick='() => SetFolder("trash")'>
                     <span class="material-symbols-outlined text-[18px]">delete</span>
                     <span class="flex-grow text-left">Çöp Kutusu</span>
                 </button>
-                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "archive" ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == "archive" ? "bg-blue-600/10 text-blue-500 border border-blue-500/20" : "text-gray-400 hover:bg-white/5 active:bg-white/10")"
                         @onclick='() => SetFolder("archive")'>
                     <span class="material-symbols-outlined text-[18px]">archive</span>
                     <span class="flex-grow text-left">Arşiv</span>
@@ -411,15 +429,15 @@
 
                 <!-- Etiketler -->
                 <div class="mt-6 mb-2 flex items-center justify-between px-4">
-                    <span class="text-[10px] font-bold text-gray-500 uppercase">Etiketler</span>
-                    <button @onclick="ToggleNewLabelInput" class="text-blue-500 active:scale-95"><span class="material-symbols-outlined text-[16px]">add</span></button>
+                    <span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider">Etiketler</span>
+                    <button @onclick="ToggleNewLabelInput" class="text-blue-500 hover:bg-blue-500/10 p-1 rounded-lg active:scale-95 transition-all"><span class="material-symbols-outlined text-[16px]">add</span></button>
                 </div>
                 @if (_showNewLabelInput)
                 {
                     <div class="px-2 mb-2">
-                        <div class="flex items-center bg-[#18181b] border border-white/5 rounded-xl p-1">
-                            <input type="text" @bind="_newLabelName" @onkeyup="HandleNewLabelKeyup" class="flex-grow bg-transparent text-xs text-white outline-none px-2" placeholder="Etiket adı..." />
-                            <button @onclick="CreateLabelAsync" class="text-blue-500 p-1"><span class="material-symbols-outlined text-[16px]">check</span></button>
+                        <div class="flex items-center bg-[#18181b] border border-white/10 rounded-xl p-1 shadow-inner">
+                            <input type="text" @bind="_newLabelName" @onkeyup="HandleNewLabelKeyup" class="flex-grow bg-transparent text-xs text-white outline-none px-2 placeholder-gray-600" placeholder="Etiket adı..." />
+                            <button @onclick="CreateLabelAsync" class="text-blue-500 p-1.5 hover:bg-white/5 rounded-lg"><span class="material-symbols-outlined text-[16px]">check</span></button>
                         </div>
                     </div>
                 }
@@ -427,23 +445,26 @@
                 {
                     var folderKey = "label-" + label.ToLower();
                     <div class="flex items-center group">
-                        <button class="flex-grow flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == folderKey ? "bg-blue-600/10 text-blue-500" : "text-gray-400 active:bg-white/5")"
+                        <button class="flex-grow flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all text-xs font-semibold @(_activeFolder == folderKey ? "bg-blue-600/10 text-blue-500 border border-blue-500/20" : "text-gray-400 hover:bg-white/5 active:bg-white/10")"
                                 @onclick="() => SetFolder(folderKey)">
                             <span class="material-symbols-outlined text-[16px]">label</span>
                             <span class="flex-grow text-left">@label</span>
                         </button>
-                        <button class="text-red-400 opacity-50 active:opacity-100 p-2" @onclick="() => DeleteLabelAsync(label)"><span class="material-symbols-outlined text-[14px]">close</span></button>
+                        <button class="text-red-400 opacity-50 hover:opacity-100 hover:bg-red-500/10 p-2 rounded-xl transition-all" @onclick="() => DeleteLabelAsync(label)"><span class="material-symbols-outlined text-[14px]">close</span></button>
                     </div>
                 }
             </div>
 
-            <div class="mt-4 pt-4 border-t border-white/5">
-                <div class="flex justify-between items-center mb-1 text-[8px] font-bold text-gray-500 tracking-wider">
-                    <span>KOTA</span>
-                    <span class="text-blue-500">@_quotaPercent%</span>
-                </div>
-                <div class="h-1 bg-white/10 rounded-full overflow-hidden">
-                    <div class="h-full bg-blue-500 transition-all duration-500" style="width: @_quotaPercent%"></div>
+            <div class="mt-4 pt-4 border-t border-white/5 shrink-0">
+                <div class="bg-white/5 p-3 rounded-2xl border border-white/5">
+                    <div class="flex justify-between items-center mb-1.5 text-[8px] font-bold text-gray-400 tracking-wider">
+                        <span>KOTA KULLANIMI</span>
+                        <span class="text-blue-500">@_quotaPercent%</span>
+                    </div>
+                    <div class="h-1.5 bg-black/50 rounded-full overflow-hidden shadow-inner">
+                        <div class="h-full bg-blue-500 transition-all duration-500" style="width: @_quotaPercent%"></div>
+                    </div>
+                    <p class="text-[8px] text-gray-500 mt-1.5 text-right font-medium">@FormatBytes(_usedBytes) / @FormatBytes(_quotaBytes)</p>
                 </div>
             </div>
         </div>
@@ -451,13 +472,16 @@
         <!-- 6. BOTTOM SHEET: HESAP SEÇİCİ -->
         @if (_isAccountDropdownOpen)
         {
-            <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end animate-fade-in" @onclick="ToggleAccountDropdown">
-                <div class="w-full bg-[#18181b] rounded-t-3xl border-t border-white/10 p-5 pb-8 shadow-2xl relative transition-transform translate-y-0" @onclick:stopPropagation>
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end animate-fade-in" @onclick="ToggleAccountDropdown">
+                <div class="w-full bg-[#18181b] rounded-t-3xl border-t border-white/10 p-5 pb-8 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] relative transition-transform translate-y-0" @onclick:stopPropagation>
                     <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-5"></div>
                     
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-sm font-bold text-white">Hesap Değiştir</h3>
-                        <button @onclick="ToggleAccountDropdown" class="text-gray-500 active:scale-95"><span class="material-symbols-outlined text-[20px]">close</span></button>
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Hesap Değiştir</h3>
+                            <p class="text-[10px] text-gray-500 mt-0.5">Aktif e-posta adresini seçin</p>
+                        </div>
+                        <button @onclick="ToggleAccountDropdown" class="text-gray-500 hover:bg-white/10 p-1.5 rounded-xl active:scale-95 transition-all"><span class="material-symbols-outlined text-[20px]">close</span></button>
                     </div>
 
                     <div class="flex flex-col gap-2 max-h-60 overflow-y-auto no-scrollbar mb-4">
@@ -465,12 +489,13 @@
                         {
                             var isActive = acc == _activeAccount;
                             <button @onclick="() => SwitchAccount(acc)" 
-                                    class="w-full flex items-center gap-4 p-3 rounded-2xl border @(isActive ? "bg-blue-600/10 border-blue-500/30" : "bg-[#09090b] border-white/5 active:bg-white/5")">
-                                <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm @(isActive ? "bg-blue-600 text-white" : "bg-white/5 text-gray-400")">
+                                    class="w-full flex items-center gap-4 p-3 rounded-2xl border transition-all active:scale-[0.98] @(isActive ? "bg-blue-600/10 border-blue-500/30" : "bg-[#09090b] border-white/5 hover:bg-white/5")">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-inner @(isActive ? "bg-blue-600 text-white" : "bg-white/5 text-gray-400")">
                                     @(acc.Substring(0, Math.Min(2, acc.Length)).ToUpper())
                                 </div>
-                                <div class="flex-grow text-left">
-                                    <p class="text-xs font-bold @(isActive ? "text-blue-400" : "text-gray-200")">@acc</p>
+                                <div class="flex-grow text-left min-w-0">
+                                    <p class="text-xs font-bold truncate @(isActive ? "text-blue-400" : "text-gray-200")">@acc</p>
+                                    @if(isActive) { <p class="text-[9px] text-blue-500/70 font-medium">Aktif Hesap</p> }
                                 </div>
                                 @if (isActive)
                                 {
@@ -481,9 +506,9 @@
                     </div>
 
                     <a href="/email" @onclick="ToggleAccountDropdown"
-                       class="w-full py-3 bg-[#09090b] text-center border border-white/5 active:bg-white/5 text-[11px] font-bold rounded-2xl flex items-center justify-center gap-2 text-blue-400">
+                       class="w-full py-3.5 bg-white/5 hover:bg-white/10 text-center border border-white/5 active:scale-[0.98] text-[11px] font-bold rounded-2xl flex items-center justify-center gap-2 text-white transition-all shadow-sm">
                         <span class="material-symbols-outlined text-[16px]">settings</span>
-                        Hesapları Yönet
+                        E-Posta Hesaplarını Yönet
                     </a>
                 </div>
             </div>
