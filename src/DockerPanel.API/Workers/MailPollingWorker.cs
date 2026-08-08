@@ -96,39 +96,41 @@ public class MailPollingWorker : BackgroundService
                 try
                 {
                     // EML dosyasını MimeKit ile düzgün UTF-8 formatında oku
-                    var mimeMessage = await MimeMessage.LoadAsync(file);
-                    var subject = mimeMessage.Subject ?? "Yeni İleti";
-                    var sender = mimeMessage.From.FirstOrDefault()?.ToString() ?? "Bilinmeyen Gönderici";
-                    var bodyText = mimeMessage.TextBody ?? "Bu e-postada metin içeriği bulunmuyor.";
-
-                    // 1. FCM Push Bildirimi (UTF-8 destekli doğru konu başlığı ile)
-                    await pushService.SendNotificationToUserAsync(
-                        account.UserId, 
-                        $"📧 Yeni E-posta: {subject}", 
-                        $"{sender} kişisinden yeni bir ileti geldi.", 
-                        "apihub://navigate?path=/webmail");
-
-                    // 2. Yönlendirme (Forwarding) - Özel Format
-                    if (account.ForwardingEnabled && !string.IsNullOrEmpty(account.ForwardingAddress))
+                    // Postfix dosyayı diske henüz yazıyor olabilir (File Lock).
+                    // Bu yüzden FileShare.ReadWrite ile açıyoruz ve başarısız olursa retry yapıyoruz.
+                    MimeMessage mimeMessage = null;
+                    int retries = 3;
+                    for (int i = 0; i < retries; i++)
                     {
-                        _logger.LogInformation($"[Forwarding] {account.EmailAddress} adresinden {account.ForwardingAddress} adresine yönlendirme yapılıyor.");
-                        
-                        var forwardSubject = $"İletildi: {subject}";
-                        var forwardBody = $@"Bu e-posta sisteminizdeki {account.EmailAddress} adresine gelmiş olup otomatik olarak size yönlendirilmiştir.
+                        try
+                        {
+                            using var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                            mimeMessage = await MimeMessage.LoadAsync(fs);
+                            break; // Başarılıysa döngüden çık
+                        }
+                        catch (IOException)
+                        {
+                            if (i == retries - 1) throw; // Son denemede de hata verirse dışarı fırlat
+                            await Task.Delay(500); // 500ms bekle tekrar dene
+                        }
+                    }
 
---- ORİJİNAL MESAJ BİLGİLERİ ---
-Kimden: {sender}
-Tarih: {mimeMessage.Date.ToString("dd.MM.yyyy HH:mm")}
-Konu: {subject}
+                    if (mimeMessage != null)
+                    {
+                        var subject = mimeMessage.Subject ?? "Yeni İleti";
+                        var sender = mimeMessage.From.FirstOrDefault()?.ToString() ?? "Bilinmeyen Gönderici";
 
-{bodyText}
-";
-                        await mailService.SendMailAsync(account.EmailAddress, account.DisplayName, account.ForwardingAddress, forwardSubject, forwardBody);
+                        // 1. FCM Push Bildirimi (UTF-8 destekli doğru konu başlığı ile)
+                        await pushService.SendNotificationToUserAsync(
+                            account.UserId, 
+                            $"📧 Yeni E-posta: {subject}", 
+                            $"{sender} kişisinden yeni bir ileti geldi.", 
+                            "apihub://navigate?path=/webmail");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning($"[MailPollingWorker] Dosya islenirken hata ({file}): {ex.Message}");
+                    _logger.LogWarning($"[MailPollingWorker] Dosya işlenirken hata ({file}): {ex.Message}");
                 }
             }
         }
