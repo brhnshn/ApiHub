@@ -16,6 +16,7 @@ namespace DockerPanel.Infrastructure.Services;
 public class ProjectContainerService : IProjectContainerService
 {
     private readonly DockerClient _dockerClient;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (ulong CpuTotal, ulong SystemTotal, DateTime Timestamp)> _prevCpuStats = new();
 
     public ProjectContainerService()
     {
@@ -251,9 +252,8 @@ public class ProjectContainerService : IProjectContainerService
     {
         var statsDto = new ContainerStatsDto();
 
-        // Single metric read using stats stream cancellation
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(3000); // 3 saniye zaman aşımı
+        cts.CancelAfter(3000);
 
         try
         {
@@ -261,32 +261,68 @@ public class ProjectContainerService : IProjectContainerService
                 new ContainerStatsParameters { Stream = false },
                 new Progress<ContainerStatsResponse>(stats =>
                 {
-                    double cpuDelta = stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage;
-                    double systemDelta = stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage;
-                    
-                    double cpuPercent = 0.0;
-                    if (systemDelta > 0.0 && cpuDelta > 0.0)
+                    if (stats?.CPUStats == null) return;
+
+                    ulong currentCpu = stats.CPUStats.CPUUsage?.TotalUsage ?? 0;
+                    ulong currentSystem = stats.CPUStats.SystemUsage;
+
+                    double cpuDelta = 0;
+                    double systemDelta = 0;
+
+                    // 1. Docker PreCPUStats
+                    if (stats.PreCPUStats?.CPUUsage != null && stats.PreCPUStats.CPUUsage.TotalUsage > 0 && stats.PreCPUStats.SystemUsage > 0)
                     {
-                        cpuPercent = (cpuDelta / systemDelta) * stats.CPUStats.OnlineCPUs * 100.0;
+                        cpuDelta = currentCpu > stats.PreCPUStats.CPUUsage.TotalUsage ? (currentCpu - stats.PreCPUStats.CPUUsage.TotalUsage) : 0;
+                        systemDelta = currentSystem > stats.PreCPUStats.SystemUsage ? (currentSystem - stats.PreCPUStats.SystemUsage) : 0;
+                    }
+                    // 2. Önceki örnek önbelleği
+                    else if (_prevCpuStats.TryGetValue(dockerContainerId, out var prev))
+                    {
+                        if (currentCpu >= prev.CpuTotal && currentSystem > prev.SystemTotal)
+                        {
+                            cpuDelta = currentCpu - prev.CpuTotal;
+                            systemDelta = currentSystem - prev.SystemTotal;
+                        }
                     }
 
+                    _prevCpuStats[dockerContainerId] = (currentCpu, currentSystem, DateTime.UtcNow);
+
+                    long onlineCpus = stats.CPUStats.OnlineCPUs > 0 
+                        ? (long)stats.CPUStats.OnlineCPUs 
+                        : (stats.CPUStats.CPUUsage?.PercpuUsage != null && stats.CPUStats.CPUUsage.PercpuUsage.Count > 0 
+                            ? stats.CPUStats.CPUUsage.PercpuUsage.Count 
+                            : Environment.ProcessorCount);
+                    if (onlineCpus <= 0) onlineCpus = 1;
+
+                    double cpuPercent = 0.0;
+                    if (systemDelta > 0.0 && cpuDelta >= 0.0)
+                    {
+                        cpuPercent = (cpuDelta / systemDelta) * onlineCpus * 100.0;
+                    }
+
+                    ulong rawUsage = stats.MemoryStats?.Usage ?? 0;
                     ulong cache = 0;
-                    if (stats.MemoryStats.Stats != null)
+                    if (stats.MemoryStats?.Stats != null)
                     {
                         if (stats.MemoryStats.Stats.TryGetValue("cache", out var c)) cache = c;
                         else if (stats.MemoryStats.Stats.TryGetValue("inactive_file", out var inf)) cache = inf;
+                        else if (stats.MemoryStats.Stats.TryGetValue("total_inactive_file", out var tinf)) cache = tinf;
                     }
-                    ulong usedMemory = stats.MemoryStats.Usage > cache ? stats.MemoryStats.Usage - cache : stats.MemoryStats.Usage;
+                    ulong usedMemory = rawUsage > cache ? rawUsage - cache : rawUsage;
+                    ulong memLimit = stats.MemoryStats?.Limit ?? 0;
+                    if (memLimit == 0 || memLimit > (1UL << 50)) 
+                    {
+                        memLimit = 1024UL * 1024UL * 1024UL * 8UL;
+                    }
 
-                    statsDto.CpuPercentage = Math.Round(cpuPercent, 2);
+                    statsDto.CpuPercentage = Math.Round(Math.Clamp(cpuPercent, 0, 100.0 * onlineCpus), 2);
                     statsDto.MemoryUsageBytes = usedMemory;
-                    statsDto.MemoryLimitBytes = stats.MemoryStats.Limit;
-                    statsDto.MemoryPercentage = Math.Round((usedMemory / (double)stats.MemoryStats.Limit) * 100.0, 2);
+                    statsDto.MemoryLimitBytes = memLimit;
+                    statsDto.MemoryPercentage = memLimit > 0 ? Math.Round((usedMemory / (double)memLimit) * 100.0, 2) : 0;
                 }), cts.Token);
         }
         catch
         {
-            // Zaman aşımı veya durmuş konteyner durumunda varsayılan 0 değerlerini döner
         }
 
         return statsDto;

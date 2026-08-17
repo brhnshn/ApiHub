@@ -353,15 +353,18 @@ public class MetricBackgroundWorker : BackgroundService
                                 }
                             }
 
-                            // İlgili proje SignalR grubuna metrikleri bas
-                            await _hubContext.Clients.Group($"project_{project.Id}").SendAsync("ReceiveProjectMetrics", new
+                            // Tüm istemcilere ve ilgili proje SignalR grubuna canlı metrikleri bas
+                            var metricPayload = new
                             {
                                 ProjectId = project.Id,
                                 Cpu = cpu,
-                                RamBytes = ramBytes,
-                                RamLimitBytes = ramLimitBytes,
+                                RamBytes = (long)ramBytes,
+                                RamLimitBytes = (long)ramLimitBytes,
                                 RamPercentage = ramPercentage
-                            }, stoppingToken);
+                            };
+
+                            await _hubContext.Clients.All.SendAsync("ReceiveProjectMetrics", metricPayload, stoppingToken);
+                            await _hubContext.Clients.Group($"project_{project.Id}").SendAsync("ReceiveProjectMetrics", metricPayload, stoppingToken);
 
                             // Canlı terminal log akışı
                             if (logs != null && logs.Any())

@@ -47,6 +47,11 @@ public class MetricLogHub : Hub
 
     private async Task<bool> IsUserAuthorizedForProjectAsync(Guid projectId)
     {
+        if (Context.User?.IsInRole("Administrator") == true)
+        {
+            return await _dbContext.Projects.AnyAsync(p => p.Id == projectId);
+        }
+
         var userIdStr = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdStr, out var userId))
         {
@@ -54,6 +59,6 @@ public class MetricLogHub : Hub
         }
 
         return await _dbContext.Projects
-            .AnyAsync(p => p.Id == projectId && p.UserId == userId);
+            .AnyAsync(p => p.Id == projectId && (p.UserId == userId || p.UserId == Guid.Empty));
     }
 }
