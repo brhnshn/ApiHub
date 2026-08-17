@@ -51,10 +51,19 @@ html, body {
     color: var(--ink) !important;
     margin: 0;
     padding: 0;
+    width: 100%;
+    height: 100%;
     overflow-x: hidden;
     font-size: 13.5px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 ::selection {
@@ -98,49 +107,43 @@ p { font-size: 0.875rem !important; line-height: 1.55 !important; color: var(--i
     border: none !important;
     padding: 9px 18px !important;
     border-radius: 9px !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 13.5px !important;
     font-weight: 600 !important;
+    font-size: 13px !important;
+    cursor: pointer !important;
     display: inline-flex !important;
     align-items: center !important;
-    justify-content: center !important;
     gap: 8px !important;
-    cursor: pointer !important;
-    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease !important;
+    transition: all 0.15s ease !important;
+    box-shadow: 0 1px 3px rgba(56, 73, 89, 0.15) !important;
     text-decoration: none !important;
+    font-family: 'Inter', sans-serif !important;
 }
-
 .btn-primary:hover {
-    background: var(--azure) !important;
-    color: var(--navy) !important;
-    box-shadow: 0 4px 12px rgba(136, 189, 242, 0.35) !important;
+    background: #2b3947 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(56, 73, 89, 0.22) !important;
 }
-
 .btn-primary:active {
-    transform: translateY(1px) !important;
+    transform: translateY(0);
 }
 
 .btn-secondary {
     background: var(--paper) !important;
     color: var(--navy) !important;
     border: 1px solid var(--line) !important;
-    padding: 9px 16px !important;
+    padding: 8px 16px !important;
     border-radius: 9px !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 13px !important;
     font-weight: 600 !important;
+    font-size: 13px !important;
+    cursor: pointer !important;
     display: inline-flex !important;
     align-items: center !important;
-    justify-content: center !important;
-    gap: 7px !important;
-    cursor: pointer !important;
+    gap: 8px !important;
     transition: all 0.15s ease !important;
     text-decoration: none !important;
+    font-family: 'Inter', sans-serif !important;
 }
-
 .btn-secondary:hover {
-    border-color: var(--azure) !important;
-    color: var(--navy) !important;
     background: var(--accent-bg) !important;
 }
 
@@ -229,9 +232,22 @@ p { font-size: 0.875rem !important; line-height: 1.55 !important; color: var(--i
 /* ================= İSTATİSTİK KARTLARI ================= */
 .stat-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
     margin-bottom: 20px;
+    width: 100%;
+}
+
+@media (max-width: 1200px) {
+    .stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .stat-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .stat-head {

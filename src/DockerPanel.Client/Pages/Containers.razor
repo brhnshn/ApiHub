@@ -332,8 +332,12 @@ else
                         </div>
 
                         <!-- Aktiflik Durumu -->
-                        <div class="mb-3">
-                            @if (project.Status == ProjectStatus.Running)
+                        <div class="mb-3 flex items-center gap-1.5 flex-wrap">
+                            @if (project.ActiveMaintenancePageId.HasValue)
+                            {
+                                <span class="pill pill-amber text-[11px]"><span class="dot"></span>*** Bakım Sayfası Yayında</span>
+                            }
+                            else if (project.Status == ProjectStatus.Running)
                             {
                                 <span class="pill pill-moss text-[11px]"><span class="dot"></span>Aktif</span>
                             }
@@ -473,129 +477,170 @@ else
 }
 
 @* === PROJE DURDURMA DİYALOGU - BAKIM SAYFASI SEÇİMİ === *@
-<MudDialog @bind-Visible="_stopDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true }">
-    <TitleContent>
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <MudIcon Icon="@Icons.Material.Filled.PauseCircle" Style="color: #f87171;" />
-            <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Projeyi Durdur</MudText>
-        </div>
-    </TitleContent>
-    <DialogContent>
-        <MudText Typo="Typo.body2" Class="mb-4 mud-text-secondary">
-            <strong style="color: var(--text-main);">@_projectToStop?.Name</strong> projesini durdurmak üzeresiniz.
-            Durdurulan projenin domain/subdomainlerinde bakım sayfası yayınlamak ister misiniz?
-        </MudText>
+@if (_stopDialogVisible)
+{
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-lg p-6 space-y-4">
+            <!-- Başlık -->
+            <div class="flex items-center gap-3 border-b border-[var(--line)] pb-3">
+                <div class="w-10 h-10 rounded-xl bg-[var(--rose-bg)] text-[var(--rose)] flex items-center justify-center text-lg shrink-0">
+                    <i class="fa-solid fa-circle-pause"></i>
+                </div>
+                <div>
+                    <h3 class="font-serif font-bold text-base text-[var(--navy)] m-0">Projeyi Durdur</h3>
+                    <p class="text-[11px] text-[var(--ink-soft)] m-0">Servis durdurma ve bakım sayfası yapılandırması</p>
+                </div>
+            </div>
 
-        @if (_isLoadingMaintenancePages)
-        {
-            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-        }
-        else
-        {
-            @if (_projectToStop?.Subdomains.Any() == true)
+            <!-- Açıklama -->
+            <p class="text-xs text-[var(--ink)] leading-relaxed">
+                <strong class="text-[var(--navy)] font-semibold">@_projectToStop?.Name</strong> projesini durdurmak üzeresiniz.
+                Durdurulan projenin domain ve alt alan adlarında bakım sayfası yayınlamak ister misiniz?
+            </p>
+
+            @if (_isLoadingMaintenancePages)
             {
-                <div class="mb-3">
-                    <MudText Typo="Typo.caption" Style="font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.5px;">
-                        Subdomain Bakım Sayfası Seçimi (@_projectToStop.Subdomains.Count subdomain bağlı)
-                    </MudText>
-                    <div class="mt-2 space-y-2" style="max-height: 220px; overflow-y: auto; padding-right: 4px;">
-                        @foreach (var sub in _projectToStop.Subdomains)
-                        {
-                            var subFullName = string.IsNullOrEmpty(sub.SubdomainName) || sub.SubdomainName == "@" ? sub.DomainName : $"{sub.SubdomainName}.{sub.DomainName}";
-                            Guid? currentVal = _subdomainSelectedPages.ContainsKey(sub.Id) ? _subdomainSelectedPages[sub.Id] : null;
-
-                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 10px 14px;" class="d-flex align-center justify-between gap-3">
-                                <div>
-                                    <div style="font-size: 13px; font-weight: 700; color: #e2e8f0;">@subFullName</div>
-                                    <div style="font-size: 11px; color: #64748b;">Subdomain Özel Bakım Sayfası</div>
-                                </div>
-                                <MudSelect T="Guid?" Value="currentVal" ValueChanged="@((val) => _subdomainSelectedPages[sub.Id] = val)"
-                                           Variant="Variant.Outlined" Dense="true" Style="font-size: 12px; min-width: 180px;">
-                                    <MudSelectItem T="Guid?" Value="null">Varsayılan Çevrimdışı Sayfası</MudSelectItem>
-                                    @foreach (var mPage in _maintenancePages)
-                                    {
-                                        <MudSelectItem T="Guid?" Value="mPage.Id">@mPage.Name</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </div>
-                        }
-                    </div>
+                <div class="flex items-center justify-center py-6 gap-2 text-xs text-[var(--ink-soft)]">
+                    <span class="w-4 h-4 border-2 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></span>
+                    <span>Bakım şablonları yükleniyor...</span>
                 </div>
             }
             else
             {
-                <MudAlert Severity="Severity.Normal" Dense="true" Class="mb-3" Style="font-size: 12px;">
-                    Bu projeye bağlı herhangi bir subdomain bulunmuyor. Proje durdurulduğunda port kapatılacaktır.
-                </MudAlert>
+                @if (_projectToStop?.Subdomains.Any() == true)
+                {
+                    <div class="space-y-2">
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-[var(--ink-soft)]">
+                            Subdomain Bakım Sayfası Seçimi (@_projectToStop.Subdomains.Count subdomain bağlı)
+                        </label>
+                        <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            @foreach (var sub in _projectToStop.Subdomains)
+                            {
+                                var subFullName = string.IsNullOrEmpty(sub.SubdomainName) || sub.SubdomainName == "@" ? sub.DomainName : $"{sub.SubdomainName}.{sub.DomainName}";
+                                Guid? currentVal = _subdomainSelectedPages.ContainsKey(sub.Id) ? _subdomainSelectedPages[sub.Id] : null;
+
+                                <div class="bg-[var(--cream)] border border-[var(--line)] rounded-xl p-3 flex items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-semibold text-[var(--navy)] truncate">@subFullName</div>
+                                        <div class="text-[10.5px] text-[var(--ink-soft)]">Subdomain Özel Bakım Sayfası</div>
+                                    </div>
+                                    <select value="@(currentVal?.ToString() ?? "")"
+                                            @onchange="@((e) => {
+                                                var valStr = e.Value?.ToString();
+                                                _subdomainSelectedPages[sub.Id] = string.IsNullOrEmpty(valStr) ? null : Guid.Parse(valStr);
+                                            })"
+                                            class="bg-[var(--paper)] border border-[var(--line)] text-[var(--ink)] rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-[var(--azure)] max-w-[200px]">
+                                        <option value="">Varsayılan Çevrimdışı Sayfası</option>
+                                        @foreach (var mPage in _maintenancePages)
+                                        {
+                                            <option value="@mPage.Id">@mPage.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="p-3 rounded-xl bg-[var(--cream)] border border-[var(--line)] text-[11px] text-[var(--ink-soft)] flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-[var(--azure)] text-sm"></i>
+                        <span>Bu projeye bağlı subdomain bulunmuyor. Proje durdurulduğunda port kapatılacaktır.</span>
+                    </div>
+                }
+
+                @if (!_maintenancePages.Any())
+                {
+                    <div class="p-3 rounded-xl bg-[var(--accent-bg)] border border-[var(--azure)]/30 text-[11px] text-[var(--navy)] flex items-center justify-between">
+                        <span>Henüz özel bakım sayfası yok.</span>
+                        <button @onclick="@(() => { _stopDialogVisible = false; _maintenancePanelOpen = true; StateHasChanged(); })" class="text-[var(--azure)] hover:underline font-bold">Şimdi oluştur</button>
+                    </div>
+                }
             }
 
-            @if (!_maintenancePages.Any())
-            {
-                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3" Style="font-size: 12px;">
-                    Henüz özel bakım sayfası yok. <a @onclick="@(() => { _stopDialogVisible = false; _maintenancePanelOpen = true; StateHasChanged(); })" style="cursor: pointer; color: #60a5fa; text-decoration: underline;">Şimdi oluştur</a>
-                </MudAlert>
-            }
-        }
+            <div class="p-3 rounded-xl bg-[var(--moss-bg)] border border-[var(--moss)]/30 text-[11px] text-[var(--moss)] flex items-start gap-2">
+                <i class="fa-solid fa-circle-check text-xs mt-0.5 shrink-0"></i>
+                <span class="leading-relaxed">Durdurulan projelerde HTTP 200 yanıt kodu ile bakım sayfası yayınlanacağı için Cloudflare 502/521 göstermez. Başlattığınızda orijinal siteye dönülür.</span>
+            </div>
 
-        <MudAlert Severity="Severity.Success" Dense="true" Class="mt-3" Style="font-size: 12px;">
-            Durdurulan projelerde HTTP 200 yanıt kodu ile bakım sayfası yayınlanacağı için Cloudflare 502/521 göstermez.
-            Projeyi başlattığınızda orijinal siteye dönülür.
-        </MudAlert>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="CancelStopDialog" Color="Color.Default" Variant="Variant.Text" Disabled="_isStopping">İptal</MudButton>
-        <MudButton OnClick="ConfirmStopProject" Color="Color.Error" Variant="Variant.Filled"
-                   Disabled="_isStopping" Style="font-weight: 700; text-transform: none;">
-            @if (_isStopping)
-            {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="margin-right: 8px;" />
-            }
-            Durdur
-        </MudButton>
-    </DialogActions>
-</MudDialog>
+            <!-- Footer Actions -->
+            <div class="flex justify-end gap-2 pt-3 border-t border-[var(--line)]">
+                <button @onclick="CancelStopDialog" disabled="@_isStopping" class="btn-secondary py-2 px-4 text-xs font-semibold">
+                    İptal
+                </button>
+                <button @onclick="ConfirmStopProject" disabled="@_isStopping" class="btn-danger py-2 px-4 text-xs font-semibold flex items-center gap-1.5">
+                    @if (_isStopping)
+                    {
+                        <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Durduruluyor...</span>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-circle-stop text-xs"></i>
+                        <span>Durdur</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @* === TOPLU SUNUCU BAKIM MODU DİYALOGU === *@
-<MudDialog @bind-Visible="_bulkMaintenanceModalOpen" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true }">
-    <TitleContent>
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <MudIcon Icon="@Icons.Material.Filled.Build" Style="color: #fbbf24;" />
-            <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Toplu Bakım Modu Yönetimi</MudText>
+@if (_bulkMaintenanceModalOpen)
+{
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center gap-3 border-b border-[var(--line)] pb-3">
+                <div class="w-10 h-10 rounded-xl bg-[var(--amber-bg)] text-[var(--amber)] flex items-center justify-center text-lg shrink-0">
+                    <i class="fa-solid fa-wrench"></i>
+                </div>
+                <div>
+                    <h3 class="font-serif font-bold text-base text-[var(--navy)] m-0">Toplu Bakım Modu</h3>
+                    <p class="text-[11px] text-[var(--ink-soft)] m-0">Sunucu projelerini toplu bakıma alma / çıkarma</p>
+                </div>
+            </div>
+
+            <p class="text-xs text-[var(--ink-soft)] leading-relaxed">
+                Sunucudaki tüm projeleri tek tıkla bakıma alabilir veya bakım modundan çıkarabilirsiniz.
+            </p>
+
+            <div class="space-y-1">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-[var(--ink-soft)]">Bakım Sayfası Şablonu</label>
+                <select value="@(_bulkSelectedMaintenancePageId?.ToString() ?? "")"
+                        @onchange="@((e) => {
+                            var valStr = e.Value?.ToString();
+                            _bulkSelectedMaintenancePageId = string.IsNullOrEmpty(valStr) ? null : Guid.Parse(valStr);
+                        })"
+                        class="w-full bg-[var(--paper)] border border-[var(--line)] text-[var(--ink)] rounded-lg p-2.5 text-xs outline-none focus:border-[var(--azure)]">
+                    <option value="">Varsayılan Şablon (Sistem Bakımda)</option>
+                    @foreach (var mPage in _maintenancePages)
+                    {
+                        <option value="@mPage.Id">@mPage.Name</option>
+                    }
+                </select>
+            </div>
+
+            <div class="p-3 rounded-xl bg-[var(--cream)] border border-[var(--line)] text-[11px] text-[var(--ink-soft)] flex items-center gap-2">
+                <i class="fa-solid fa-circle-info text-[var(--azure)] text-sm"></i>
+                <span>"Tümünü Bakıma Al" çalışan tüm projeleri durdurur ve seçilen bakım sayfasına yönlendirir.</span>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-[var(--line)] flex-wrap">
+                <button @onclick="@(() => _bulkMaintenanceModalOpen = false)" disabled="@_isExecutingBulkMaintenance" class="btn-secondary py-2 px-3 text-xs">
+                    İptal
+                </button>
+                <button @onclick='@(() => ExecuteBulkMaintenance("deactivate"))' disabled="@_isExecutingBulkMaintenance" class="btn-secondary py-2 px-3 text-xs font-bold text-[var(--moss)] flex items-center gap-1.5">
+                    @if (_isExecutingBulkMaintenance) { <span class="w-3.5 h-3.5 border-2 border-[var(--moss)] border-t-transparent rounded-full animate-spin"></span> }
+                    <span>Bakımdan Çıkar & Başlat</span>
+                </button>
+                <button @onclick='@(() => ExecuteBulkMaintenance("activate"))' disabled="@_isExecutingBulkMaintenance" class="btn-primary py-2 px-3 text-xs font-bold flex items-center gap-1.5">
+                    @if (_isExecutingBulkMaintenance) { <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> }
+                    <span>Tümünü Bakıma Al</span>
+                </button>
+            </div>
         </div>
-    </TitleContent>
-    <DialogContent>
-        <MudText Typo="Typo.body2" Class="mb-4 mud-text-secondary">
-            Sunucudaki tüm projeleri tek tıkla bakıma alabilir veya bakım modundan çıkarabilirsiniz.
-        </MudText>
-
-        <MudSelect T="Guid?" Label="Bakım Sayfası Şablonu" @bind-Value="_bulkSelectedMaintenancePageId"
-                   Variant="Variant.Outlined" Dense="true" Class="mb-4"
-                   Style="font-family: 'Outfit', sans-serif;"
-                   AdornmentIcon="@Icons.Material.Filled.WebAsset"
-                   AdornmentColor="Color.Warning">
-            <MudSelectItem T="Guid?" Value="null">Varsayılan Şablon (Sistem Bakımda)</MudSelectItem>
-            @foreach (var mPage in _maintenancePages)
-            {
-                <MudSelectItem T="Guid?" Value="mPage.Id">@mPage.Name</MudSelectItem>
-            }
-        </MudSelect>
-
-        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3" Style="font-size: 12px;">
-            "Tümünü Bakıma Al" seçeneği çalışan tüm projeleri durdurur ve Nginx'i seçilen bakım sayfasına yönlendirir.
-        </MudAlert>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="@(() => _bulkMaintenanceModalOpen = false)" Color="Color.Default" Variant="Variant.Text" Disabled="_isExecutingBulkMaintenance">İptal</MudButton>
-        <MudButton OnClick="@(() => ExecuteBulkMaintenance("deactivate"))" Color="Color.Success" Variant="Variant.Outlined" Disabled="_isExecutingBulkMaintenance" Style="font-weight: 700; text-transform: none;">
-            @if (_isExecutingBulkMaintenance) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
-            Bakımdan Çıkar & Tümünü Başlat
-        </MudButton>
-        <MudButton OnClick="@(() => ExecuteBulkMaintenance("activate"))" Color="Color.Warning" Variant="Variant.Filled" Disabled="_isExecutingBulkMaintenance" Style="font-weight: 700; text-transform: none;">
-            @if (_isExecutingBulkMaintenance) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
-            Tümünü Bakıma Al
-        </MudButton>
-    </DialogActions>
-</MudDialog>
+    </div>
+}
 
 @* === BAKIM SAYFALARI YÖNETİM PANELİ DİYALOGU === *@
 <MudDialog @bind-Visible="_maintenancePanelOpen" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true }">
