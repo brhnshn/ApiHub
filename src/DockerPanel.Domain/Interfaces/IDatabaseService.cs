@@ -7,6 +7,7 @@ namespace DockerPanel.Domain.Interfaces;
 public interface IDatabaseService
 {
     Task ProvisionDatabaseAsync(string dbName, string dbUser, string dbPassword);
+    Task ChangeUserPasswordAsync(string dbUser, string newPassword);
     Task DeleteDatabaseAsync(string dbName, string dbUser);
     Task<long> GetDatabaseSizeAsync(string dbName);
     Task<List<ExistingDatabaseInfo>> DiscoverExistingDatabasesAsync();

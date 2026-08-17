@@ -243,6 +243,37 @@ public class DatabaseController : ControllerBase
         }
     }
 
+    [HttpPut("{id}/password")]
+    public async Task<IActionResult> ChangePassword(Guid id, [FromBody] ChangeDatabasePasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            return BadRequest(new { Message = "Yeni şifre boş olamaz!" });
+        }
+
+        var schema = await _dbContext.DatabaseSchemas.FindAsync(id);
+        if (schema == null) return NotFound();
+
+        if (!IsAdmin() && schema.UserId != GetUserId()) return Forbid();
+
+        try
+        {
+            await _databaseService.ChangeUserPasswordAsync(schema.DbUser, request.NewPassword);
+
+            await LogAuditAsync("DatabasePasswordChanged", "Database", schema.Id, JsonSerializer.Serialize(new
+            {
+                schema.DbName,
+                schema.DbUser
+            }));
+
+            return Ok(new { Message = $"'{schema.DbUser}' kullanıcısının şifresi başarıyla güncellendi." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = $"Şifre güncelleme hatası: {ex.Message}" });
+        }
+    }
+
     [HttpGet("discover")]
     [DisableRateLimiting]
     public async Task<IActionResult> Discover()
@@ -315,4 +346,9 @@ public class ImportDatabaseRequest
 {
     public string DbName { get; set; } = string.Empty;
     public string DbUser { get; set; } = string.Empty;
+}
+
+public class ChangeDatabasePasswordRequest
+{
+    public string NewPassword { get; set; } = string.Empty;
 }

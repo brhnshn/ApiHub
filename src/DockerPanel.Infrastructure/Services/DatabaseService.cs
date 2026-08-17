@@ -55,7 +55,11 @@ public class DatabaseService : IDatabaseService
         }
         else
         {
-            SystemLogQueue.Log("info", $"[PostgreSQL] Kullanıcı '{dbUser}' zaten mevcut.");
+            SystemLogQueue.Log("info", $"$ psql -c \"ALTER USER {dbUser} WITH ENCRYPTED PASSWORD '********';\"");
+            var safePassword = dbPassword.Replace("'", "''");
+            using var alterUserCmd = new NpgsqlCommand($"ALTER USER {dbUser} WITH ENCRYPTED PASSWORD '{safePassword}'", conn);
+            await alterUserCmd.ExecuteNonQueryAsync();
+            SystemLogQueue.Log("info", $"[PostgreSQL] Kullanıcı '{dbUser}' mevcut, parolası güncellendi.");
         }
 
         // B. Veritabanını Yaratma
@@ -89,6 +93,22 @@ public class DatabaseService : IDatabaseService
         await grantCmd.ExecuteNonQueryAsync();
         SystemLogQueue.Log("info", $"[PostgreSQL] '{dbUser}' kullanıcısına '{dbName}' veritabanı için tam yetki (ALL PRIVILEGES) atandı.");
         SystemLogQueue.Log("info", $"[PostgreSQL] Şema sağlama işlemi başarıyla tamamlandı.");
+    }
+
+    public async Task ChangeUserPasswordAsync(string dbUser, string newPassword)
+    {
+        if (!InputValidator.IsDatabaseIdentifier(dbUser))
+        {
+            throw new ArgumentException("Geçersiz kullanıcı adı!");
+        }
+
+        using var conn = new NpgsqlConnection(_masterConnectionString);
+        await conn.OpenAsync();
+
+        var safePassword = newPassword.Replace("'", "''");
+        using var alterUserCmd = new NpgsqlCommand($"ALTER USER {dbUser} WITH ENCRYPTED PASSWORD '{safePassword}'", conn);
+        await alterUserCmd.ExecuteNonQueryAsync();
+        SystemLogQueue.Log("info", $"[PostgreSQL] '{dbUser}' kullanıcısının şifresi başarıyla güncellendi.");
     }
 
     public async Task DeleteDatabaseAsync(string dbName, string dbUser)
