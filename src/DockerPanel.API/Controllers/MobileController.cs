@@ -26,32 +26,34 @@ public class MobileController : ControllerBase
     private readonly IProjectContainerService _containerService;
     private readonly IFirewallService _firewallService;
     private readonly IProcessManagerService _processManagerService;
-
-    // Keep track of last CPU states to calculate system CPU usage
-    private static double _lastCpuUser = 0;
-    private static double _lastCpuNice = 0;
-    private static double _lastCpuSystem = 0;
-    private static double _lastCpuIdle = 0;
+    private readonly ISystemMetricsService _metricsService;
 
     public MobileController(
         DockerPanelDbContext context,
         IProjectContainerService containerService,
         IFirewallService firewallService,
-        IProcessManagerService processManagerService)
+        IProcessManagerService processManagerService,
+        ISystemMetricsService metricsService)
     {
         _context = context;
         _containerService = containerService;
         _firewallService = firewallService;
         _processManagerService = processManagerService;
+        _metricsService = metricsService;
     }
 
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard()
     {
         // 1. Get CPU & RAM & Disk
-        var cpuUsage = await GetSystemCpuUsageAsync();
-        var (ramPct, ramUsed, ramTotal) = GetSystemRamUsage();
-        var (diskPct, diskUsed, diskTotal) = GetSystemDiskUsage();
+        var metrics = await _metricsService.GetCurrentMetricsAsync();
+        var cpuUsage = metrics.Cpu;
+        var ramPct = metrics.RamPercentage;
+        var ramUsed = metrics.RamUsedGb;
+        var ramTotal = metrics.RamTotalGb;
+        var diskPct = metrics.DiskUsedPercentage;
+        var diskUsed = metrics.DiskUsedGb;
+        var diskTotal = metrics.DiskTotalGb;
 
         // 2. Docker & Nginx Status
         var dockerActive = false;
@@ -248,161 +250,6 @@ public class MobileController : ControllerBase
         {
             return StatusCode(500, new { Message = $"Konteyner yönetilirken hata oluştu: {ex.Message}" });
         }
-    }
-
-    private async Task<double> GetSystemCpuUsageAsync()
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var rand = new Random();
-            return Math.Round(10.0 + rand.NextDouble() * 20.0, 1);
-        }
-
-        try
-        {
-            var lines = await System.IO.File.ReadAllLinesAsync("/proc/stat");
-            var firstLine = lines.First();
-            var parts = firstLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 5)
-            {
-                double user = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
-                double nice = double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture);
-                double system = double.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture);
-                double idle = double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture);
-
-                double active = user + nice + system;
-                double total = active + idle;
-
-                double prevActive = _lastCpuUser + _lastCpuNice + _lastCpuSystem;
-                double prevTotal = prevActive + _lastCpuIdle;
-
-                double diffActive = active - prevActive;
-                double diffTotal = total - prevTotal;
-
-                _lastCpuUser = user;
-                _lastCpuNice = nice;
-                _lastCpuSystem = system;
-                _lastCpuIdle = idle;
-
-                if (diffTotal > 0)
-                {
-                    return Math.Round((diffActive / diffTotal) * 100.0, 1);
-                }
-            }
-        }
-        catch
-        {
-            // Fallback
-        }
-
-        return 12.5;
-    }
-
-    private (double UsedPercentage, double UsedGb, double TotalGb) GetSystemRamUsage()
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var gcInfo = GC.GetGCMemoryInfo();
-            double total = Math.Round(gcInfo.TotalAvailableMemoryBytes / (1024.0 * 1024.0 * 1024.0), 2);
-            var rand = new Random();
-            double used = Math.Round((total * 0.3) + rand.NextDouble() * (total * 0.1), 2);
-            double pct = Math.Round((used / total) * 100.0, 1);
-            return (pct, used, total);
-        }
-
-        try
-        {
-            var lines = System.IO.File.ReadAllLines("/proc/meminfo");
-            double memTotal = 0;
-            double memFree = 0;
-            double buffers = 0;
-            double cached = 0;
-            double sReclaimable = 0;
-            double shmem = 0;
-            double memAvailable = 0;
-
-            foreach (var line in lines)
-            {
-                var parts = line.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length < 2) continue;
-
-                if (line.StartsWith("MemTotal:"))
-                    memTotal = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("MemFree:"))
-                    memFree = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("Buffers:"))
-                    buffers = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("Cached:"))
-                    cached = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("SReclaimable:"))
-                    sReclaimable = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("Shmem:"))
-                    shmem = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("MemAvailable:"))
-                    memAvailable = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-            }
-
-            if (memTotal > 0)
-            {
-                double memUsed = memTotal - memFree - buffers - cached - sReclaimable + shmem;
-                if (memUsed <= 0)
-                {
-                    if (memAvailable == 0)
-                    {
-                        memAvailable = memFree + buffers + cached;
-                    }
-                    memUsed = memTotal - memAvailable;
-                }
-
-                double pct = Math.Round((memUsed / memTotal) * 100.0, 1);
-                double usedGb = Math.Round(memUsed / (1024.0 * 1024.0 * 1024.0), 2);
-                double totalGb = Math.Round(memTotal / (1024.0 * 1024.0 * 1024.0), 2);
-                return (pct, usedGb, totalGb);
-            }
-        }
-        catch
-        {
-            // ignore
-        }
-
-        return (0, 0, 0);
-    }
-
-    private (double UsedPercentage, double UsedGb, double TotalGb) GetSystemDiskUsage()
-    {
-        try
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                var drives = DriveInfo.GetDrives();
-                var primaryDrive = drives.FirstOrDefault(d => d.IsReady && d.Name.StartsWith("C"));
-                if (primaryDrive != null)
-                {
-                    double total = Math.Round(primaryDrive.TotalSize / (1024.0 * 1024.0 * 1024.0), 2);
-                    double free = Math.Round(primaryDrive.TotalFreeSpace / (1024.0 * 1024.0 * 1024.0), 2);
-                    double used = total - free;
-                    double pct = Math.Round((used / total) * 100.0, 1);
-                    return (pct, used, total);
-                }
-            }
-            else
-            {
-                var dInfo = new DriveInfo("/");
-                if (dInfo.IsReady)
-                {
-                    double total = Math.Round(dInfo.TotalSize / (1024.0 * 1024.0 * 1024.0), 2);
-                    double free = Math.Round(dInfo.TotalFreeSpace / (1024.0 * 1024.0 * 1024.0), 2);
-                    double used = total - free;
-                    double pct = Math.Round((used / total) * 100.0, 1);
-                    return (pct, used, total);
-                }
-            }
-        }
-        catch
-        {
-            // ignore
-        }
-        return (0, 0, 0);
     }
 }
 

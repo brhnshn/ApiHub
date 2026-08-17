@@ -56,19 +56,15 @@ builder.Services.AddScoped<IFirewallService, FirewallService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IBackupService, BackupService>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+builder.Services.AddSingleton<ISystemMetricsService, SystemMetricsService>();
 builder.Services.AddSingleton<EncryptionService>();
 builder.Services.AddHttpClient<ICloudflareService, CloudflareService>();
 
 // 3. Real-Time Akış (SignalR) ve Metrik Arka Plan İşçisi
 builder.Services.AddSignalR();
 
-// Geliştirme (Development) ortamında arka plan servislerini kapatıyoruz.
-// Böylece bilgisayarındaki Docker'a bağlanmaya çalışıp Timeout hatalarına sebep olmaz.
-if (!builder.Environment.IsDevelopment())
-{
-    builder.Services.AddHostedService<MetricBackgroundWorker>();
-    builder.Services.AddHostedService<BackupWorker>();
-}
+builder.Services.AddHostedService<MetricBackgroundWorker>();
+builder.Services.AddHostedService<BackupWorker>();
 builder.Services.AddHostedService<DeploymentCleanupWorker>();
 builder.Services.AddHostedService<DeploymentWorker>();
 builder.Services.AddHostedService<MailPollingWorker>();

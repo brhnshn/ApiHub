@@ -24,10 +24,7 @@ public class MetricBackgroundWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<MetricLogHub> _hubContext;
     private readonly ILogger<MetricBackgroundWorker> _logger;
-    private double _lastCpuUser = 0;
-    private double _lastCpuNice = 0;
-    private double _lastCpuSystem = 0;
-    private double _lastCpuIdle = 0;
+    private readonly ISystemMetricsService _metricsService;
     private long _lastSyslogPosition = -1;
     // static: her iterasyonda new Random() üretilmesi önleniyor (seed sorunu + performans)
     private static readonly Random _rand = new();
@@ -39,11 +36,13 @@ public class MetricBackgroundWorker : BackgroundService
     public MetricBackgroundWorker(
         IServiceScopeFactory scopeFactory,
         IHubContext<MetricLogHub> hubContext,
-        ILogger<MetricBackgroundWorker> logger)
+        ILogger<MetricBackgroundWorker> logger,
+        ISystemMetricsService metricsService)
     {
         _scopeFactory = scopeFactory;
         _hubContext = hubContext;
         _logger = logger;
+        _metricsService = metricsService;
 
         BackupService.OnBackupUpdated += HandleBackupUpdated;
     }
@@ -76,20 +75,18 @@ public class MetricBackgroundWorker : BackgroundService
             try
             {
                 // 1. Sunucu Genel CPU / RAM Tüketimini Hesapla
-                var systemCpu = await GetSystemCpuUsageAsync();
-                var (systemRamUsedPercentage, systemRamUsedGb, systemRamTotalGb) = GetSystemRamUsage();
-                var (diskUsedPercentage, diskUsedGb, diskTotalGb) = GetSystemDiskUsage();
+                var metrics = await _metricsService.GetCurrentMetricsAsync();
 
                 // Tüm istemcilere genel sunucu metriklerini yayınla
                 await _hubContext.Clients.All.SendAsync("ReceiveSystemMetrics", new
                 {
-                    Cpu = systemCpu,
-                    RamPercentage = systemRamUsedPercentage,
-                    RamUsedGb = systemRamUsedGb,
-                    RamTotalGb = systemRamTotalGb,
-                    DiskUsedPercentage = diskUsedPercentage,
-                    DiskUsedGb = diskUsedGb,
-                    DiskTotalGb = diskTotalGb
+                    Cpu = metrics.Cpu,
+                    RamPercentage = metrics.RamPercentage,
+                    RamUsedGb = metrics.RamUsedGb,
+                    RamTotalGb = metrics.RamTotalGb,
+                    DiskUsedPercentage = metrics.DiskUsedPercentage,
+                    DiskUsedGb = metrics.DiskUsedGb,
+                    DiskTotalGb = metrics.DiskTotalGb
                 }, stoppingToken);
 
                 // 2. Her bir aktif proje için donanım metriklerini al ve ilgili gruba yay
@@ -406,180 +403,7 @@ public class MetricBackgroundWorker : BackgroundService
         }
     }
 
-    private async Task<double> GetSystemCpuUsageAsync()
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var rand = new Random();
-            return Math.Round(10.0 + rand.NextDouble() * 20.0, 1);
-        }
 
-        try
-        {
-            var lines = await File.ReadAllLinesAsync("/proc/stat");
-            var firstLine = lines.First();
-            var parts = firstLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            // cpu  user nice system idle iowait irq softirq steal ...
-            if (parts.Length >= 5)
-            {
-                double user   = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
-                double nice   = double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture);
-                double system = double.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture);
-                double idle   = double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture);
-
-                // Toplam aktif (idle dışı) ve toplam zaman dilimleri
-                double active = user + nice + system;
-                double total  = active + idle;
-
-                // Önceki örnekle fark (delta) hesabı — tüm değerleri önceki toplam ile karşılaştır
-                double prevActive = _lastCpuUser + _lastCpuNice + _lastCpuSystem;
-                double prevTotal  = prevActive + _lastCpuIdle;
-
-                double diffActive = active - prevActive;
-                double diffTotal  = total  - prevTotal;
-
-                // Durumu güncelle
-                _lastCpuUser   = user;
-                _lastCpuNice   = nice;
-                _lastCpuSystem = system;
-                _lastCpuIdle   = idle;
-
-                if (diffTotal > 0)
-                {
-                    return Math.Round((diffActive / diffTotal) * 100.0, 1);
-                }
-            }
-        }
-        catch
-        {
-            // Fallback
-        }
-
-        return 12.5;
-    }
-
-    private (double UsedPercentage, double UsedGb, double TotalGb) GetSystemRamUsage()
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var gcInfo = GC.GetGCMemoryInfo();
-            double total = Math.Round(gcInfo.TotalAvailableMemoryBytes / (1024.0 * 1024.0 * 1024.0), 2);
-            var rand = new Random();
-            double used = Math.Round((total * 0.3) + rand.NextDouble() * (total * 0.1), 2); // %30-40 arası simüle kullanım
-            double pct = Math.Round((used / total) * 100.0, 1);
-            return (pct, used, total);
-        }
-
-        try
-        {
-            var lines = File.ReadAllLines("/proc/meminfo");
-            double memTotal = 0;
-            double memFree = 0;
-            double buffers = 0;
-            double cached = 0;
-            double sReclaimable = 0;
-            double shmem = 0;
-            double memAvailable = 0;
-
-            foreach (var line in lines)
-            {
-                var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length < 2) continue;
-
-                if (line.StartsWith("MemTotal:"))
-                    memTotal = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("MemFree:"))
-                    memFree = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("Buffers:"))
-                    buffers = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("Cached:"))
-                    cached = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("SReclaimable:"))
-                    sReclaimable = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("Shmem:"))
-                    shmem = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-                else if (line.StartsWith("MemAvailable:"))
-                    memAvailable = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 1024;
-            }
-
-            if (memTotal > 0)
-            {
-                // Linux 'free' ve 'htop' komutlarının resmi kullanılan RAM hesaplama formülü:
-                // kullanılan = Total - Free - Buffers - Cached - SReclaimable + Shmem
-                double memUsed = memTotal - memFree - buffers - cached - sReclaimable + shmem;
-
-                // Negatif veya hatalı durumlar için koruma (örneğin eski kernel'lar)
-                if (memUsed <= 0)
-                {
-                    if (memAvailable == 0)
-                    {
-                        memAvailable = memFree + buffers + cached;
-                    }
-                    memUsed = memTotal - memAvailable;
-                }
-
-                double pct = Math.Round((memUsed / memTotal) * 100.0, 1);
-                double usedGb = Math.Round(memUsed / (1024.0 * 1024.0 * 1024.0), 2);
-                double totalGb = Math.Round(memTotal / (1024.0 * 1024.0 * 1024.0), 2);
-                return (pct, usedGb, totalGb);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Linux /proc/meminfo okunurken hata oluştu!");
-        }
-
-        // Fatal fallback
-        return (0, 0, 0);
-    }
-
-    private (double UsedPercentage, double UsedGb, double TotalGb) GetSystemDiskUsage()
-    {
-        try
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                // Windows: C sürücüsü veya tüm sürücülerin toplamı
-                var drives = DriveInfo.GetDrives()
-                    .Where(d => d.IsReady && d.DriveType == DriveType.Fixed)
-                    .ToList();
-
-                if (drives.Any())
-                {
-                    double totalBytes = drives.Sum(d => d.TotalSize);
-                    double freeBytes  = drives.Sum(d => d.AvailableFreeSpace);
-                    double usedBytes  = totalBytes - freeBytes;
-
-                    double usedGb  = Math.Round(usedBytes  / (1024.0 * 1024.0 * 1024.0), 2);
-                    double totalGb = Math.Round(totalBytes / (1024.0 * 1024.0 * 1024.0), 2);
-                    double pct     = Math.Round((usedBytes / totalBytes) * 100.0, 1);
-                    return (pct, usedGb, totalGb);
-                }
-            }
-            else
-            {
-                // Linux: kök bölüm ("/") disk kullanımı — /proc/mounts üzerinden
-                var drive = new DriveInfo("/");
-                if (drive.IsReady)
-                {
-                    double totalBytes = drive.TotalSize;
-                    double freeBytes  = drive.AvailableFreeSpace;
-                    double usedBytes  = totalBytes - freeBytes;
-
-                    double usedGb  = Math.Round(usedBytes  / (1024.0 * 1024.0 * 1024.0), 2);
-                    double totalGb = Math.Round(totalBytes / (1024.0 * 1024.0 * 1024.0), 2);
-                    double pct     = Math.Round((usedBytes / totalBytes) * 100.0, 1);
-                    return (pct, usedGb, totalGb);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Disk kullanım bilgisi alınırken hata oluştu!");
-        }
-
-        return (0, 0, 0);
-    }
 
     private async Task ReadNewSyslogLinesAsync()
     {

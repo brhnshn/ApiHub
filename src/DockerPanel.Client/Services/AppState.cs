@@ -19,6 +19,7 @@ namespace DockerPanel.Client.Services
         private readonly IAuthTokenStore _tokenStore;
         private readonly PlatformInfo _platformInfo;
         private readonly object _lock = new();
+        private System.Threading.Timer? _pollingTimer;
 
         public event Action? OnStateChanged;
 
@@ -56,6 +57,7 @@ namespace DockerPanel.Client.Services
 
         public async Task TriggerPullToRefreshAsync()
         {
+            await RefreshMetricsAsync();
             if (OnPullToRefresh != null)
             {
                 await OnPullToRefresh.Invoke();
@@ -81,6 +83,16 @@ namespace DockerPanel.Client.Services
 
             // Subscribe to mobile background lifecycle events to optimize battery & network
             _platformInfo.OnAppStateChanged += HandleMobileAppStateChanged;
+
+            // SignalR bağlı değilse metriklerin arka planda güncel kalması için periyodik fallback kontrolü (5 sn)
+            _pollingTimer = new System.Threading.Timer(_ =>
+            {
+                if (!IsSignalRConnected && IsInitialized)
+                {
+                    _ = RefreshMetricsAsync();
+                    _ = SetupSignalRAsync();
+                }
+            }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
         }
 
         // Thread-safe copy accessors
@@ -340,6 +352,25 @@ namespace DockerPanel.Client.Services
                         CpuCount = systemStatus.CpuCount;
                         CpuModel = systemStatus.CpuModel;
                         IsFcmConfigured = systemStatus.IsFcmConfigured;
+
+                        if (systemStatus.Cpu > 0 || SystemCpu == 0)
+                        {
+                            SystemCpu = systemStatus.Cpu;
+                            RamUsedGb = systemStatus.RamUsedGb;
+                            RamTotalGb = systemStatus.RamTotalGb > 0 ? systemStatus.RamTotalGb : (RamTotalGb > 0 ? RamTotalGb : 8.0);
+                            DiskUsedPercentage = systemStatus.DiskUsedPercentage;
+                            DiskUsedGb = systemStatus.DiskUsedGb;
+                            DiskTotalGb = systemStatus.DiskTotalGb;
+
+                            if (CpuHistory.Count == 0 && systemStatus.Cpu > 0)
+                            {
+                                CpuHistory.Add(systemStatus.Cpu);
+                            }
+                            if (RamHistory.Count == 0 && systemStatus.RamPercentage > 0)
+                            {
+                                RamHistory.Add(systemStatus.RamPercentage);
+                            }
+                        }
                     }
                 }
 
@@ -459,6 +490,13 @@ namespace DockerPanel.Client.Services
                         CpuCount = data.SystemStatus.CpuCount;
                         CpuModel = data.SystemStatus.CpuModel;
                         IsFcmConfigured = data.SystemStatus.IsFcmConfigured;
+
+                        if (data.SystemStatus.Cpu > 0) SystemCpu = data.SystemStatus.Cpu;
+                        if (data.SystemStatus.RamUsedGb > 0) RamUsedGb = data.SystemStatus.RamUsedGb;
+                        if (data.SystemStatus.RamTotalGb > 0) RamTotalGb = data.SystemStatus.RamTotalGb;
+                        if (data.SystemStatus.DiskUsedPercentage > 0) DiskUsedPercentage = data.SystemStatus.DiskUsedPercentage;
+                        if (data.SystemStatus.DiskUsedGb > 0) DiskUsedGb = data.SystemStatus.DiskUsedGb;
+                        if (data.SystemStatus.DiskTotalGb > 0) DiskTotalGb = data.SystemStatus.DiskTotalGb;
                     }
                     LastOfflineSyncTime = data.LastSyncTime;
                 }
@@ -471,9 +509,65 @@ namespace DockerPanel.Client.Services
             }
         }
 
+        public async Task RefreshMetricsAsync()
+        {
+            try
+            {
+                var token = await _tokenStore.GetTokenAsync();
+                if (string.IsNullOrWhiteSpace(token)) return;
+
+                var metrics = await _http.GetFromJsonAsync<SystemMetricsStateDto>("api/system/metrics");
+                if (metrics != null)
+                {
+                    lock (_lock)
+                    {
+                        SystemCpu = metrics.Cpu;
+                        RamUsedGb = metrics.RamUsedGb;
+                        RamTotalGb = metrics.RamTotalGb > 0 ? metrics.RamTotalGb : (RamTotalGb > 0 ? RamTotalGb : 8.0);
+                        DiskUsedPercentage = metrics.DiskUsedPercentage;
+                        DiskUsedGb = metrics.DiskUsedGb;
+                        DiskTotalGb = metrics.DiskTotalGb;
+
+                        if (metrics.Cpu > 0)
+                        {
+                            CpuHistory.Add(metrics.Cpu);
+                            if (CpuHistory.Count > 20) CpuHistory.RemoveAt(0);
+                        }
+                        if (metrics.RamPercentage > 0)
+                        {
+                            RamHistory.Add(metrics.RamPercentage);
+                            if (RamHistory.Count > 20) RamHistory.RemoveAt(0);
+                        }
+                    }
+                    NotifyStateChanged();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AppState] RefreshMetricsAsync error: {ex.Message}");
+            }
+        }
+
         private async Task SetupSignalRAsync()
         {
-            if (HubConnection != null) return;
+            if (HubConnection != null)
+            {
+                if (HubConnection.State == HubConnectionState.Disconnected)
+                {
+                    try
+                    {
+                        await HubConnection.StartAsync();
+                        lock (_lock)
+                        {
+                            IsSignalRConnected = true;
+                            SystemLogs.Add("[INFO] Real-time SignalR kontrol kanalı bağlantısı yeniden kuruldu.");
+                        }
+                        NotifyStateChanged();
+                    }
+                    catch { }
+                }
+                return;
+            }
 
             try
             {
@@ -754,6 +848,13 @@ namespace DockerPanel.Client.Services
                 _platformInfo.OnAppStateChanged -= HandleMobileAppStateChanged;
             }
             catch {}
+
+            try
+            {
+                _pollingTimer?.Dispose();
+                _pollingTimer = null;
+            }
+            catch {}
         }
 
         // Inner DTOs matching backend definitions
@@ -779,6 +880,13 @@ namespace DockerPanel.Client.Services
             public int CpuCount { get; set; }
             public string CpuModel { get; set; } = "Bilinmiyor";
             public bool IsFcmConfigured { get; set; }
+            public double Cpu { get; set; }
+            public double RamPercentage { get; set; }
+            public double RamUsedGb { get; set; }
+            public double RamTotalGb { get; set; }
+            public double DiskUsedPercentage { get; set; }
+            public double DiskUsedGb { get; set; }
+            public double DiskTotalGb { get; set; }
         }
 
         private class SystemMetricsStateDto

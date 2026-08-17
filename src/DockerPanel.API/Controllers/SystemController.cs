@@ -40,8 +40,12 @@ public class SystemController : ControllerBase
         return Ok(new { IsPanel = !isProjectDomain });
     }
     [HttpGet("status")]
-    public async Task<IActionResult> GetSystemStatus([FromServices] IPushNotificationService pushService)
+    public async Task<IActionResult> GetSystemStatus(
+        [FromServices] IPushNotificationService pushService,
+        [FromServices] ISystemMetricsService metricsService)
     {
+        var metrics = await metricsService.GetCurrentMetricsAsync();
+
         // 1. Docker Engine Durumu ve Versiyon Bilgisi
         bool dockerActive = false;
         string dockerVersion = "Bilinmiyor";
@@ -130,8 +134,22 @@ public class SystemController : ControllerBase
             MailServerActive = mailServerActive,
             CpuCount = Environment.ProcessorCount,
             CpuModel = GetCpuModel(),
-            IsFcmConfigured = pushService.IsFcmConfigured()
+            IsFcmConfigured = pushService.IsFcmConfigured(),
+            Cpu = metrics.Cpu,
+            RamPercentage = metrics.RamPercentage,
+            RamUsedGb = metrics.RamUsedGb,
+            RamTotalGb = metrics.RamTotalGb,
+            DiskUsedPercentage = metrics.DiskUsedPercentage,
+            DiskUsedGb = metrics.DiskUsedGb,
+            DiskTotalGb = metrics.DiskTotalGb
         });
+    }
+
+    [HttpGet("metrics")]
+    public async Task<IActionResult> GetSystemMetrics([FromServices] ISystemMetricsService metricsService)
+    {
+        var metrics = await metricsService.GetCurrentMetricsAsync();
+        return Ok(metrics);
     }
 
     [HttpGet("logs")]
