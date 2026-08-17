@@ -16,41 +16,43 @@
 
 <div class="space-y-6">
     <!-- Üst Başlık -->
-    <div class="flex justify-between items-center">
+    <div class="flex justify-between items-center flex-wrap gap-4">
         <div>
-            <h2 class="text-2xl font-extrabold text-[#0b1c30] tracking-tight">Yedekleme & Geri Yükleme</h2>
-            <p class="text-xs text-slate-500 font-medium mt-1">Sistemin tüm veritabanını, projelerini ve Nginx ayarlarını yedekleyin veya eski bir yedekten geri yükleyin.</p>
+            <div class="eyebrow">Sistem & Güvenlik</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">Yedekleme & Geri Yükleme</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">Sistemin tüm veritabanını, projelerini ve Nginx ayarlarını yedekleyin veya eski bir yedekten geri yükleyin.</p>
         </div>
         <div class="flex items-center gap-2">
-            <button @onclick="OpenRecoveryGuide" type="button"
-                class="bg-[#0b1c30] hover:bg-[#15293d] text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-md border border-[#0b1c30]/10">
-                <i class="fa-solid fa-book-medical text-indigo-400"></i>
+            <button @onclick="OpenRecoveryGuide" type="button" class="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5">
+                <i class="fa-solid fa-book-medical text-[var(--azure)]"></i>
                 <span>Kurtarma Rehberi</span>
             </button>
-            <MudTooltip Text="Tüm veritabanı, projeler, mail ve Nginx ayarlarını şimdi yedekle" Placement="Placement.Left">
-                <button @onclick="TriggerManualBackup" disabled="@_isProcessing"
-                    class="bg-[#006c49] hover:bg-[#005236] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-md border border-[#006c49]/10">
-                    @if (_isProcessing)
-                    {
-                        <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        <span>Yedekleme Başlatılıyor...</span>
-                    }
-                    else
-                    {
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                        <span>Şimdi Manuel Yedekle</span>
-                    }
-                </button>
-            </MudTooltip>
+            <button @onclick="TriggerManualBackup" disabled="@_isProcessing" class="btn-primary text-xs py-2 px-3.5 flex items-center gap-1.5">
+                @if (_isProcessing)
+                {
+                    <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span>Yedekleme Başlatılıyor...</span>
+                }
+                else
+                {
+                    <i class="fa-solid fa-cloud-arrow-up text-xs"></i>
+                    <span>Şimdi Manuel Yedekle</span>
+                }
+            </button>
         </div>
     </div>
 
     <!-- Yedek Listesi -->
-    <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-5 shadow-sm">
+    <div class="card space-y-4">
+        <div class="border-b border-[var(--line)] pb-3">
+            <h3 class="font-serif font-semibold text-[var(--navy)] text-base">Alınan Sistem Yedekleri</h3>
+            <p class="text-xs text-[var(--ink-soft)] mt-0.5">Yerel ve uzak depolama arşivleri</p>
+        </div>
+
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
-                    <tr class="border-b border-slate-200 text-slate-400">
+                    <tr class="border-b border-[var(--line)] text-[var(--ink-soft)] font-semibold">
                         <th class="pb-3 font-semibold">Tarih / Saat</th>
                         <th class="pb-3 font-semibold">Toplam Boyut</th>
                         <th class="pb-3 font-semibold">Veritabanı</th>
@@ -60,12 +62,12 @@
                         <th class="pb-3 font-semibold text-right">İşlemler</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 text-slate-600">
+                <tbody class="divide-y divide-[var(--line)] text-[var(--ink)]">
                     @if (_isLoading)
                     {
                         <tr>
-                            <td colspan="7" class="py-8 text-center text-slate-400">
-                                <span class="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin inline-block align-middle mr-2"></span>
+                            <td colspan="7" class="py-8 text-center text-[var(--ink-soft)]">
+                                <span class="w-5 h-5 border-2 border-[var(--azure)] border-t-transparent rounded-full animate-spin inline-block align-middle mr-2"></span>
                                 Yedek listesi yükleniyor...
                             </td>
                         </tr>
@@ -73,88 +75,80 @@
                     else if (!_backups.Any())
                     {
                         <tr>
-                            <td colspan="7" class="py-6 text-center text-slate-400">Kayıtlı yedekleme dosyası bulunmamaktadır.</td>
+                            <td colspan="7" class="py-6 text-center text-[var(--ink-soft)]">Kayıtlı yedekleme dosyası bulunmamaktadır.</td>
                         </tr>
                     }
                     else
                     {
                         @foreach (var bk in _backups.OrderByDescending(b => b.Timestamp))
                         {
-                            <tr class="hover:bg-slate-50/50 transition-colors">
-                                <td class="py-3 font-semibold text-[#0b1c30] flex items-center gap-2">
+                            <tr class="hover:bg-[var(--cream)] transition-colors">
+                                <td class="py-3 font-semibold text-[var(--navy)] flex items-center gap-2">
                                     @if (bk.Status.Equals("success", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Başarılı"></span>
+                                        <span class="w-2 h-2 rounded-full bg-[var(--moss)]" title="Başarılı"></span>
                                     }
                                     else if (bk.Status.Equals("processing", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Yedekleme Devam Ediyor..."></span>
+                                        <span class="w-2 h-2 rounded-full bg-[var(--amber)] animate-pulse" title="Yedekleme Devam Ediyor..."></span>
                                     }
                                     else
                                     {
-                                        <span class="w-2 h-2 rounded-full bg-rose-500" title="Başarısız/Hatalı"></span>
+                                        <span class="w-2 h-2 rounded-full bg-[var(--rose)]" title="Başarısız/Hatalı"></span>
                                     }
                                     @bk.Timestamp.ToLocalTime().ToString("dd MMM yyyy, HH:mm:ss")
                                 </td>
-                                <td class="py-3 font-bold text-indigo-600">@bk.TotalSize</td>
-                                <td class="py-3 text-slate-400">@bk.DatabaseSize</td>
-                                <td class="py-3 text-slate-400">@bk.ProjectsSize</td>
-                                <td class="py-3 text-slate-400">@bk.NginxSize</td>
-                                <td class="py-3 text-slate-400">@bk.MailSize</td>
+                                <td class="py-3 font-bold font-mono text-[var(--azure)]">@bk.TotalSize</td>
+                                <td class="py-3 text-[var(--ink-soft)] font-mono">@bk.DatabaseSize</td>
+                                <td class="py-3 text-[var(--ink-soft)] font-mono">@bk.ProjectsSize</td>
+                                <td class="py-3 text-[var(--ink-soft)] font-mono">@bk.NginxSize</td>
+                                <td class="py-3 text-[var(--ink-soft)] font-mono">@bk.MailSize</td>
                                 <td class="py-3 text-right">
                                     @if (bk.Status.Equals("success", StringComparison.OrdinalIgnoreCase))
                                     {
                                         <div class="flex items-center justify-end gap-2">
                                             <!-- İndir Dropdown -->
-                                            <MudTooltip Text="Yedek Arşiv Dosyasını İndir">
-                                                <MudMenu Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text" Label="İndir" Class="text-xs">
-                                                    <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "database"))">Veritabanı (.sql.gz)</MudMenuItem>
-                                                    <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "projects"))">Proje Dosyaları (.tar.gz)</MudMenuItem>
-                                                    <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "nginx"))">Nginx Konfigürasyonları (.tar.gz)</MudMenuItem>
-                                                    <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "mail"))">E-Posta Dosyaları (.tar.gz)</MudMenuItem>
-                                                </MudMenu>
-                                            </MudTooltip>
- 
-                                            <span class="text-slate-200">|</span>
- 
+                                            <MudMenu Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text" Label="İndir" Class="text-xs">
+                                                <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "database"))">Veritabanı (.sql.gz)</MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "projects"))">Proje Dosyaları (.tar.gz)</MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "nginx"))">Nginx Konfigürasyonları (.tar.gz)</MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => DownloadFile(bk.FolderName, "mail"))">E-Posta Dosyaları (.tar.gz)</MudMenuItem>
+                                            </MudMenu>
+
+                                            <span class="text-[var(--line)]">|</span>
+
                                             <!-- Geri Yükle Dropdown -->
-                                            <MudTooltip Text="Seçilen Yedek Verisini Geri Yükle (Mevcut verileriniz silinir)">
-                                                <MudMenu Icon="@Icons.Material.Filled.SettingsBackupRestore" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text" Label="Geri Yükle">
-                                                    <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "database"))" Class="text-amber-600 font-bold">Veritabanını Geri Yükle</MudMenuItem>
-                                                    <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "projects"))" Class="text-amber-600 font-bold">Projeleri Geri Yükle</MudMenuItem>
-                                                    <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "nginx"))" Class="text-amber-600 font-bold">Nginx Ayarlarını Geri Yükle</MudMenuItem>
-                                                    <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "mail"))" Class="text-amber-600 font-bold">E-Postaları Geri Yükle</MudMenuItem>
-                                                </MudMenu>
-                                            </MudTooltip>
- 
-                                            <span class="text-slate-200">|</span>
- 
+                                            <MudMenu Icon="@Icons.Material.Filled.SettingsBackupRestore" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text" Label="Geri Yükle">
+                                                <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "database"))" Class="text-amber-600 font-bold">Veritabanını Geri Yükle</MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "projects"))" Class="text-amber-600 font-bold">Projeleri Geri Yükle</MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "nginx"))" Class="text-amber-600 font-bold">Nginx Ayarlarını Geri Yükle</MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => ConfirmRestore(bk.FolderName, "mail"))" Class="text-amber-600 font-bold">E-Postaları Geri Yükle</MudMenuItem>
+                                            </MudMenu>
+
+                                            <span class="text-[var(--line)]">|</span>
+
                                             <!-- Sil -->
-                                            <MudTooltip Text="Yedeği Sunucudan Kalıcı Olarak Sil">
-                                                <button @onclick="@(() => ConfirmDelete(bk.FolderName))" class="text-rose-500 hover:text-rose-600 font-bold text-xs p-1">
-                                                    <i class="fa-solid fa-trash-can"></i> Sil
-                                                </button>
-                                            </MudTooltip>
+                                            <button @onclick="@(() => ConfirmDelete(bk.FolderName))" class="text-[var(--rose)] hover:underline font-bold text-xs p-1" title="Yedeği Sunucudan Kalıcı Olarak Sil">
+                                                <i class="fa-solid fa-trash-can"></i> Sil
+                                            </button>
                                         </div>
                                     }
                                     else if (bk.Status.Equals("processing", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        <div class="flex items-center justify-end gap-1.5 text-amber-600 font-bold text-[10px] uppercase tracking-wider">
-                                            <span class="w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin inline-block align-middle"></span>
+                                        <div class="flex items-center justify-end gap-1.5 text-[var(--amber)] font-bold text-[10px] uppercase tracking-wider">
+                                            <span class="w-3.5 h-3.5 border-2 border-[var(--amber)] border-t-transparent rounded-full animate-spin inline-block align-middle"></span>
                                             <span>Yedekleniyor...</span>
                                         </div>
                                     }
                                     else
                                     {
                                         <div class="flex items-center justify-between gap-4 w-full">
-                                            <span class="text-rose-500 font-bold text-[10px] uppercase tracking-wider text-left block break-words max-w-[500px]" style="white-space: normal;" title="@bk.ErrorMessage">HATA: @bk.ErrorMessage</span>
+                                            <span class="text-[var(--rose)] font-bold text-[10px] uppercase tracking-wider text-left block break-words max-w-[500px]" style="white-space: normal;" title="@bk.ErrorMessage">HATA: @bk.ErrorMessage</span>
                                             <div class="flex items-center gap-1.5 shrink-0">
-                                                <span class="text-slate-200">|</span>
-                                                <MudTooltip Text="Bu Hatalı Yedeği Sunucudan Kalıcı Olarak Temizle/Sil">
-                                                    <button @onclick="@(() => ConfirmDelete(bk.FolderName))" class="text-rose-500 hover:text-rose-600 font-bold text-xs p-1">
-                                                        <i class="fa-solid fa-trash-can"></i> Sil/Temizle
-                                                    </button>
-                                                </MudTooltip>
+                                                <span class="text-[var(--line)]">|</span>
+                                                <button @onclick="@(() => ConfirmDelete(bk.FolderName))" class="text-[var(--rose)] hover:underline font-bold text-xs p-1">
+                                                    <i class="fa-solid fa-trash-can"></i> Sil/Temizle
+                                                </button>
                                             </div>
                                         </div>
                                     }
@@ -168,85 +162,85 @@
     </div>
  
     <!-- Otomatik Yedek Bilgi Kartı -->
-    <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-5 shadow-sm" style="background-color: #ffffff; border: 1px solid rgba(187, 202, 191, 0.4); border-radius: 12px; color: #0b1c30;">
-        <h3 class="text-sm font-bold mb-2 flex items-center gap-2" style="color: #0b1c30;">
-            <i class="fa-solid fa-clock-rotate-left text-[#006c49]"></i> Otomatik Yedekleme Politikası
+    <div class="card space-y-3">
+        <h3 class="text-sm font-serif font-bold text-[var(--navy)] flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-[var(--azure)]"></i> Otomatik Yedekleme Politikası
         </h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs mt-3">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs pt-1">
             <div class="space-y-1">
-                <span class="block uppercase font-bold text-[10px] tracking-wider" style="color: #64748b; font-size: 10px;">Periyot</span>
-                <span class="font-medium" style="color: #0b1c30; font-size: 12px; font-weight: 600;">Her Gece 03:00'te otomatik yedek alınır.</span>
+                <span class="block uppercase font-bold text-[10px] text-[var(--ink-soft)] tracking-wider">Periyot</span>
+                <span class="font-medium text-[var(--navy)]">Her Gece 03:00'te otomatik yedek alınır.</span>
             </div>
             <div class="space-y-1">
-                <span class="block uppercase font-bold text-[10px] tracking-wider" style="color: #64748b; font-size: 10px;">Saklama Kuralı</span>
-                <span class="font-medium" style="color: #0b1c30; font-size: 12px; font-weight: 600;">Son 7 günün yedekleri saklanır, eskiler otomatik temizlenir.</span>
+                <span class="block uppercase font-bold text-[10px] text-[var(--ink-soft)] tracking-wider">Saklama Kuralı</span>
+                <span class="font-medium text-[var(--navy)]">Son 7 günün yedekleri saklanır, eskiler otomatik temizlenir.</span>
             </div>
             <div class="space-y-1">
-                <span class="block uppercase font-bold text-[10px] tracking-wider" style="color: #64748b; font-size: 10px;">Yedekleme Dizini</span>
-                <span class="font-mono font-medium" style="color: #0b1c30; font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace;">/opt/dockerpanel/backups/</span>
+                <span class="block uppercase font-bold text-[10px] text-[var(--ink-soft)] tracking-wider">Yedekleme Dizini</span>
+                <span class="font-mono font-medium text-[var(--navy)]">/opt/dockerpanel/backups/</span>
             </div>
         </div>
     </div>
 
     <!-- Uzak VDS SSH Yedekleme Ayarları -->
-    <div class="bg-white border border-[#bbcabf]/30 rounded-xl shadow-sm mt-6 text-[#0b1c30] overflow-hidden" style="border-radius: 12px;">
+    <div class="card space-y-4">
         <!-- Başlık (Tıklanabilir Accordion Header) -->
-        <div class="flex justify-between items-center px-6 py-4 cursor-pointer select-none hover:bg-slate-50 transition-colors"
+        <div class="flex justify-between items-center cursor-pointer select-none border-b border-[var(--line)] pb-3"
              @onclick="() => _sshSettingsExpanded = !_sshSettingsExpanded">
-            <h3 class="text-sm font-bold flex items-center gap-2" style="color: #0b1c30; margin: 0;">
-                <i class="fa-solid fa-server text-[#006c49]"></i> Uzak VDS SSH Eşitleme Ayarları
+            <h3 class="text-sm font-serif font-bold text-[var(--navy)] flex items-center gap-2 m-0">
+                <i class="fa-solid fa-server text-[var(--azure)]"></i> Uzak VDS SSH Eşitleme Ayarları
                 @if (_settings.Enabled)
                 {
-                    <span class="ml-1 px-2 py-0.5 text-[10px] font-bold rounded-full" style="background:#dcfce7;color:#166534;">AKTİF</span>
+                    <span class="pill pill-moss text-[10px] ml-1">AKTİF</span>
                 }
                 else
                 {
-                    <span class="ml-1 px-2 py-0.5 text-[10px] font-bold rounded-full" style="background:#f1f5f9;color:#64748b;">PASİF</span>
+                    <span class="pill text-[10px] bg-[var(--cream)] text-[var(--ink-soft)] ml-1">PASİF</span>
                 }
             </h3>
             <div class="flex items-center gap-3">
                 <div class="flex items-center gap-1.5" @onclick:stopPropagation="true">
-                    <span class="text-xs font-bold" style="color: #64748b;">Otomatik Aktarım:</span>
+                    <span class="text-xs font-bold text-[var(--ink-soft)]">Otomatik Aktarım:</span>
                     <MudSwitch T="bool" @bind-Value="_settings.Enabled" Color="Color.Success" />
                 </div>
-                <i class="fa-solid @(_sshSettingsExpanded ? "fa-chevron-up" : "fa-chevron-down") text-slate-400 text-xs transition-transform"></i>
+                <i class="fa-solid @(_sshSettingsExpanded ? "fa-chevron-up" : "fa-chevron-down") text-[var(--ink-soft)] text-xs transition-transform"></i>
             </div>
         </div>
 
         @if (_sshSettingsExpanded)
         {
-        <div class="px-6 pb-6 border-t border-slate-100 w-full max-w-full overflow-hidden">
+        <div class="w-full max-w-full overflow-hidden">
         <EditForm Model="@_settings" OnValidSubmit="SaveRemoteSettings">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
                 <div>
-                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">Sunucu IP (Host)</label>
+                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1 text-[var(--ink-soft)]">Sunucu IP (Host)</label>
                     <MudTextField @bind-Value="_settings.Host" Placeholder="örn: 192.168.1.50" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </div>
                 <div>
-                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">SSH Port</label>
+                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1 text-[var(--ink-soft)]">SSH Port</label>
                     <MudTextField @bind-Value="_settings.Port" Placeholder="22" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </div>
                 <div>
-                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">Kullanıcı (User)</label>
+                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1 text-[var(--ink-soft)]">Kullanıcı (User)</label>
                     <MudTextField @bind-Value="_settings.User" Placeholder="root" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </div>
                 <div>
-                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">Hedef Klasör Yolu</label>
+                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1 text-[var(--ink-soft)]">Hedef Klasör Yolu</label>
                     <MudTextField @bind-Value="_settings.RemotePath" Placeholder="/opt/dockerpanel/backups/" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </div>
             </div>
 
             <!-- Kimlik Doğrulama Tipi Seçimi -->
             <div class="mt-5 space-y-2">
-                <label class="block font-bold text-[10px] uppercase tracking-wider text-slate-500">Kimlik Doğrulama Yöntemi</label>
-                <div class="flex items-center gap-4 bg-slate-100 p-1 rounded-lg border border-slate-200/60 w-fit">
+                <label class="block font-bold text-[10px] uppercase tracking-wider text-[var(--ink-soft)]">Kimlik Doğrulama Yöntemi</label>
+                <div class="flex items-center gap-2 bg-[var(--cream)] p-1 rounded-xl border border-[var(--line)] w-fit">
                     <button type="button" @onclick='() => SetAuthType("key")' 
-                        class='@( _settings.AuthType == "key" ? "bg-white text-indigo-600 shadow-sm font-extrabold" : "text-slate-500 hover:text-slate-800" ) text-xs font-bold px-4 py-2 rounded-md transition-all flex items-center gap-1.5 border border-transparent'>
-                        <i class="fa-solid fa-key"></i> SSH Anahtarı
+                        class='@( _settings.AuthType == "key" ? "btn-primary" : "btn-ghost" ) text-xs py-1.5 px-3'>
+                        <i class="fa-solid fa-key mr-1"></i> SSH Anahtarı
                     </button>
                     <button type="button" @onclick='() => SetAuthType("password")' 
-                        class='@( _settings.AuthType == "password" ? "bg-white text-[#006c49] shadow-sm font-extrabold" : "text-slate-500 hover:text-slate-800" ) text-xs font-bold px-4 py-2 rounded-md transition-all flex items-center gap-1.5 border border-transparent'>
-                        <i class="fa-solid fa-lock"></i> Şifre ile Bağlan
+                        class='@( _settings.AuthType == "password" ? "btn-primary" : "btn-ghost" ) text-xs py-1.5 px-3'>
+                        <i class="fa-solid fa-lock mr-1"></i> Şifre ile Bağlan
                     </button>
                 </div>
             </div>
@@ -254,74 +248,73 @@
             @if (_settings.AuthType == "password")
             {
                 <div class="mt-4 max-w-md">
-                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">SSH Şifresi (Password)</label>
+                    <label class="block font-bold text-[10px] uppercase tracking-wider mb-1 text-[var(--ink-soft)]">SSH Şifresi (Password)</label>
                     <MudTextField @bind-Value="_settings.Password" InputType="@_passwordInput" Adornment="Adornment.End" 
                         AdornmentIcon="@_passwordInputIcon" OnAdornmentClick="TogglePasswordVisibility" 
                         Placeholder="Uzak sunucunun root/kullanıcı şifresi" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    <p class="text-[10px] text-slate-400 mt-1">Not: Şifre yönteminin çalışabilmesi için panel sunucusunda <code>sshpass</code> paketinin kurulu olması gerekir.</p>
+                    <p class="text-[10px] text-[var(--ink-soft)] mt-1">Not: Şifre yönteminin çalışabilmesi için panel sunucusunda <code>sshpass</code> paketinin kurulu olması gerekir.</p>
                 </div>
             }
             else
             {
                 <div class="mt-4 space-y-4">
                     <!-- SSH Anahtar Kaynağı Seçici -->
-                    <div class="flex items-center gap-4 bg-slate-50 p-1.5 rounded-lg border border-slate-200/40 w-fit">
-                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Anahtar Kaynağı:</span>
+                    <div class="flex items-center gap-2 bg-[var(--cream)] p-1 rounded-xl border border-[var(--line)] w-fit">
+                        <span class="text-[10px] font-bold text-[var(--ink-soft)] uppercase tracking-wider ml-2">Anahtar:</span>
                         <button type="button" @onclick="() => SetUseCustomKey(false)" 
-                            class='@( !_useCustomKey ? "bg-white text-indigo-600 shadow-sm border-slate-200 font-extrabold" : "text-slate-500 border-transparent" ) text-[11px] font-bold px-3 py-1 rounded transition-all border'>
+                            class='@( !_useCustomKey ? "btn-primary" : "btn-ghost" ) text-[11px] py-1 px-3'>
                             Panelin Otomatik Anahtarı
                         </button>
                         <button type="button" @onclick="() => SetUseCustomKey(true)" 
-                            class='@( _useCustomKey ? "bg-white text-indigo-600 shadow-sm border-slate-200 font-extrabold" : "text-slate-500 border-transparent" ) text-[11px] font-bold px-3 py-1 rounded transition-all border'>
-                            Özel Özel Anahtar (Private Key) Yapıştır
+                            class='@( _useCustomKey ? "btn-primary" : "btn-ghost" ) text-[11px] py-1 px-3'>
+                            Özel Private Key Yapıştır
                         </button>
                     </div>
 
                     @if (_useCustomKey)
                     {
                         <div class="space-y-1">
-                            <label class="block font-bold text-[10px] uppercase tracking-wider" style="color: #64748b;">Özel SSH Private Key (PEM veya OpenSSH Formatında)</label>
+                            <label class="block font-bold text-[10px] uppercase tracking-wider text-[var(--ink-soft)]">Özel SSH Private Key (PEM veya OpenSSH Formatında)</label>
                             <MudTextField @bind-Value="_settings.KeyContent" Lines="6" 
                                 Placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" 
-                                Variant="Variant.Outlined" Class="font-mono text-[11px] bg-slate-50" />
-                            <p class="text-[10px] text-slate-400 mt-1">Yapıştırdığınız özel anahtar sunucuda güvenli bir şekilde saklanacak ve otomatik olarak dosya izinleri ayarlanacaktır.</p>
+                                Variant="Variant.Outlined" Class="font-mono text-[11px] bg-[var(--cream)]" />
+                            <p class="text-[10px] text-[var(--ink-soft)] mt-1">Yapıştırdığınız özel anahtar sunucuda güvenli bir şekilde saklanacak ve otomatik olarak dosya izinleri ayarlanacaktır.</p>
                         </div>
                     }
                     else
                     {
                         <!-- Otomatik Anahtar Durumu ve Public Key Box -->
-                        <div class="p-4 rounded-xl border border-emerald-500/20 bg-emerald-50/10 space-y-3">
+                        <div class="p-4 rounded-xl border border-[var(--line)] bg-[var(--cream)] space-y-3">
                             <div class="flex justify-between items-center flex-wrap gap-2">
-                                <span class="text-xs font-bold text-[#006c49] flex items-center gap-1.5">
-                                    <i class="fa-solid fa-circle-info"></i> Panelin SSH Genel Anahtarı (Public Key)
+                                <span class="text-xs font-bold text-[var(--navy)] flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-info text-[var(--azure)]"></i> Panelin SSH Genel Anahtarı (Public Key)
                                 </span>
-                                <button type="button" @onclick="CopyPublicKeyToClipboard" 
-                                    class="bg-[#006c49] hover:bg-[#005236] text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1">
-                                    <i class="fa-regular fa-copy"></i> Genel Anahtarı Kopyala
+                                <button type="button" @onclick="CopyPublicKeyToClipboard" class="btn-secondary text-[11px] py-1.5 px-3">
+                                    <i class="fa-regular fa-copy mr-1"></i> Genel Anahtarı Kopyala
                                 </button>
                             </div>
-                            <p class="text-[11px] text-slate-500 leading-relaxed m-0">
+                            <p class="text-[11px] text-[var(--ink-soft)] leading-relaxed m-0">
                                 Bu sunucunun otomatik oluşturulan genel anahtarını kopyalayın ve aşağıdaki rehberi izleyerek karşı sunucuya tanımlayın. Böylece yedekler şifresiz ve güvenli aktarılır.
                             </p>
-                            <div class="bg-slate-900 text-emerald-400 font-mono text-[10px] p-2.5 rounded border border-slate-950/20 select-all break-all max-h-24 overflow-y-auto w-full max-w-full" style="word-break: break-all; white-space: pre-wrap;">
+                            <div class="bg-[#1C2630] text-[#8FD6B4] font-mono text-[10px] p-2.5 rounded-lg border border-[var(--navy)] select-all break-all max-h-24 overflow-y-auto w-full max-w-full" style="word-break: break-all; white-space: pre-wrap;">
                                 @_publicKey
                             </div>
 
                             <!-- Adım Adım Entegrasyon Rehberi -->
-                            <div class="mt-2 bg-slate-50 border border-slate-200/60 p-3.5 rounded-xl space-y-2 text-[#0b1c30]">
-                                <span class="font-extrabold text-[10px] uppercase tracking-wider text-indigo-600 block flex items-center gap-1">
-                                    <i class="fa-solid fa-graduation-cap"></i> Hedef Sunucuya Anahtar Ekleme Rehberi
+                            <div class="mt-2 bg-[var(--paper)] border border-[var(--line)] p-3.5 rounded-xl space-y-2 text-[var(--navy)]">
+                                <span class="font-bold text-[10px] uppercase tracking-wider text-[var(--navy)] flex items-center gap-1">
+                                    <i class="fa-solid fa-graduation-cap text-[var(--azure)]"></i> Hedef Sunucuya Anahtar Ekleme Rehberi
                                 </span>
-                                <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-slate-600 leading-normal pl-1">
-                                    <li>Yukarıdaki yeşil <strong>"Genel Anahtarı Kopyala"</strong> butonuna tıklayarak anahtarı panoya kopyalayın.</li>
+                                <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-[var(--ink-soft)] leading-normal pl-1">
+                                    <li>Yukarıdaki <strong>"Genel Anahtarı Kopyala"</strong> butonuna tıklayarak anahtarı panoya kopyalayın.</li>
                                     <li><strong>Hedef (Yedek) VDS sunucunuza</strong> terminalden (SSH ile) bağlanın.</li>
-                                    <li>Aşağıdaki komutu hedef sunucuda çalıştırarak kopyaladığınız anahtarı yetkilendirilen anahtarlar listesine ekleyin (<code>KOPYALANAN_ANAHTAR</code> yerine az önce kopyaladığınız uzun anahtar metnini yapıştırın):
-                                        <div class="bg-slate-900 text-emerald-400 font-mono text-[9px] p-2 rounded my-1 select-all break-all leading-normal w-full max-w-full" style="word-break: break-all; white-space: pre-wrap;">
+                                    <li>Aşağıdaki komutu hedef sunucuda çalıştırarak kopyaladığınız anahtarı yetkilendirilen anahtarlar listesine ekleyin:
+                                        <div class="bg-[#1C2630] text-[#8FD6B4] font-mono text-[10px] p-2 rounded my-1 select-all break-all leading-normal w-full max-w-full" style="word-break: break-all; white-space: pre-wrap;">
                                             echo "KOPYALANAN_ANAHTAR" >> ~/.ssh/authorized_keys
                                         </div>
                                     </li>
-                                    <li>Bağlantının güvenli çalışabilmesi için hedef sunucudaki klasör izinlerini ayarlayın (Bunu yapmak zorunludur, aksi halde Linux anahtarı reddeder):
-                                        <div class="bg-slate-900 text-emerald-400 font-mono text-[9px] p-2 rounded my-1 select-all leading-normal">
+                                    <li>Klasör izinlerini ayarlayın:
+                                        <div class="bg-[#1C2630] text-[#8FD6B4] font-mono text-[10px] p-2 rounded my-1 select-all leading-normal">
                                             chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys
                                         </div>
                                     </li>
@@ -330,45 +323,39 @@
                         </div>
 
                         <div class="max-w-md">
-                            <label class="block font-bold text-[10px] uppercase tracking-wider mb-1" style="color: #64748b;">SSH Anahtar Dosya Yolu</label>
-                            <MudTextField @bind-Value="_settings.KeyPath" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="font-mono text-xs bg-slate-50" />
+                            <label class="block font-bold text-[10px] uppercase tracking-wider mb-1 text-[var(--ink-soft)]">SSH Anahtar Dosya Yolu</label>
+                            <MudTextField @bind-Value="_settings.KeyPath" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="font-mono text-xs bg-[var(--cream)]" />
                         </div>
                     }
                 </div>
             }
 
             <!-- Alt Butonlar -->
-            <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-100 flex-wrap gap-3">
-                <div>
-                    <button type="button" @onclick="TestSshConnection" disabled="@_isTestingConnection" 
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-md">
-                        @if (_isTestingConnection)
-                        {
-                            <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                            <span>Bağlantı Test Ediliyor...</span>
-                        }
-                        else
-                        {
-                            <i class="fa-solid fa-circle-check"></i>
-                            <span>Bağlantıyı Test Et</span>
-                        }
-                    </button>
-                </div>
-                <div>
-                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Success" Disabled="_isSavingSettings" 
-                        Style="text-transform: none; font-weight: 700; border-radius: 8px; background-color: #006c49 !important;">
-                        @if (_isSavingSettings)
-                        {
-                            <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                            <span>Kaydediliyor...</span>
-                        }
-                        else
-                        {
-                            <i class="fa-solid fa-floppy-disk mr-1.5"></i>
-                            <span>Bağlantı Bilgilerini Kaydet</span>
-                        }
-                    </MudButton>
-                </div>
+            <div class="flex justify-between items-center mt-6 pt-4 border-t border-[var(--line)] flex-wrap gap-3">
+                <button type="button" @onclick="TestSshConnection" disabled="@_isTestingConnection" class="btn-secondary text-xs py-2 px-4 flex items-center gap-1.5">
+                    @if (_isTestingConnection)
+                    {
+                        <span class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                        <span>Bağlantı Test Ediliyor...</span>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-circle-check text-xs"></i>
+                        <span>Bağlantıyı Test Et</span>
+                    }
+                </button>
+                <button type="submit" disabled="@_isSavingSettings" class="btn-primary text-xs py-2 px-4 flex items-center gap-1.5">
+                    @if (_isSavingSettings)
+                    {
+                        <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Kaydediliyor...</span>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-floppy-disk text-xs"></i>
+                        <span>Bağlantı Bilgilerini Kaydet</span>
+                    }
+                </button>
             </div>
         </EditForm>
         </div>
@@ -379,30 +366,28 @@
 <!-- ONAY MODALLARI -->
 @if (_restoreDialogVisible)
 {
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in">
-        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl">
-            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <h3 class="text-base font-bold text-rose-600 flex items-center gap-2">
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-bold text-[var(--rose)] flex items-center gap-2">
                     <i class="fa-solid fa-triangle-exclamation"></i> Geri Yükleme Onayı
                 </h3>
             </div>
             
             <div class="space-y-3 text-xs">
-                <p class="font-bold text-slate-700">Seçilen yedeği geri yüklemek üzeresiniz:</p>
-                <div class="bg-slate-100 p-2.5 rounded border border-slate-200 font-mono text-[11px] text-[#0b1c30]">
-                    <div><span class="font-bold text-slate-500">YEDEK KLASÖRÜ:</span> @_targetFolder</div>
-                    <div><span class="font-bold text-slate-500">GERİ YÜKLEME TİPİ:</span> <span class="uppercase font-extrabold text-indigo-600">@_targetType</span></div>
+                <p class="font-bold text-[var(--navy)]">Seçilen yedeği geri yüklemek üzeresiniz:</p>
+                <div class="bg-[var(--cream)] p-3 rounded-lg border border-[var(--line)] font-mono text-xs text-[var(--ink)]">
+                    <div><span class="font-bold text-[var(--ink-soft)]">YEDEK:</span> @_targetFolder</div>
+                    <div><span class="font-bold text-[var(--ink-soft)]">TİP:</span> <span class="uppercase font-bold text-[var(--azure)]">@_targetType</span></div>
                 </div>
-                <p class="text-rose-600 font-bold">
-                    <i class="fa-solid fa-circle-exclamation"></i> UYARI: Bu işlem geri döndürülemez! Seçilen geri yükleme tipi kapsamındaki tüm güncel verileriniz silinecek ve bu yedekle değiştirilecektir!
+                <p class="text-[var(--rose)] font-semibold leading-relaxed">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i> UYARI: Bu işlem geri döndürülemez! Seçilen geri yükleme tipi kapsamındaki tüm güncel verileriniz silinecek ve bu yedekle değiştirilecektir!
                 </p>
             </div>
 
-            <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                <button type="button" @onclick="CloseRestoreDialog"
-                    class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors text-xs font-semibold">İptal</button>
-                <button type="button" @onclick="ExecuteRestore" disabled="@_isRestoring"
-                    class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+            <div class="flex justify-end gap-2 pt-4 border-t border-[var(--line)]">
+                <button type="button" @onclick="CloseRestoreDialog" class="btn-secondary py-2 px-4 text-xs">İptal</button>
+                <button type="button" @onclick="ExecuteRestore" disabled="@_isRestoring" class="btn-danger py-2 px-4 text-xs flex items-center gap-1.5">
                     @if (_isRestoring)
                     {
                         <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -421,25 +406,25 @@
 <!-- KURTARMA REHBERİ MODALI -->
 @if (_recoveryGuideVisible)
 {
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" style="font-family: inherit;">
-        <div class="bg-white border border-[#bbcabf]/30 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col text-[#0b1c30] shadow-2xl overflow-hidden">
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden p-0">
             <!-- Modal Başlık -->
-            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50">
-                <h3 class="text-sm font-bold text-[#0b1c30] flex items-center gap-2" style="margin: 0;">
-                    <i class="fa-solid fa-book-medical text-[#006c49] text-base"></i> VDS Taşıma & Hızlı Kurtarma Kılavuzu
+            <div class="flex items-center justify-between border-b border-[var(--line)] px-6 py-4 bg-[var(--cream)]">
+                <h3 class="text-base font-serif font-bold text-[var(--navy)] flex items-center gap-2 m-0">
+                    <i class="fa-solid fa-book-medical text-[var(--azure)] text-base"></i> VDS Taşıma & Hızlı Kurtarma Kılavuzu
                 </h3>
-                <button type="button" @onclick="CloseRecoveryGuide" class="text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-0 p-1">
+                <button type="button" @onclick="CloseRecoveryGuide" class="btn-ghost p-1 text-[var(--ink-soft)]">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
             <!-- Modal İçerik (Scrollable) -->
             <div class="p-6 overflow-y-auto space-y-6 text-xs leading-relaxed">
-                <div class="bg-indigo-50 border border-indigo-200/50 p-4 rounded-xl space-y-2">
-                    <h4 class="font-bold text-indigo-900 flex items-center gap-1.5 text-xs m-0">
-                        <i class="fa-solid fa-circle-info"></i> Mimari Kurtarma Yaklaşımı
+                <div class="bg-[var(--accent-bg)] border border-[var(--azure)]/30 p-4 rounded-xl space-y-1">
+                    <h4 class="font-bold text-[var(--navy)] flex items-center gap-1.5 text-xs m-0">
+                        <i class="fa-solid fa-circle-info text-[var(--azure)]"></i> Mimari Kurtarma Yaklaşımı
                     </h4>
-                    <p class="text-indigo-800 text-[11px] m-0">
+                    <p class="text-[var(--ink)] text-[11px] m-0">
                         DockerPanel yedekleri; <strong>Master Veritabanı</strong>, <strong>Müşteri Projeleri (/projects)</strong>, 
                         <strong>Nginx Subdomain Yönlendirmeleri (/sites-available)</strong> ve <strong>E-Posta Kutularını (/mail)</strong> içerir. 
                         Aşağıdaki otomatik kurtarma scripti sayesinde yeni bir VDS sunucusuna taşıma işlemi <strong>sadece 2 dakika</strong> sürer.
@@ -447,20 +432,20 @@
                 </div>
 
                 <!-- Kurtarma Adımları -->
-                <div class="space-y-4">
-                    <h4 class="font-bold text-slate-800 border-b border-slate-100 pb-1.5 flex items-center gap-1.5 m-0">
-                        <i class="fa-solid fa-list-check text-indigo-600"></i> Adım Adım Taşıma & Geri Yükleme
+                <div class="space-y-3">
+                    <h4 class="font-serif font-bold text-sm text-[var(--navy)] border-b border-[var(--line)] pb-2 flex items-center gap-1.5 m-0">
+                        <i class="fa-solid fa-list-check text-[var(--azure)]"></i> Adım Adım Taşıma & Geri Yükleme
                     </h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="border border-slate-150 p-3.5 rounded-xl space-y-2 bg-slate-50/50 flex flex-col justify-between">
+                        <div class="border border-[var(--line)] p-3.5 rounded-xl space-y-2 bg-[var(--cream)] flex flex-col justify-between">
                             <div>
-                                <span class="inline-block bg-indigo-100 text-indigo-700 font-extrabold text-[10px] px-2 py-0.5 rounded-md mb-1.5">ADIM 0: SSL SERTİFİKALARI</span>
-                                <p class="text-[11px] text-slate-500 leading-normal m-0 mb-2">
+                                <span class="pill pill-azure text-[10px] mb-1.5">ADIM 0: SSL SERTİFİKALARI</span>
+                                <p class="text-[11px] text-[var(--ink-soft)] leading-normal m-0 mb-2">
                                     Nginx'in hata vermeden başlaması için eski sunucudaki SSL sertifikalarını taşıyın:
                                 </p>
                             </div>
-                            <div class="bg-slate-900 text-emerald-400 font-mono text-[9px] p-2 rounded break-all select-all">
+                            <div class="bg-[#1C2630] text-[#8FD6B4] font-mono text-[9px] p-2 rounded-lg break-all select-all">
                                 # Eski VDS'te sıkıştır:<br/>
                                 tar -czf letsencrypt.tar.gz /etc/letsencrypt<br/>
                                 # Yeni VDS'te aç:<br/>
@@ -468,26 +453,26 @@
                             </div>
                         </div>
 
-                        <div class="border border-slate-150 p-3.5 rounded-xl space-y-2 bg-slate-50/50 flex flex-col justify-between">
+                        <div class="border border-[var(--line)] p-3.5 rounded-xl space-y-2 bg-[var(--cream)] flex flex-col justify-between">
                             <div>
-                                <span class="inline-block bg-indigo-100 text-indigo-700 font-extrabold text-[10px] px-2 py-0.5 rounded-md mb-1.5">ADIM 1: YEDEK AKTARIMI</span>
-                                <p class="text-[11px] text-slate-500 leading-normal m-0 mb-2">
-                                    <strong>Önkoşul:</strong> Yeni sunucunuza sıfırdan panel kurulumunu tamamlayın. Ardından indirdiğiniz son panel yedeğini SFTP ile yeni sunucudaki şu dizine yükleyin:
+                                <span class="pill pill-azure text-[10px] mb-1.5">ADIM 1: YEDEK AKTARIMI</span>
+                                <p class="text-[11px] text-[var(--ink-soft)] leading-normal m-0 mb-2">
+                                    <strong>Önkoşul:</strong> Yeni sunucunuza panel kurulumunu tamamlayın. Ardından son panel yedeğini SFTP ile şu dizine yükleyin:
                                 </p>
                             </div>
-                            <div class="font-mono text-[9px] bg-slate-100 p-2.5 rounded text-slate-700 font-semibold break-all select-all">
+                            <div class="font-mono text-[9px] bg-[var(--paper)] border border-[var(--line)] p-2.5 rounded-lg text-[var(--navy)] font-semibold break-all select-all">
                                 /opt/dockerpanel/backups/[yedek_klasor_adi]
                             </div>
                         </div>
 
-                        <div class="border border-slate-150 p-3.5 rounded-xl space-y-2 bg-slate-50/50 flex flex-col justify-between">
+                        <div class="border border-[var(--line)] p-3.5 rounded-xl space-y-2 bg-[var(--cream)] flex flex-col justify-between">
                             <div>
-                                <span class="inline-block bg-indigo-100 text-indigo-700 font-extrabold text-[10px] px-2 py-0.5 rounded-md mb-1.5">ADIM 2: SCRIPTI ÇALIŞTIRIN</span>
-                                <p class="text-[11px] text-slate-500 leading-normal m-0 mb-2">
+                                <span class="pill pill-azure text-[10px] mb-1.5">ADIM 2: SCRIPTI ÇALIŞTIRIN</span>
+                                <p class="text-[11px] text-[var(--ink-soft)] leading-normal m-0 mb-2">
                                     Aşağıdaki scripti yeni sunucuda <code>/opt/dockerpanel/restore-all.sh</code> olarak kaydedip çalıştırın:
                                 </p>
                             </div>
-                            <div class="bg-slate-900 text-emerald-400 font-mono text-[9px] p-2 rounded break-all select-all">
+                            <div class="bg-[#1C2630] text-[#8FD6B4] font-mono text-[9px] p-2 rounded-lg break-all select-all">
                                 chmod +x restore-all.sh<br/>
                                 sudo ./restore-all.sh [yedek_yolu]
                             </div>
@@ -498,22 +483,22 @@
                 <!-- Script Başlığı ve Terminal Gösterici -->
                 <div class="space-y-2">
                     <div class="flex justify-between items-center">
-                        <h4 class="font-bold text-slate-800 flex items-center gap-1.5 m-0">
-                            <i class="fa-solid fa-code text-[#006c49]"></i> Tek Tıkla Kurtarma Scripti (<code>restore-all.sh</code>)
+                        <h4 class="font-serif font-bold text-xs text-[var(--navy)] flex items-center gap-1.5 m-0">
+                            <i class="fa-solid fa-code text-[var(--azure)]"></i> Tek Tıkla Kurtarma Scripti (<code>restore-all.sh</code>)
                         </h4>
-                        <button type="button" @onclick="CopyRestoreScriptToClipboard" class="bg-[#006c49] hover:bg-[#005236] text-white text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors border-0">
-                            <i class="fa-regular fa-copy"></i> Script Kodunu Kopyala
+                        <button type="button" @onclick="CopyRestoreScriptToClipboard" class="btn-secondary text-[10.5px] py-1.5 px-3">
+                            <i class="fa-regular fa-copy mr-1"></i> Script Kodunu Kopyala
                         </button>
                     </div>
-                    <div class="bg-slate-900 text-slate-200 font-mono text-[10px] p-4 rounded-xl border border-slate-950/20 max-h-64 overflow-y-auto leading-relaxed select-all">
+                    <div class="bg-[#1C2630] text-[#F4F8FD] font-mono text-[10px] p-4 rounded-xl border border-[var(--navy)] max-h-64 overflow-y-auto leading-relaxed select-all">
                         <pre style="margin:0; font-family: monospace; white-space: pre-wrap; word-break: break-all;">@_restoreScriptText</pre>
                     </div>
                 </div>
             </div>
 
             <!-- Alt Buton -->
-            <div class="border-t border-slate-200 px-6 py-4 bg-slate-50 flex justify-end">
-                <button type="button" @onclick="CloseRecoveryGuide" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm border-0 cursor-pointer">
+            <div class="border-t border-[var(--line)] px-6 py-3 bg-[var(--cream)] flex justify-end">
+                <button type="button" @onclick="CloseRecoveryGuide" class="btn-primary text-xs py-2 px-4">
                     Kılavuzu Kapat
                 </button>
             </div>

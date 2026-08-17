@@ -13,59 +13,49 @@
 
 <div class="space-y-6">
     <!-- Üst Başlık -->
-    <div>
-        <h2 class="text-2xl font-extrabold text-[#0b1c30] tracking-tight">Denetim Kayıtları (Audit Logs)</h2>
-        <p class="text-xs text-slate-500 font-medium mt-1">Sunucu ve panel üzerinde gerçekleştirilen tüm yönetimsel ve kullanıcı işlemlerinin detaylı kayıtları.</p>
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <div class="eyebrow">Güvenlik & İzleme</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">Denetim Kayıtları (Audit Logs)</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">Sunucu ve panel üzerinde gerçekleştirilen tüm yönetimsel ve kullanıcı işlemlerinin detaylı kayıtları.</p>
+        </div>
     </div>
 
     <!-- İstatistik Kartları -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- Bugün Toplam Eylem -->
-        <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-5 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 border border-indigo-100">
-                <i class="fa-solid fa-calendar-day text-lg"></i>
-            </div>
-            <div>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Bugünkü Toplam İşlem</p>
-                <h3 class="text-2xl font-black text-[#0b1c30] mt-0.5">@_totalToday</h3>
-            </div>
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-lbl">Bugünkü Toplam İşlem</div>
+            <div class="stat-val">@_totalToday</div>
+            <div class="stat-sub">Bugün kaydedilen eylemler</div>
         </div>
 
-        <!-- En Çok Yapılan İşlem -->
-        <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-5 shadow-sm md:col-span-2 flex items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 border border-emerald-100">
-                    <i class="fa-solid fa-bolt text-lg"></i>
-                </div>
-                <div>
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">En Sık Gerçekleşen Eylemler</p>
-                    <div class="flex flex-wrap gap-1.5 mt-1">
-                        @if (!_popularActions.Any())
-                        {
-                            <span class="text-xs text-slate-400">Veri yükleniyor...</span>
-                        }
-                        else
-                        {
-                            @foreach (var act in _popularActions)
-                            {
-                                <span class="bg-slate-100 text-slate-700 text-[10px] px-2.5 py-0.5 rounded-full font-bold border border-slate-200">
-                                    @act.Action (@act.Count)
-                                </span>
-                            }
-                        }
-                    </div>
-                </div>
+        <div class="stat-card md:col-span-2">
+            <div class="stat-lbl">En Sık Gerçekleşen Eylemler</div>
+            <div class="flex flex-wrap gap-1.5 mt-2">
+                @if (!_popularActions.Any())
+                {
+                    <span class="text-xs text-[var(--ink-soft)]">Veri yükleniyor...</span>
+                }
+                else
+                {
+                    @foreach (var act in _popularActions)
+                    {
+                        <span class="pill pill-azure text-[11px]">
+                            @act.Action <span class="opacity-75 font-mono ml-0.5">(@act.Count)</span>
+                        </span>
+                    }
+                }
             </div>
         </div>
     </div>
 
     <!-- Filtreleme Bölümü -->
-    <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-4 shadow-sm">
+    <div class="card">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-                <label class="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Eylem Tipi (Action)</label>
+                <label class="block text-[10px] text-[var(--ink-soft)] font-bold uppercase tracking-wider mb-1">Eylem Tipi (Action)</label>
                 <select @bind="_actionFilter" @bind:after="OnFilterChanged"
-                    class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-indigo-500 font-medium">
+                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg px-2.5 py-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] font-medium">
                     <option value="">Tümü (Tüm Eylemler)</option>
                     <option value="UserLogin">UserLogin (Giriş)</option>
                     <option value="ContainerCreated">ContainerCreated (Oluşturma)</option>
@@ -82,9 +72,9 @@
                 </select>
             </div>
             <div>
-                <label class="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Bileşen (Entity)</label>
+                <label class="block text-[10px] text-[var(--ink-soft)] font-bold uppercase tracking-wider mb-1">Bileşen (Entity)</label>
                 <select @bind="_entityFilter" @bind:after="OnFilterChanged"
-                    class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-indigo-500 font-medium">
+                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg px-2.5 py-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] font-medium">
                     <option value="">Tümü (Tüm Bileşenler)</option>
                     <option value="User">User (Kullanıcı)</option>
                     <option value="Project">Project (Proje)</option>
@@ -96,35 +86,34 @@
                 </select>
             </div>
             <div class="flex items-end">
-                <button @onclick="ResetFilters"
-                    class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1">
-                    <i class="fa-solid fa-filter-circle-xmark"></i> Filtreleri Temizle
+                <button @onclick="ResetFilters" class="btn-secondary w-full py-2 text-xs justify-center">
+                    <i class="fa-solid fa-filter-circle-xmark mr-1"></i> Filtreleri Temizle
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Denetim Kayıtları Tablosu -->
-    <div class="bg-white border border-[#bbcabf]/30 rounded-xl p-5 shadow-sm">
+    <div class="card space-y-4">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
-                    <tr class="border-b border-slate-200 text-slate-400">
-                        <th class="pb-3 font-semibold w-8"></th>
-                        <th class="pb-3 font-semibold">Eylem</th>
-                        <th class="pb-3 font-semibold">Kullanıcı</th>
-                        <th class="pb-3 font-semibold">IP Adresi</th>
-                        <th class="pb-3 font-semibold">Cihaz / Tarayıcı</th>
-                        <th class="pb-3 font-semibold">Tarih</th>
-                        <th class="pb-3 font-semibold text-right">Detaylar</th>
+                    <tr class="border-b border-[var(--line)] text-[var(--ink-soft)] font-semibold">
+                        <th class="pb-3 w-8"></th>
+                        <th class="pb-3">Eylem</th>
+                        <th class="pb-3">Kullanıcı</th>
+                        <th class="pb-3">IP Adresi</th>
+                        <th class="pb-3">Cihaz / Tarayıcı</th>
+                        <th class="pb-3">Tarih</th>
+                        <th class="pb-3 text-right">Detaylar</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 text-slate-600">
+                <tbody class="divide-y divide-[var(--line)] text-[var(--ink)]">
                     @if (_isLoading)
                     {
                         <tr>
-                            <td colspan="7" class="py-8 text-center text-slate-400">
-                                <span class="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin inline-block align-middle mr-2"></span>
+                            <td colspan="7" class="py-8 text-center text-[var(--ink-soft)]">
+                                <span class="w-5 h-5 border-2 border-[var(--azure)] border-t-transparent rounded-full animate-spin inline-block align-middle mr-2"></span>
                                 Log kayıtları yükleniyor...
                             </td>
                         </tr>
@@ -132,7 +121,7 @@
                     else if (!_logs.Any())
                     {
                         <tr>
-                            <td colspan="7" class="py-6 text-center text-slate-400">Kayıtlı denetim günlüğü bulunmamaktadır.</td>
+                            <td colspan="7" class="py-6 text-center text-[var(--ink-soft)]">Kayıtlı denetim günlüğü bulunmamaktadır.</td>
                         </tr>
                     }
                     else
@@ -140,10 +129,10 @@
                         @foreach (var log in _logs)
                         {
                             var isExpanded = _expandedLogIds.Contains(log.Id);
-                            <tr class="hover:bg-slate-50/50 transition-colors">
+                            <tr class="hover:bg-[var(--cream)] transition-colors">
                                 <td class="py-3">
-                                    <button @onclick="@(() => ToggleExpand(log.Id))" class="text-slate-400 hover:text-[#0b1c30] transition-colors p-1">
-                                        <i class="fa-solid @(isExpanded ? "fa-chevron-down" : "fa-chevron-right")"></i>
+                                    <button @onclick="@(() => ToggleExpand(log.Id))" class="text-[var(--ink-soft)] hover:text-[var(--navy)] transition-colors p-1">
+                                        <i class="fa-solid @(isExpanded ? "fa-chevron-down" : "fa-chevron-right") text-[11px]"></i>
                                     </button>
                                 </td>
                                 <td class="py-3">
@@ -151,12 +140,12 @@
                                         @log.Action
                                     </span>
                                 </td>
-                                <td class="py-3 font-semibold text-[#0b1c30]">@log.Username</td>
-                                <td class="py-3 font-mono text-[11px]">@log.IpAddress</td>
-                                <td class="py-3 text-[11px]" title="@log.UserAgent">@TruncateUa(log.UserAgent)</td>
-                                <td class="py-3 text-slate-400">@log.Timestamp.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
+                                <td class="py-3 font-semibold text-[var(--navy)]">@log.Username</td>
+                                <td class="py-3 font-mono text-[11px] text-[var(--ink-soft)]">@log.IpAddress</td>
+                                <td class="py-3 text-[11px] text-[var(--ink-soft)]" title="@log.UserAgent">@TruncateUa(log.UserAgent)</td>
+                                <td class="py-3 text-[var(--ink-soft)] font-mono">@log.Timestamp.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
                                 <td class="py-3 text-right">
-                                    <span class="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                    <span class="pill text-[10px] bg-[var(--cream)] text-[var(--navy)] font-mono">
                                         @log.TargetEntity
                                     </span>
                                 </td>
@@ -164,15 +153,15 @@
                             @if (isExpanded)
                             {
                                 <tr>
-                                    <td colspan="7" class="bg-slate-50 p-4 font-mono text-[11px] text-slate-700 border-l-2 border-indigo-500">
+                                    <td colspan="7" class="bg-[var(--cream)] p-4 font-mono text-xs text-[var(--ink)] border-l-2 border-[var(--azure)]">
                                         <div class="space-y-2">
                                             <div>
-                                                <span class="font-bold text-slate-500 uppercase tracking-wider">Hedef ID:</span>
-                                                <span class="text-[#0b1c30]">@(log.TargetId?.ToString() ?? "Yok")</span>
+                                                <span class="font-bold text-[var(--ink-soft)] uppercase tracking-wider text-[10px]">Hedef ID:</span>
+                                                <span class="text-[var(--navy)] ml-1">@(log.TargetId?.ToString() ?? "Yok")</span>
                                             </div>
                                             <div>
-                                                <span class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Eylem Detayları (JSON):</span>
-                                                <pre class="bg-slate-900 text-emerald-400 p-3 rounded-lg overflow-x-auto text-[10px] max-h-48">@FormatJson(log.Details)</pre>
+                                                <span class="font-bold text-[var(--ink-soft)] uppercase tracking-wider text-[10px] block mb-1">Eylem Detayları (JSON):</span>
+                                                <pre class="bg-[#1C2630] text-[#8FD6B4] p-3 rounded-lg overflow-x-auto text-[11px] max-h-48 border border-[var(--navy)]">@FormatJson(log.Details)</pre>
                                             </div>
                                         </div>
                                     </td>
@@ -187,16 +176,16 @@
         <!-- Sayfalama (Pagination) -->
         @if (_totalPages > 1)
         {
-            <div class="flex items-center justify-between border-t border-slate-100 pt-4 mt-4 text-xs">
-                <span class="text-slate-500 font-medium">Toplam @_totalItems kayıttan @((_currentPage - 1) * _pageSize + 1) - @(Math.Min(_currentPage * _pageSize, _totalItems)) arası gösteriliyor</span>
+            <div class="flex items-center justify-between border-t border-[var(--line)] pt-3 text-xs">
+                <span class="text-[var(--ink-soft)] font-medium">Toplam @_totalItems kayıttan @((_currentPage - 1) * _pageSize + 1) - @(Math.Min(_currentPage * _pageSize, _totalItems)) arası gösteriliyor</span>
                 <div class="flex items-center gap-1">
                     <button @onclick="PrevPage" disabled="@(_currentPage == 1)"
-                        class="bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded font-bold transition-all">
+                        class="btn-secondary py-1 px-3 text-xs">
                         Önceki
                     </button>
-                    <span class="px-3 font-semibold text-slate-700">Sayfa @_currentPage / @_totalPages</span>
+                    <span class="px-2 font-semibold text-[var(--navy)] font-mono">@_currentPage / @_totalPages</span>
                     <button @onclick="NextPage" disabled="@(_currentPage == _totalPages)"
-                        class="bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded font-bold transition-all">
+                        class="btn-secondary py-1 px-3 text-xs">
                         Sonraki
                     </button>
                 </div>
@@ -328,17 +317,17 @@
     {
         if (action.Contains("Created") || action.Contains("Deployed") || action.Contains("Added"))
         {
-            return "bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] px-2 py-0.5 rounded-full font-bold";
+            return "pill pill-moss text-[10.5px]";
         }
         if (action.Contains("Deleted") || action.Contains("Stopped") || action.Contains("Removed"))
         {
-            return "bg-rose-50 text-rose-600 border border-rose-200 text-[10px] px-2 py-0.5 rounded-full font-bold";
+            return "pill pill-rose text-[10.5px]";
         }
         if (action.Contains("Login"))
         {
-            return "bg-indigo-50 text-indigo-600 border border-indigo-200 text-[10px] px-2 py-0.5 rounded-full font-bold";
+            return "pill pill-azure text-[10.5px]";
         }
-        return "bg-slate-100 text-slate-600 border border-slate-200 text-[10px] px-2 py-0.5 rounded-full font-bold";
+        return "pill text-[10.5px] bg-[var(--cream)] text-[var(--ink-soft)]";
     }
 
     private string TruncateUa(string ua)

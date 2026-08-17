@@ -11,104 +11,117 @@
 
 
 
-<div class="d-flex align-center justify-between mb-6">
-    <div>
-        <div class="d-flex align-center gap-3">
-            <span class="pulse-green"></span>
-            <MudText Typo="Typo.h4" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px;">Canlı Terminal & Sistem Logları</MudText>
+<div class="space-y-6">
+    <!-- Üst Başlık -->
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <div class="eyebrow">İzleme ve Telemetri</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">Canlı Terminal & Sistem Logları</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">
+                Gerçek zamanlı sunucu sistem günlüğü, orkestratör ve proje loglarını canlı izleyin.
+            </p>
         </div>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary">
-            Gerçek zamanlı sunucu sistem günlüğü, orkestratör ve proje loglarını canlı izleyin.
-        </MudText>
+        <button @onclick="ClearTerminal" class="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5">
+            <i class="fa-solid fa-trash-can text-xs"></i> Temizle
+        </button>
     </div>
-    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Delete" OnClick="ClearTerminal" Style="text-transform: none; border-radius: 8px;">
-        Temizle
-    </MudButton>
-</div>
 
-<!-- Premium Glassmorphic Kontrol Paneli -->
-<div class="glass-panel p-4 mb-6 rounded-xl">
-    <div class="d-flex align-center justify-between gap-4 flex-wrap">
-        <div class="d-flex align-center gap-4 flex-1 flex-wrap">
-            <div style="min-width: 280px;">
-                <MudSelect T="string" Label="Log Kaynağı" Value="@_selectedSource" ValueChanged="OnSourceChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
-                    <MudSelectItem Value="@("orchestrator")">Orkestrasyon Olayları (cpanel-orchestrator)</MudSelectItem>
-                    <MudSelectItem Value="@("syslog")">Sunucu Sistem Günlüğü (syslog)</MudSelectItem>
-                    <MudSelectItem Value="@("nginx-access")">Nginx Erişim Logları (access.log)</MudSelectItem>
-                    <MudSelectItem Value="@("nginx-error")">Nginx Hata Logları (error.log)</MudSelectItem>
-                    <MudSelectItem Value="@("project-manager")">Süreç Yöneticisi Logları (project-manager.log)</MudSelectItem>
-                    <MudSelectItem Value="@("project")">Proje / Konteyner Logları (Canlı)</MudSelectItem>
-                </MudSelect>
+    <!-- Kontrol Paneli -->
+    <div class="card">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+            <div class="flex items-center gap-4 flex-1 flex-wrap">
+                <div class="min-w-[240px]">
+                    <label class="block text-[10px] font-bold text-[var(--ink-soft)] uppercase tracking-wider mb-1">Log Kaynağı</label>
+                    <select value="@_selectedSource" @onchange="@(e => OnSourceChanged(e.Value?.ToString() ?? "orchestrator"))"
+                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]">
+                        <option value="orchestrator">Orkestrasyon Olayları (cpanel-orchestrator)</option>
+                        <option value="syslog">Sunucu Sistem Günlüğü (syslog)</option>
+                        <option value="nginx-access">Nginx Erişim Logları (access.log)</option>
+                        <option value="nginx-error">Nginx Hata Logları (error.log)</option>
+                        <option value="project-manager">Süreç Yöneticisi Logları (project-manager.log)</option>
+                        <option value="project">Proje / Konteyner Logları (Canlı)</option>
+                    </select>
+                </div>
+
+                @if (_selectedSource == "project")
+                {
+                    <div class="min-w-[240px] animate-fade-in">
+                        <label class="block text-[10px] font-bold text-[var(--ink-soft)] uppercase tracking-wider mb-1">Hedef Proje</label>
+                        <select value="@(_selectedProjectId?.ToString() ?? "")" @onchange="@(e => OnProjectChangedSelect(e.Value?.ToString()))"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]">
+                            <option value="">Lütfen bir proje seçin...</option>
+                            @foreach (var p in _activeContainers)
+                            {
+                                <option value="@p.Id">@p.Name (Port: @p.HostPort)</option>
+                            }
+                        </select>
+                    </div>
+                }
             </div>
 
-            @if (_selectedSource == "project")
-            {
-                <div style="min-width: 280px;" class="animate-fade-in">
-                    <MudSelect T="Guid?" Label="Hedef Proje Seçin" Value="@_selectedProjectId" ValueChanged="OnProjectChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
-                        <MudSelectItem Value="@((Guid?)null)">Lütfen bir proje seçin...</MudSelectItem>
-                        @foreach (var p in _activeContainers)
-                        {
-                            <MudSelectItem Value="@((Guid?)p.Id)">@p.Name (Port: @p.HostPort)</MudSelectItem>
-                        }
-                    </MudSelect>
-                </div>
-            }
-        </div>
-
-        <div class="d-flex align-center gap-3">
-            <span class="d-flex align-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-[#bbcabf]/30">
+            <div class="flex items-center gap-3">
                 @if (IsLiveSource())
                 {
-                    <span class="pulse-green"></span>
-                    <span class="text-emerald-400 font-mono" style="font-size: 11px;">CANLI BAĞLANTI AKTİF</span>
+                    <span class="pill pill-moss text-xs"><span class="dot"></span>CANLI AKIŞ AKTİF</span>
                 }
                 else
                 {
-                    <span class="pulse-red"></span>
-                    <span class="text-slate-400 font-mono" style="font-size: 11px;">STATİK GÖRÜNÜM (GEÇMİŞ)</span>
+                    <span class="pill text-xs bg-[var(--cream)] text-[var(--ink-soft)]">STATİK GÖRÜNÜM (GEÇMİŞ)</span>
                 }
-            </span>
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ReloadLogsAsync" Disabled="@_isLoading" Style="text-transform: none; border-radius: 8px;">
-                Yenile
-            </MudButton>
+                <button @onclick="ReloadLogsAsync" disabled="@_isLoading" class="btn-primary text-xs py-2 px-3.5 flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrows-rotate text-xs"></i> Yenile
+                </button>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Tam Ekran Geliştirici Terminal Konsolu -->
-<div class="cyber-terminal" style="height: calc(100vh - 300px); border-radius: 12px !important;">
-    @if (_isLoading)
-    {
-        <div style="color: #64748b; display: flex; align-items: center; gap: 8px;">
-            <span class="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
-            <span>Log verileri yükleniyor...</span>
+    <!-- Terminal Konsolu -->
+    <div class="terminal-card flex flex-col" style="min-height: calc(100vh - 320px);">
+        <div class="term-top justify-between">
+            <div class="flex items-center gap-2">
+                <div class="term-dot" style="background:#E0685A;"></div>
+                <div class="term-dot" style="background:#E0B15A;"></div>
+                <div class="term-dot" style="background:#6FAE72;"></div>
+                <span class="ml-2 font-mono text-xs">apihub@server: ~/logs# (@_selectedSource)</span>
+            </div>
+            <span class="text-[11px] text-[#8FA6BB] font-mono">@_logs.Count satır</span>
         </div>
-    }
-    else if (!_logs.Any())
-    {
-        <div style="color: #64748b;">
-            @if (_selectedSource == "project" && !_selectedProjectId.HasValue)
+
+        <div class="flex-1 p-4 font-mono text-xs leading-relaxed overflow-y-auto max-h-[600px] flex flex-col gap-1 text-[#F4F8FD]">
+            @if (_isLoading)
             {
-                <span>[!] Lütfen yukarıdaki menüden loglarını izlemek istediğiniz projeyi seçin.</span>
+                <div class="text-[#8FA6BB] flex items-center gap-2">
+                    <span class="w-3.5 h-3.5 border-2 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></span>
+                    <span>Log verileri yükleniyor...</span>
+                </div>
+            }
+            else if (!_logs.Any())
+            {
+                <div class="text-[#8FA6BB] italic">
+                    @if (_selectedSource == "project" && !_selectedProjectId.HasValue)
+                    {
+                        <span>[!] Lütfen yukarıdaki menüden loglarını izlemek istediğiniz projeyi seçin.</span>
+                    }
+                    else
+                    {
+                        <span>[OK] Log kanalı dinleniyor. Akış bekleniyor veya kayıtlı log bulunmamaktadır...</span>
+                    }
+                </div>
             }
             else
             {
-                <span>[OK] Log kanalı dinleniyor. Akış bekleniyor veya kayıtlı log bulunmamaktadır...</span>
+                @foreach (var log in _logs)
+                {
+                    <div>
+                        <span class="text-[#8FA6BB]">[@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff")]</span>
+                        <span style="color: @GetLogLevelColor(log.Level);" class="font-bold mx-1">[@log.Level.ToUpper()]</span>
+                        <span class="text-[#F4F8FD]">@log.Message</span>
+                    </div>
+                }
             }
         </div>
-    }
-    else
-    {
-        @foreach (var log in _logs)
-        {
-            <div style="margin-bottom: 6px;">
-                <span style="color: #64748b;">[@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff")]</span>
-                <span style="color: @GetLogLevelColor(log.Level); font-weight: 700; margin: 0 4px;">[@log.Level.ToUpper()]</span>
-                <span style="color: #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 13px;">@log.Message</span>
-            </div>
-        }
-    }
+    </div>
 </div>
 
 @code {
@@ -218,6 +231,16 @@
         {
             AddLogLine("info", "Lütfen yukarıdaki menüden loglarını izlemek istediğiniz projeyi seçin.");
         }
+    }
+
+    private async Task OnProjectChangedSelect(string? val)
+    {
+        Guid? parsed = null;
+        if (!string.IsNullOrEmpty(val) && Guid.TryParse(val, out var g))
+        {
+            parsed = g;
+        }
+        await OnProjectChanged(parsed);
     }
 
     private async Task OnProjectChanged(Guid? projectId)
@@ -344,10 +367,10 @@
     {
         return level.ToLower() switch
         {
-            "error" => "#ef4444",   // Asil Yakut (Ruby Red)
-            "warning" => "#f59e0b", // Amber Warning
-            "info" => "#10b981",    // Siber Zümrüt (Emerald Green)
-            _ => "#94a3b8"
+            "error" => "#E0685A",   // Rose Red
+            "warning" => "#E0B15A", // Amber Warning
+            "info" => "#8FD6B4",    // Mint Green
+            _ => "#8FA6BB"
         };
     }
 

@@ -7,6 +7,11 @@
     <title>ApiHub - Modern Kontrol Paneli</title>
     <base href="/" />
     
+    <!-- Google Fonts: Source Serif 4, Inter, JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -16,76 +21,39 @@
             theme: {
                 extend: {
                     colors: {
-                        "on-surface-variant": "#bbcabf",
-                        "primary": "#4edea3",
-                        "tertiary": "#89ceff",
-                        "inverse-surface": "#dde4dd",
-                        "surface-container-lowest": "#09100c",
-                        "surface-bright": "#343b36",
-                        "inverse-primary": "#006c49",
-                        "on-background": "#dde4dd",
-                        "surface-variant": "#2f3632",
-                        "inverse-on-surface": "#2b322d",
-                        "on-primary-fixed-variant": "#005236",
-                        "outline-variant": "#3c4a42",
-                        "primary-fixed-dim": "#4edea3",
-                        "on-secondary": "#1000a9",
-                        "error-container": "#93000a",
-                        "secondary-container": "#3131c0",
-                        "background": "#0e1511",
-                        "tertiary-fixed": "#c9e6ff",
-                        "on-tertiary-container": "#003d59",
-                        "secondary": "#c0c1ff",
-                        "surface": "#0e1511",
-                        "tertiary-container": "#23acf1",
-                        "on-secondary-fixed-variant": "#2f2ebe",
-                        "secondary-fixed-dim": "#c0c1ff",
-                        "surface-container": "#1a211d",
-                        "surface-tint": "#4edea3",
-                        "error": "#ffb4ab",
-                        "on-surface": "#dde4dd",
-                        "primary-fixed": "#6ffbbe",
-                        "on-primary": "#003824",
-                        "on-error-container": "#ffdad6",
-                        "surface-container-low": "#161d19",
-                        "surface-dim": "#0e1511",
-                        "on-tertiary": "#00344d",
-                        "on-secondary-fixed": "#07006c",
-                        "outline": "#86948a",
-                        "on-error": "#690005",
-                        "on-primary-container": "#00422b",
-                        "tertiary-fixed-dim": "#89ceff",
-                        "on-tertiary-fixed": "#001e2f",
-                        "surface-container-highest": "#2f3632",
-                        "surface-container-high": "#242c27",
-                        "on-tertiary-fixed-variant": "#004c6e",
-                        "primary-container": "#10b981",
-                        "secondary-fixed": "#e1e0ff",
-                        "on-secondary-container": "#b0b2ff",
-                        "on-primary-fixed": "#002113"
+                        "slate": "#6A89A7",
+                        "sky": "#BDDDFC",
+                        "azure": "#88BDF2",
+                        "navy": "#384959",
+                        "paper": "#FCFDFF",
+                        "cream": "#F1F5FA",
+                        "ink": "#212B34",
+                        "ink-soft": "#5B6B7A",
+                        "line": "#DCE6EE",
+                        "accent": "#88BDF2",
+                        "accent-bg": "#E4F0FD",
+                        "moss": "#4C8067",
+                        "moss-bg": "#E4EFE9",
+                        "rose": "#E0685A",
+                        "rose-bg": "#FDE8E6",
+                        "amber": "#D9822B",
+                        "amber-bg": "#FEF3E6",
+                        "primary": "#384959",
+                        "secondary": "#88BDF2"
                     },
                     borderRadius: {
-                        "DEFAULT": "1rem",
-                        "lg": "2rem",
-                        "xl": "3rem",
+                        "DEFAULT": "9px",
+                        "sm": "6px",
+                        "md": "9px",
+                        "lg": "14px",
+                        "xl": "18px",
+                        "2xl": "24px",
                         "full": "9999px"
                     },
-                    spacing: {
-                        "content_padding": "1.5rem",
-                        "sidebar_width": "260px",
-                        "gutter": "16px",
-                        "list_width": "400px",
-                        "container_gap": "1rem"
-                    },
                     fontFamily: {
-                        "headline-md": ["Outfit"],
-                        "body-lg": ["Outfit"],
-                        "display-lg": ["Outfit"],
-                        "title-lg": ["Outfit"],
-                        "headline-lg": ["Outfit"],
-                        "body-md": ["Outfit"],
-                        "label-md": ["Outfit"],
-                        "metadata": ["Outfit"]
+                        "serif": ['"Source Serif 4"', 'Georgia', 'serif'],
+                        "sans": ['Inter', 'system-ui', 'sans-serif'],
+                        "mono": ['"JetBrains Mono"', 'monospace']
                     }
                 }
             }
@@ -94,20 +62,13 @@
     
     <!-- Material Symbols Outlined -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
-
     
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Premium Google Fonts (Outfit, Inter & Fira Code) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
-    
     <!-- MudBlazor Styles -->
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="css/app.css?v=2.0" />
+    <link rel="stylesheet" href="css/app.css?v=3.0" />
     <link rel="icon" type="image/jpeg" href="ApiHub.jpg?v=3.0" />
     <link href="DockerPanel.Client.styles.css" rel="stylesheet" />
     <link href="manifest.json?v=4.0" rel="manifest" />

@@ -9,209 +9,281 @@
 
 <PageTitle>Veritabanı Yönetimi - ApiHub</PageTitle>
 
+<div class="space-y-6">
+    <!-- Üst Başlık -->
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <div class="eyebrow">Veritabanı Servisleri</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">PostgreSQL Şema Yönetimi</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">
+                PostgreSQL master sunucusu üzerinde izole veritabanı şemalarını ve özel kullanıcı yetkilendirmelerini yönetin.
+            </p>
+        </div>
+    </div>
 
-
-<style>
-    ::deep .mud-table-cell {
-        border-bottom: 2px solid rgba(0, 108, 73, 0.15) !important;
-    }
-</style>
-
-<div class="mb-6">
-    <MudText Typo="Typo.h4" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px;">PostgreSQL Şema Yönetimi</MudText>
-    <MudText Typo="Typo.body2" Class="mud-text-secondary">PostgreSQL master sunucusu üzerinde izole veritabanı şemalarını ve özel kullanıcı yetkilendirmelerini yönetin.</MudText>
-</div>
-
-<MudGrid Class="mb-6">
-    <!-- PostgreSQL Durum Kartı -->
-    <MudItem xs="12" md="4">
-        <div class="glass-panel pa-6 h-100 d-flex flex-column justify-between" style="border-radius: 12px !important;">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- PostgreSQL Durum Kartı -->
+        <div class="lg:col-span-4 card flex flex-col justify-between space-y-4">
             <div>
-                <MudText Typo="Typo.h6" Style="font-weight: 700; color: var(--text-main); font-family: 'Outfit', sans-serif;" Class="mb-4">PostgreSQL Cluster</MudText>
-                
-                <div class="d-flex align-center justify-between mb-3" style="font-size: 13px;">
-                    <span style="color: #64748b;">Internal Port:</span>
-                    <strong style="color: #10b981; font-family: 'JetBrains Mono', monospace;">5432</strong>
+                <div class="flex items-center justify-between border-b border-[var(--line)] pb-3 mb-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-database text-[var(--azure)] text-base"></i>
+                        <h3 class="font-serif font-semibold text-[var(--navy)] text-base">PostgreSQL Cluster</h3>
+                    </div>
+                    <span class="pill pill-moss text-[10.5px]"><span class="dot"></span>Master 16</span>
                 </div>
 
-                <div class="d-flex align-center justify-between mb-3" style="font-size: 13px;">
-                    <span style="color: #64748b;">Güvenlik Politikası:</span>
-                    <strong style="color: #6366f1;">İç Ağ İzolasyonu</strong>
-                </div>
+                <div class="space-y-3 text-xs">
+                    <div class="flex items-center justify-between py-1.5 border-b border-[var(--line)]">
+                        <span class="text-[var(--ink-soft)]">Internal Port:</span>
+                        <strong class="font-mono text-[var(--moss)] font-bold">5432</strong>
+                    </div>
 
-                <div class="d-flex align-center justify-between mb-3" style="font-size: 13px;">
-                    <span style="color: #64748b;">Aktif Bağlantı:</span>
-                    <strong style="color: var(--text-main);">@_stats.ActiveConnections / @_stats.MaxConnections</strong>
-                </div>
+                    <div class="flex items-center justify-between py-1.5 border-b border-[var(--line)]">
+                        <span class="text-[var(--ink-soft)]">Güvenlik Politikası:</span>
+                        <strong class="text-[var(--navy)] font-semibold">İç Ağ İzolasyonu</strong>
+                    </div>
 
-                <div class="d-flex align-center justify-between" style="font-size: 13px;">
-                    <span style="color: #64748b;">Disk Kullanımı (DB):</span>
-                    <strong style="color: #ef4444;">@FormatSize(_stats.TotalSizeBytes)</strong>
+                    <div class="flex items-center justify-between py-1.5 border-b border-[var(--line)]">
+                        <span class="text-[var(--ink-soft)]">Aktif Bağlantı:</span>
+                        <strong class="text-[var(--navy)] font-mono">@_stats.ActiveConnections / @_stats.MaxConnections</strong>
+                    </div>
+
+                    <div class="flex items-center justify-between py-1.5">
+                        <span class="text-[var(--ink-soft)]">Disk Kullanımı (DB):</span>
+                        <strong class="text-[var(--rose)] font-mono font-bold">@FormatSize(_stats.TotalSizeBytes)</strong>
+                    </div>
                 </div>
             </div>
 
-            <div class="pt-4" style="border-top: 1px solid rgba(255,255,255,0.05); font-size: 11px; color: #64748b; font-style: italic;">
+            <div class="pt-4 border-t border-[var(--line)] text-[11px] text-[var(--ink-soft)] italic">
                 * PostgreSQL master portu (5432) dış ağa kapalıdır, sadece dockerpanel iç ağındaki konteynerler ve API erişebilir.
             </div>
         </div>
-    </MudItem>
 
-    <!-- Veritabanı Listesi Tablosu ve Yeni Ekleme -->
-    <MudItem xs="12" md="8">
-        <div class="glass-panel pa-6 h-100" style="border-radius: 12px !important;">
-            <div class="d-flex align-center justify-between mb-6">
-                <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--text-main);">Aktif İzole Şemalar</MudText>
-                <div class="d-flex gap-2">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search" OnClick="OpenDiscoverModal" Style="text-transform: none; border-radius: 8px; font-weight: 700;">Eski DB Keşfet</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateModal" Style="text-transform: none; border-radius: 8px; font-weight: 700;">Yeni Şema Oluştur</MudButton>
+        <!-- Veritabanı Listesi Tablosu ve Yeni Ekleme -->
+        <div class="lg:col-span-8 card space-y-4">
+            <div class="flex items-center justify-between flex-wrap gap-3 border-b border-[var(--line)] pb-3">
+                <div>
+                    <h3 class="font-serif font-semibold text-[var(--navy)] text-base">Aktif İzole Şemalar</h3>
+                    <p class="text-xs text-[var(--ink-soft)] mt-0.5">Tanımlı veritabanı şemaları ve kullanıcıları</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @onclick="OpenDiscoverModal" class="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-magnifying-glass text-xs"></i> Eski DB Keşfet
+                    </button>
+                    <button @onclick="OpenCreateModal" class="btn-primary text-xs py-2 px-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-plus text-xs"></i> Yeni Şema Oluştur
+                    </button>
                 </div>
             </div>
 
             @if (_isLoading)
             {
-                <div class="d-flex align-center justify-center py-6">
-                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <div class="flex flex-col items-center justify-center py-10 space-y-2">
+                    <div class="w-8 h-8 border-3 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-xs text-[var(--ink-soft)]">Şemalar yükleniyor...</span>
                 </div>
             }
             else
             {
-                <MudTable Items="_databases" Elevation="0" Hover="true" Breakpoint="Breakpoint.Sm" Class="glass-panel" Style="border: none !important;">
-                    <HeaderContent>
-                        <MudTh Style="color: #94a3b8; font-weight: 700;">Veritabanı Şeması</MudTh>
-                        <MudTh Style="color: #94a3b8; font-weight: 700;">Yetkili Kullanıcı</MudTh>
-                        <MudTh Style="color: #94a3b8; font-weight: 700;">Veritabanı Tipi</MudTh>
-                        <MudTh Style="color: #94a3b8; font-weight: 700; text-align: right;">İşlemler</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Veritabanı Şeması">
-                            <div class="d-flex align-center gap-2">
-                                <span style="font-family: 'JetBrains Mono', monospace; color: #10b981; font-weight: 700;">@context.DbName</span>
-                                <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: rgba(0, 108, 73, 0.06); color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;">@FormatSize(context.SizeBytes)</span>
-                            </div>
-                        </MudTd>
-                        <MudTd DataLabel="Yetkili Kullanıcı">
-                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Person">
-                                @context.DbUser
-                            </MudChip>
-                        </MudTd>
-                        <MudTd DataLabel="Veritabanı Tipi">
-                            <span style="color: #94a3b8; font-weight: 600;">PostgreSQL 16</span>
-                        </MudTd>
-                        <MudTd DataLabel="İşlemler" Style="text-align: right;">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteSchema(context))" />
-                        </MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <MudText Typo="Typo.body2" Class="text-center py-6 mud-text-secondary">Henüz oluşturulmuş bir veritabanı şeması bulunmamaktadır.</MudText>
-                    </NoRecordsContent>
-                </MudTable>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-[var(--line)] text-[var(--ink-soft)] font-semibold">
+                                <th class="pb-3">Veritabanı Şeması</th>
+                                <th class="pb-3">Yetkili Kullanıcı</th>
+                                <th class="pb-3">Veritabanı Tipi</th>
+                                <th class="pb-3 text-right">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[var(--line)]">
+                            @if (!_databases.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="py-6 text-center text-[var(--ink-soft)]">
+                                        Henüz oluşturulmuş bir veritabanı şeması bulunmamaktadır.
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var context in _databases)
+                                {
+                                    <tr class="text-[var(--ink)] hover:bg-[var(--cream)] transition-colors">
+                                        <td class="py-3">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-mono text-[var(--moss)] font-bold text-xs">@context.DbName</span>
+                                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--cream)] border border-[var(--line)] text-[var(--ink-soft)] font-mono">@FormatSize(context.SizeBytes)</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-3">
+                                            <span class="pill pill-azure text-[11px]">
+                                                <i class="fa-solid fa-user text-[10px] mr-1"></i> @context.DbUser
+                                            </span>
+                                        </td>
+                                        <td class="py-3 text-[var(--ink-soft)] font-medium">
+                                            PostgreSQL 16
+                                        </td>
+                                        <td class="py-3 text-right">
+                                            <button @onclick="@(() => DeleteSchema(context))"
+                                                class="text-[var(--rose)] hover:underline font-bold text-xs transition-colors inline-flex items-center gap-1">
+                                                <i class="fa-solid fa-trash-can text-[11px]"></i> Sil
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
             }
         </div>
-    </MudItem>
-</MudGrid>
+    </div>
+</div>
 
 <!-- Yeni Şema Oluşturma Modalı -->
-<MudDialog @bind-Visible="_createModalVisible">
-    <TitleContent>
-        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Yeni Veritabanı Şeması Yarat</MudText>
-    </TitleContent>
-    <DialogContent>
-        <EditForm Model="@_createModel" OnValidSubmit="HandleCreate">
-            <DataAnnotationsValidator />
-
-            <div class="mb-4">
-                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">Veritabanı Adı (DbName)</label>
-                <MudTextField @bind-Value="_createModel.DbName" Placeholder="örn: my_api_db" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.DbName)" />
+@if (_createModalVisible)
+{
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-semibold text-[var(--navy)] flex items-center gap-2">
+                    <i class="fa-solid fa-database text-[var(--azure)]"></i> Yeni Veritabanı Şeması Yarat
+                </h3>
+                <button @onclick="CloseCreateModal" class="btn-ghost p-1 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
             </div>
 
-            <div class="mb-4">
-                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">Kullanıcı Adı (DbUser)</label>
-                <MudTextField @bind-Value="_createModel.DbUser" Placeholder="örn: my_api_user" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.DbUser)" />
-            </div>
+            <EditForm Model="@_createModel" OnValidSubmit="HandleCreate">
+                <DataAnnotationsValidator />
 
-            <div class="mb-6">
-                <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">Veritabanı Parolası</label>
-                <MudTextField @bind-Value="_createModel.Password" Placeholder="Master şifre" InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.Password)" />
-            </div>
+                <div class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1 uppercase tracking-wider">Veritabanı Adı (DbName)</label>
+                        <InputText @bind-Value="_createModel.DbName" placeholder="örn: my_api_db"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--navy)] font-mono font-bold focus:outline-none focus:border-[var(--azure)]" />
+                        <ValidationMessage For="@(() => _createModel.DbName)" class="text-[var(--rose)] text-[10px] mt-0.5" />
+                    </div>
 
-            <div class="d-flex justify-end gap-2">
-                <MudButton OnClick="CloseCreateModal" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none;">İptal</MudButton>
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_isCreating" Style="text-transform: none; font-weight: 700;">
-                    @if (_isCreating)
-                    {
-                        <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        <span>Veritabanı Sağlanıyor...</span>
-                    }
-                    else
-                    {
-                        <span>Şemayı Yarat</span>
-                    }
-                </MudButton>
-            </div>
-        </EditForm>
-    </DialogContent>
-</MudDialog>
+                    <div>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1 uppercase tracking-wider">Kullanıcı Adı (DbUser)</label>
+                        <InputText @bind-Value="_createModel.DbUser" placeholder="örn: my_api_user"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--navy)] font-mono font-bold focus:outline-none focus:border-[var(--azure)]" />
+                        <ValidationMessage For="@(() => _createModel.DbUser)" class="text-[var(--rose)] text-[10px] mt-0.5" />
+                    </div>
 
-<!-- Veritabanı Keşif Modalı -->
-<MudDialog @bind-Visible="_discoverModalVisible">
-    <TitleContent>
-        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Sunucudaki Mevcut Veritabanlarını Keşfet</MudText>
-    </TitleContent>
-    <DialogContent>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-            PostgreSQL cluster'ınızda bulunan ancak panele henüz kaydedilmemiş (dışarıda oluşturulmuş) veritabanlarını tarar ve panele içe aktarmanıza olanak tanır.
-        </MudText>
+                    <div>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1 uppercase tracking-wider">Veritabanı Parolası</label>
+                        <InputText @bind-Value="_createModel.Password" type="password" placeholder="Master şifre"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]" />
+                        <ValidationMessage For="@(() => _createModel.Password)" class="text-[var(--rose)] text-[10px] mt-0.5" />
+                    </div>
+                </div>
 
-        @if (_isDiscovering)
-        {
-            <div class="d-flex flex-column align-center justify-center py-8">
-                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-3" />
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">PostgreSQL kataloğu taranıyor...</MudText>
-            </div>
-        }
-        else if (!_discoveredDatabases.Any())
-        {
-            <div class="text-center py-8">
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">İçe aktarılabilecek yeni bir veritabanı bulunamadı veya tüm veritabanları zaten kayıtlı.</MudText>
-            </div>
-        }
-        else
-        {
-            <MudTable Items="_discoveredDatabases" Elevation="0" Hover="true" Dense="true" Class="glass-panel" Style="border: none !important; background: transparent !important;">
-                <HeaderContent>
-                    <MudTh Style="color: #94a3b8; font-weight: 700;">Veritabanı Adı</MudTh>
-                    <MudTh Style="color: #94a3b8; font-weight: 700;">Sahibi (Owner)</MudTh>
-                    <MudTh Style="color: #94a3b8; font-weight: 700;">Boyut</MudTh>
-                    <MudTh Style="color: #94a3b8; font-weight: 700; text-align: right;">Durum</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Veritabanı Adı">
-                        <span style="font-family: 'JetBrains Mono', monospace; color: @(context.IsImported ? "#94a3b8" : "#10b981"); font-weight: 700;">@context.DbName</span>
-                    </MudTd>
-                    <MudTd DataLabel="Sahibi">
-                        <span style="color: var(--text-main);">@context.DbUser</span>
-                    </MudTd>
-                    <MudTd DataLabel="Boyut">
-                        <span style="color: #94a3b8;">@FormatSize(context.SizeInBytes)</span>
-                    </MudTd>
-                    <MudTd DataLabel="Durum" Style="text-align: right;">
-                        @if (context.IsImported)
+                <div class="flex justify-end gap-2 pt-4 border-t border-[var(--line)] mt-4">
+                    <button type="button" @onclick="CloseCreateModal" class="btn-secondary py-2 px-4 text-xs">İptal</button>
+                    <button type="submit" disabled="@_isCreating" class="btn-primary py-2 px-4 text-xs flex items-center gap-1.5">
+                        @if (_isCreating)
                         {
-                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Text" Icon="@Icons.Material.Filled.Check">Aktarıldı</MudChip>
+                            <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>Veritabanı Sağlanıyor...</span>
                         }
                         else
                         {
-                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ImportDatabase(context))" Style="text-transform: none; border-radius: 6px; font-weight: 700;">İçe Aktar</MudButton>
+                            <span>Şemayı Yarat</span>
                         }
-                    </MudTd>
-                </RowTemplate>
-            </MudTable>
-        }
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="CloseDiscoverModal" Variant="Variant.Filled" Color="Color.Secondary" Style="text-transform: none;">Kapat</MudButton>
-    </DialogActions>
-</MudDialog>
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<!-- Veritabanı Keşif Modalı -->
+@if (_discoverModalVisible)
+{
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-lg p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-semibold text-[var(--navy)] flex items-center gap-2">
+                    <i class="fa-solid fa-magnifying-glass text-[var(--azure)]"></i> Mevcut Veritabanlarını Keşfet
+                </h3>
+                <button @onclick="CloseDiscoverModal" class="btn-ghost p-1 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-[var(--ink-soft)] leading-relaxed">
+                PostgreSQL cluster'ınızda bulunan ancak panele henüz kaydedilmemiş (dışarıda oluşturulmuş) veritabanlarını tarar ve panele içe aktarmanıza olanak tanır.
+            </p>
+
+            @if (_isDiscovering)
+            {
+                <div class="flex flex-col items-center justify-center py-8 space-y-2">
+                    <div class="w-8 h-8 border-3 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-xs text-[var(--ink-soft)]">PostgreSQL kataloğu taranıyor...</span>
+                </div>
+            }
+            else if (!_discoveredDatabases.Any())
+            {
+                <div class="text-center py-8 text-xs text-[var(--ink-soft)]">
+                    İçe aktarılabilecek yeni bir veritabanı bulunamadı veya tüm veritabanları zaten kayıtlı.
+                </div>
+            }
+            else
+            {
+                <div class="overflow-x-auto max-h-60 overflow-y-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-[var(--line)] text-[var(--ink-soft)] font-semibold">
+                                <th class="pb-2">Veritabanı Adı</th>
+                                <th class="pb-2">Sahibi (Owner)</th>
+                                <th class="pb-2">Boyut</th>
+                                <th class="pb-2 text-right">Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[var(--line)]">
+                            @foreach (var item in _discoveredDatabases)
+                            {
+                                <tr class="text-[var(--ink)] hover:bg-[var(--cream)] transition-colors">
+                                    <td class="py-2.5 font-mono font-bold @(item.IsImported ? "text-[var(--ink-soft)]" : "text-[var(--moss)]")">
+                                        @item.DbName
+                                    </td>
+                                    <td class="py-2.5 text-[var(--ink)]">
+                                        @item.DbUser
+                                    </td>
+                                    <td class="py-2.5 font-mono text-[var(--ink-soft)]">
+                                        @FormatSize(item.SizeInBytes)
+                                    </td>
+                                    <td class="py-2.5 text-right">
+                                        @if (item.IsImported)
+                                        {
+                                            <span class="pill pill-moss text-[10.5px]">
+                                                <i class="fa-solid fa-check mr-1"></i> Aktarıldı
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <button @onclick="@(() => ImportDatabase(item))" class="btn-primary text-[11px] py-1 px-2.5">
+                                                İçe Aktar
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <div class="flex justify-end pt-4 border-t border-[var(--line)]">
+                <button type="button" @onclick="CloseDiscoverModal" class="btn-secondary py-2 px-4 text-xs">Kapat</button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<DatabaseSchemaDto> _databases = new();

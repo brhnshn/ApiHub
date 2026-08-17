@@ -556,7 +556,7 @@ else
         }
         else
         {
-            <div class="flex flex-1 h-screen overflow-hidden bg-[#f8f9ff]">
+            <div class="flex flex-1 h-screen overflow-hidden bg-[var(--cream)]">
                 <!-- MOBILE OVERLAY BACKDROP -->
                 <div class="fixed inset-0 bg-black/40 z-40 md:hidden @(_mobileSidebarOpen ? "block" : "hidden")" @onclick="CloseMobileSidebar"></div>
 
@@ -564,27 +564,30 @@ else
                 <aside class="cyber-sidebar @(_desktopSidebarOpen ? "desktop-open" : "desktop-closed") @(_mobileSidebarOpen ? "mobile-open" : "mobile-closed")">
                     <div>
                         <div class="cyber-logo-container">
-                            <div class="flex items-center justify-start flex-1 pl-2">
-                                <div class="cyber-logo-text font-black text-2xl tracking-wider font-sans flex items-center justify-start py-1">
-                                    <span class="text-[#006c49]">API</span><span class="text-[#3b82f6]">HUB</span>
+                            <div class="flex items-center justify-start flex-1 pl-1 gap-2.5">
+                                <div class="w-7 h-7 rounded-[7px] bg-[var(--azure)] flex items-center justify-center text-[var(--navy)] font-serif font-bold text-sm flex-shrink-0 shadow-sm">
+                                    A
+                                </div>
+                                <div class="cyber-logo-text font-serif font-semibold text-lg tracking-tight flex items-center justify-start text-[#F4F8FD]">
+                                    <span>Api</span><span class="text-[var(--azure)]">Hub</span>
                                 </div>
                             </div>
                             
                             <!-- Masaüstü Daraltma ve Mobil Kapatma Aksiyonu -->
                             <div class="flex items-center gap-1.5">
                                 <!-- Desktop Collapse -->
-                                <button @onclick="ToggleDesktopSidebar" class="hidden md:flex text-[#3c4a42]/60 hover:text-[#006c49] p-1 rounded hover:bg-slate-200/50 transition-all items-center justify-center" title="Menüyü Daralt">
+                                <button @onclick="ToggleDesktopSidebar" class="hidden md:flex text-[#A9BDD0] hover:text-[#F4F8FD] p-1 rounded-lg hover:bg-white/10 transition-all items-center justify-center" title="Menüyü Daralt">
                                     <i class="fa-solid fa-angles-left text-sm"></i>
                                 </button>
                                 <!-- Mobile Close -->
-                                <button @onclick="CloseMobileSidebar" class="flex md:hidden text-[#3c4a42]/60 hover:text-rose-600 p-1 rounded hover:bg-rose transition-all items-center justify-center" title="Menüyü Kapat">
+                                <button @onclick="CloseMobileSidebar" class="flex md:hidden text-[#A9BDD0] hover:text-[#E0685A] p-1 rounded-lg hover:bg-white/10 transition-all items-center justify-center" title="Menüyü Kapat">
                                     <i class="fa-solid fa-xmark text-lg"></i>
                                 </button>
                             </div>
                         </div>
 
                         <!-- Menü Elemanları -->
-                        <nav class="p-3 space-y-1" @onclick="CloseMobileSidebar">
+                        <nav class="p-3 space-y-0.5" @onclick="CloseMobileSidebar">
                             <NavLink Href="" Match="NavLinkMatch.All" ActiveClass="active-link"
                                      class="cyber-navlink"
                                      title="Genel Bakış">
@@ -599,7 +602,7 @@ else
                                 <span class="cyber-nav-text">Konteyner Yönetimi</span>
                                 @if (_containerCount > 0)
                                 {
-                                    <span class="cyber-nav-badge ml-auto bg-[#006c49]/10 text-[#006c49] text-[10px] px-1.5 py-0.5 rounded-full font-bold">@_containerCount</span>
+                                    <span class="cyber-nav-badge ml-auto bg-[var(--accent-bg)] text-[var(--navy)] text-[10px] px-1.5 py-0.5 rounded-full font-bold">@_containerCount</span>
                                 }
                             </NavLink>
                             
@@ -645,7 +648,7 @@ else
                                 <span class="cyber-nav-text">Webmail İstemcisi</span>
                                 @if (_unreadMailCount > 0)
                                 {
-                                    <span class="cyber-nav-badge ml-auto bg-[#006c49] text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">@_unreadMailCount</span>
+                                    <span class="cyber-nav-badge ml-auto bg-[var(--azure)] text-[var(--navy)] text-[10px] px-1.5 py-0.5 rounded-full font-bold">@_unreadMailCount</span>
                                 }
                             </NavLink>
                             
@@ -690,61 +693,61 @@ else
                     <div class="cyber-profile-box">
                         <div class="cyber-profile-flex">
                             <div class="flex items-center gap-2.5">
-                                <img class="w-8 h-8 rounded-full border border-[#bbcabf] shadow-sm"
-                                     src="https://api.dicebear.com/7.x/bottts/svg?seed=@(context.User.Identity?.Name ?? "cpanel")" alt="Sunucu"
-                                     title="@context.User.Identity?.Name">
+                                <div class="w-8 h-8 rounded-full bg-[var(--slate)] flex items-center justify-center text-xs text-[#F4F8FD] font-bold shadow-sm flex-shrink-0">
+                                    @((context.User.Identity?.Name ?? "R").Substring(0, 1).ToUpper())
+                                </div>
                                 <div class="cyber-profile-details">
-                                    <p class="text-xs font-bold text-[#0b1c30] leading-none mb-1">@context.User.Identity?.Name</p>
-                                    <p class="text-[10px] text-[#006c49] flex items-center gap-1 font-bold">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-[#006c49] animate-pulse"></span> Sunucu Aktif
+                                    <p class="text-xs font-semibold text-[#F4F8FD] leading-none mb-1">@(context.User.Identity?.Name ?? "root")</p>
+                                    <p class="text-[11px] text-[#8FD6B4] flex items-center gap-1 font-medium">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-[#8FD6B4] animate-pulse"></span> Sunucu Aktif
                                     </p>
                                 </div>
                             </div>
-                            <button @onclick="HandleLogout" class="cyber-logout-btn-full text-[#3c4a42]/70 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition-colors p-1.5 rounded bg-white" title="Oturumu Kapat">
+                            <button @onclick="HandleLogout" class="cyber-logout-btn-full text-[#A9BDD0] hover:text-[#F4F8FD] hover:bg-white/10 border border-white/10 transition-colors p-1.5 rounded-lg bg-white/5" title="Oturumu Kapat">
                                 <i class="fa-solid fa-sign-out-alt text-xs"></i>
                             </button>
                         </div>
 
-                        <button @onclick="HandleLogout" class="cyber-logout-btn-collapsed text-[#3c4a42]/70 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition-colors p-1.5 rounded bg-white mt-1" title="Oturumu Kapat">
+                        <button @onclick="HandleLogout" class="cyber-logout-btn-collapsed text-[#A9BDD0] hover:text-[#F4F8FD] hover:bg-white/10 border border-white/10 transition-colors p-1.5 rounded-lg bg-white/5 mt-1" title="Oturumu Kapat">
                             <i class="fa-solid fa-sign-out-alt text-xs"></i>
                         </button>
 
-                        <div class="cyber-ip-details text-[10px] text-slate-500 space-y-1 pt-2 border-t border-slate-200/60 font-medium w-full mt-2">
+                        <div class="cyber-ip-details text-[11px] text-[#8497A9] space-y-1.5 pt-2.5 border-t border-white/10 font-normal w-full mt-2.5 leading-relaxed">
                             @if (!AppState.IsFcmConfigured)
                             {
-                                <div class="p-2 mb-2 rounded-lg border flex items-center gap-2 font-bold text-[9px]" style="background: rgba(239, 68, 68, 0.06); color: #ef4444; border-color: rgba(239, 68, 68, 0.15);">
+                                <div class="p-1.5 mb-1.5 rounded-lg border flex items-center gap-1.5 font-bold text-[9px]" style="background: rgba(224, 104, 90, 0.12); color: #FF9B91; border-color: rgba(224, 104, 90, 0.25);">
                                     <i class="fa-solid fa-triangle-exclamation text-[10px] animate-pulse"></i>
                                     <span>FCM SİMÜLASYON MODUNDA</span>
                                 </div>
                             }
-                            <p class="flex items-center gap-2">
-                                <i class="fa-solid fa-server"></i> IP: 
-                                <span class="@(_showIp ? "" : "blur-sm select-none transition-all")">104.239.83.165</span>
-                                <button @onmousedown="() => _showIp = true" 
-                                        @onmouseup="() => _showIp = false" 
-                                        @onmouseleave="() => _showIp = false" 
-                                        @ontouchstart="() => _showIp = true" 
-                                        @ontouchend="() => _showIp = false" 
-                                        class="text-slate-400 hover:text-slate-600 transition-colors ml-auto" title="Göster/Gizle">
-                                    <i class="fa-solid @(_showIp ? "fa-eye-slash" : "fa-eye") text-[10px]"></i>
-                                </button>
-                            </p>
-                            <p><i class="fa-brands fa-linux mr-1"></i> Ubuntu 24.04 LTS</p>
-                            <p class="flex items-center gap-1.5">
-                                <span class="flex items-center gap-1">
-                                    <i class="fa-solid fa-code-branch text-[#006c49]"></i> Sürüm: v2.0
+                            <p class="flex items-center justify-between">
+                                <span>IP</span>
+                                <span class="font-mono text-slate-300">
+                                    <span class="@(_showIp ? "" : "blur-sm select-none transition-all")">104.239.83.165</span>
+                                    <button @onmousedown="() => _showIp = true" 
+                                            @onmouseup="() => _showIp = false" 
+                                            @onmouseleave="() => _showIp = false" 
+                                            @ontouchstart="() => _showIp = true" 
+                                            @ontouchend="() => _showIp = false" 
+                                            class="text-[#8497A9] hover:text-slate-200 transition-colors ml-1.5" title="Göster/Gizle">
+                                        <i class="fa-solid @(_showIp ? "fa-eye-slash" : "fa-eye") text-[10px]"></i>
+                                    </button>
                                 </span>
-                                <button @onclick="CheckForPwaUpdates" class="ml-auto text-[10px] text-[#006c49] hover:text-[#10b981] transition-colors flex items-center gap-1 font-bold" title="Güncellemeleri Denetle">
-                                    <i class="fa-solid fa-rotate-right @(_checkingUpdates ? "animate-spin" : "")"></i>
-                                    <span>Denetle</span>
-                                </button>
+                            </p>
+                            <p class="flex items-center justify-between">
+                                <span>Ubuntu</span>
+                                <span class="font-mono text-slate-300">24.04 LTS</span>
+                            </p>
+                            <p class="flex items-center justify-between">
+                                <span>Sürüm</span>
+                                <span class="font-mono bg-white/10 border border-white/15 px-2 py-0.5 rounded-full text-[10px] text-[#C7D5E2]">v2.0</span>
                             </p>
                         </div>
                     </div>
                 </aside>
 
                 <!-- İÇERİK ALANI -->
-                <main class="flex-grow flex flex-col h-full overflow-hidden bg-[#f8f9ff]" style="min-width: 0;">
+                <main class="flex-grow flex flex-col h-full overflow-hidden bg-[var(--cream)]" style="min-width: 0;">
                     @if (_showSignalRBanner)
                     {
                         <div class="signalr-status-banner @(_signalRBannerSeverity)">
@@ -753,7 +756,7 @@ else
                     }
                     @if (AppState.IsOfflineMode)
                     {
-                        <div class="bg-amber-500/10 border-b border-amber-500/20 text-amber-500 text-[11px] font-bold text-center py-2 px-4 flex items-center justify-center gap-2">
+                        <div class="bg-[var(--amber-bg)] border-b border-[var(--line)] text-[var(--amber)] text-[11px] font-bold text-center py-2 px-4 flex items-center justify-center gap-2">
                             <span class="material-symbols-outlined text-sm animate-pulse">cloud_off</span>
                             <span>Çevrimdışı Mod — Son Senkronizasyon: @(AppState.LastOfflineSyncTime?.ToString("dd.MM.yyyy HH:mm") ?? "Bilinmiyor")</span>
                         </div>
@@ -763,7 +766,7 @@ else
                     @if (!_desktopSidebarOpen)
                     {
                         <button @onclick="ToggleDesktopSidebar" 
-                                class="hidden md:flex fixed top-4 left-4 z-40 bg-white border border-[#bbcabf]/30 p-2.5 rounded-xl text-[#006c49] shadow-md hover:scale-[1.05] active:scale-95 transition-all items-center justify-center" 
+                                class="hidden md:flex fixed top-4 left-4 z-40 bg-[var(--paper)] border border-[var(--line)] p-2.5 rounded-xl text-[var(--navy)] shadow-md hover:border-[var(--azure)] active:scale-95 transition-all items-center justify-center" 
                                 title="Menüyü Aç">
                             <i class="fa-solid fa-bars text-sm"></i>
                         </button>
@@ -773,14 +776,14 @@ else
                     @if (!_mobileSidebarOpen)
                     {
                         <button @onclick="ToggleMobileSidebar" 
-                                class="flex md:hidden fixed top-4 left-4 z-40 bg-white border border-[#bbcabf]/30 p-2.5 rounded-xl text-[#006c49] shadow-md hover:scale-[1.05] active:scale-95 transition-all items-center justify-center" 
+                                class="flex md:hidden fixed top-4 left-4 z-40 bg-[var(--paper)] border border-[var(--line)] p-2.5 rounded-xl text-[var(--navy)] shadow-md hover:border-[var(--azure)] active:scale-95 transition-all items-center justify-center" 
                                 title="Menüyü Aç">
                             <i class="fa-solid fa-bars text-sm"></i>
                         </button>
                     }
 
                     <!-- SAYFA İÇERİĞİ -->
-                    <div class="flex-grow @(IsWebmailPage ? "overflow-hidden h-full w-full relative" : "overflow-y-auto overflow-x-hidden p-4 md:p-5") @(!_desktopSidebarOpen && !IsWebmailPage ? "pt-16 md:pt-5 md:pl-5 pl-4" : "") @(!_mobileSidebarOpen && !IsWebmailPage ? "pt-16 md:pt-5" : "")" style="min-width: 0; max-width: 100%; @(IsHomePage && !IsWebmailPage ? "padding-top: 0 !important;" : "")">
+                    <div class="flex-grow @(IsWebmailPage ? "overflow-hidden h-full w-full relative" : "overflow-y-auto overflow-x-hidden p-4 md:p-6") @(!_desktopSidebarOpen && !IsWebmailPage ? "pt-16 md:pt-6 md:pl-6 pl-4" : "") @(!_mobileSidebarOpen && !IsWebmailPage ? "pt-16 md:pt-6" : "")" style="min-width: 0; max-width: 100%; @(IsHomePage && !IsWebmailPage ? "padding-top: 0 !important;" : "")">
                         @Body
                     </div>
                 </main>

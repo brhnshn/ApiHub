@@ -250,87 +250,87 @@
 }
 else
 {
-    <!-- WEB VIEW: Light themed -->
+    <!-- WEB VIEW: Stormy Morning Theme -->
     <div class="space-y-6">
-        <div class="d-flex align-center justify-space-between mb-6">
+        <div class="flex items-center justify-between flex-wrap gap-4">
             <div>
-                <div class="d-flex align-center gap-3">
-                    <h1 style="font-size:1.6rem; font-weight:800; color:#0b1c30; margin:0;">Bildirim Merkezi</h1>
+                <div class="eyebrow">İletişim & Uyarılar</div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">Bildirim Merkezi</h1>
                     @if (_unreadCount > 0)
                     {
-                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Style="font-weight:800;">@_unreadCount Yeni</MudChip>
+                        <span class="pill pill-moss text-xs font-bold">@_unreadCount Yeni</span>
                     }
                 </div>
-                <p style="color:#64748b; font-size:13px; margin:4px 0 0;">FCM push bildirimleri ve sistem uyarıları</p>
+                <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">FCM push bildirimleri ve sistem uyarıları</p>
             </div>
-            <div class="d-flex gap-2">
+            <div class="flex items-center gap-2">
                 @if (_unreadCount > 0)
                 {
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.DoneAll"
-                               OnClick="MarkAllRead" Style="text-transform:none; font-weight:700; border-radius:8px; border-color:rgba(187,202,191,0.4); color:#0b1c30;">
-                        Tümünü Okundu İşaretle
-                    </MudButton>
+                    <button @onclick="MarkAllRead" class="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5">
+                        <i class="fa-solid fa-check-double text-xs"></i>
+                        <span>Tümünü Okundu İşaretle</span>
+                    </button>
                 }
                 @if (_notifications?.Any() == true)
                 {
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteSweep"
-                               OnClick="ClearAll" Style="text-transform:none; font-weight:700; border-radius:8px;">
-                        Temizle
-                    </MudButton>
+                    <button @onclick="ClearAll" class="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 text-[var(--rose)]">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                        <span>Temizle</span>
+                    </button>
                 }
-                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
-                           OnClick="LoadNotifications" Disabled="_isLoading"
-                           Style="text-transform:none; font-weight:700; border-radius:8px; border-color:rgba(187,202,191,0.4); color:#0b1c30;">
-                    Yenile
-                </MudButton>
+                <button @onclick="LoadNotifications" disabled="@_isLoading" class="btn-primary text-xs py-2 px-3.5 flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrows-rotate text-xs"></i>
+                    <span>Yenile</span>
+                </button>
             </div>
         </div>
 
-        <div class="glass-panel pa-5" style="border-radius:16px;">
+        <div class="card space-y-4">
             @if (_isLoading)
             {
-                <div class="d-flex flex-column align-center justify-center py-10">
-                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-3" />
-                    <p style="color:#64748b;">Bildirimler yükleniyor...</p>
+                <div class="flex flex-col items-center justify-center py-10 space-y-2">
+                    <div class="w-8 h-8 border-3 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></div>
+                    <p class="text-xs text-[var(--ink-soft)]">Bildirimler yükleniyor...</p>
                 </div>
             }
             else if (_notifications == null || !_notifications.Any())
             {
                 <div class="text-center py-10">
-                    <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Style="font-size:48px; color:#cbd5e1;" Class="mb-3" />
-                    <p style="color:#64748b; font-weight:600; font-size:14px;">Henüz bildirim yok</p>
-                    <p style="color:#94a3b8; font-size:12px; margin-top:4px;">FCM push bildirimleri burada listelenecek.</p>
+                    <i class="fa-regular fa-bell-slash text-3xl text-[var(--slate)] mb-2"></i>
+                    <p class="font-semibold text-xs text-[var(--navy)]">Henüz bildirim yok</p>
+                    <p class="text-[11px] text-[var(--ink-soft)] mt-0.5">FCM push bildirimleri ve sistem olayları burada listelenecektir.</p>
                 </div>
             }
             else
             {
-                <div style="overflow-x:auto;">
-                    <table class="w-full" style="border-collapse:collapse;">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
                         <thead>
-                            <tr style="border-bottom:2px solid rgba(187,202,191,0.4); text-align:left;">
-                                <th class="py-3" style="color:#0b1c30; font-weight:700;">Durum</th>
-                                <th class="py-3" style="color:#0b1c30; font-weight:700;">Başlık</th>
-                                <th class="py-3" style="color:#0b1c30; font-weight:700;">Mesaj</th>
-                                <th class="py-3" style="color:#0b1c30; font-weight:700;">Zaman</th>
+                            <tr class="border-b border-[var(--line)] text-[var(--ink-soft)] font-semibold">
+                                <th class="pb-3 w-10">Durum</th>
+                                <th class="pb-3">Başlık</th>
+                                <th class="pb-3">Mesaj</th>
+                                <th class="pb-3 text-right">Zaman</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="divide-y divide-[var(--line)] text-[var(--ink)]">
                             @foreach (var notif in _notifications)
                             {
-                                <tr style="border-bottom:1px solid rgba(187,202,191,0.2); @(notif.IsRead ? string.Empty : "background:rgba(16,185,129,0.03);") cursor:pointer;" @onclick="() => HandleNotifClick(notif)" class="hover:bg-slate-950/20">
-                                    <td class="py-4">
+                                <tr class="hover:bg-[var(--cream)] transition-colors cursor-pointer @(notif.IsRead ? "" : "bg-[var(--accent-bg)]/40")" @onclick="() => HandleNotifClick(notif)">
+                                    <td class="py-3.5">
                                         @if (!notif.IsRead)
                                         {
-                                            <span class="pulse-green"></span>
+                                            <span class="w-2 h-2 rounded-full bg-[var(--azure)] inline-block" title="Okunmadı"></span>
                                         }
                                         else
                                         {
-                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="color:#cbd5e1; font-size:16px;" />
+                                            <i class="fa-solid fa-check text-[var(--ink-soft)] text-xs"></i>
                                         }
                                     </td>
-                                    <td class="py-4" style="font-weight:700; color:#0b1c30; max-width:200px;">@notif.Title</td>
-                                    <td class="py-4" style="color:#64748b; font-size:13px; max-width:300px;">@notif.Body</td>
-                                    <td class="py-4" style="color:#94a3b8; font-size:12px; white-space:nowrap;">@GetRelativeTime(notif.SentAt)</td>
+                                    <td class="py-3.5 font-semibold text-[var(--navy)] max-w-[200px] truncate">@notif.Title</td>
+                                    <td class="py-3.5 text-[var(--ink-soft)] max-w-[400px]">@notif.Body</td>
+                                    <td class="py-3.5 text-right text-[var(--ink-soft)] font-mono whitespace-nowrap">@GetRelativeTime(notif.SentAt)</td>
                                 </tr>
                             }
                         </tbody>

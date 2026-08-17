@@ -12,165 +12,125 @@
 
 <div class="space-y-6">
     <!-- Başlık Alanı -->
-    <div class="d-flex align-center justify-space-between mb-6">
+    <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
-            <h1 class="text-slate-100 mb-1" style="font-size: 1.6rem; font-weight: 800; color: var(--text-main) !important;">Mobil Cihaz Yönetimi</h1>
-            <p style="color: #64748b; font-size: 13px;">ApiHub mobil uygulamasına bağlı cihazları ve aktif durumlarını izleyin.</p>
+            <div class="eyebrow">Mobil Entegrasyon</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">Mobil Cihaz Yönetimi</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">ApiHub mobil uygulamasına bağlı cihazları ve aktif durumlarını izleyin.</p>
         </div>
-        <MudButton Variant="Variant.Outlined" 
-                   StartIcon="@Icons.Material.Filled.Refresh" 
-                   OnClick="LoadDevices" 
-                   Disabled="_isRefreshing"
-                   Style="text-transform: none; font-weight: 700; border-radius: 8px; border-color: rgba(187, 202, 191, 0.4); color: var(--text-main);">
+        <button @onclick="LoadDevices" disabled="@_isRefreshing" class="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5">
             @if (_isRefreshing)
             {
-                <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                 <span>Yenileniyor...</span>
             }
             else
             {
+                <i class="fa-solid fa-arrows-rotate text-xs"></i>
                 <span>Yenile</span>
             }
-        </MudButton>
+        </button>
     </div>
 
     @if (!AppState.IsFcmConfigured)
     {
-        <div class="pa-4 mb-4 rounded-xl border flex items-center gap-3 font-semibold text-xs" style="background: rgba(239, 68, 68, 0.08); color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
+        <div class="p-3.5 rounded-xl border border-[var(--amber)] bg-[var(--amber-bg)] flex items-center gap-3 font-semibold text-xs text-[var(--amber)]">
             <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
             <span>Firebase (FCM) Simülasyon Modunda çalışıyor. Sunucuda <code>firebase-service-account.json</code> yetkilendirme dosyası bulunamadığı için mobil cihazlara gerçek push bildirimleri iletilemeyecektir!</span>
         </div>
     }
 
     <!-- Bento İstatistik Kartları -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="w-full">
-            <div class="glass-panel pa-5 d-flex align-center justify-space-between" style="border-radius: 16px;">
-                <div>
-                    <p style="color: #64748b; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Toplam Cihaz</p>
-                    <h2 class="mt-2" style="font-size: 2.2rem; font-weight: 900; color: var(--text-main) !important;">@_totalCount</h2>
-                </div>
-                <div class="pa-3" style="background: rgba(99, 102, 241, 0.08); border-radius: 12px;">
-                    <MudIcon Icon="@Icons.Material.Filled.PhoneAndroid" Style="color: #6366f1; font-size: 32px;" />
-                </div>
-            </div>
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-lbl">Toplam Cihaz</div>
+            <div class="stat-val">@_totalCount</div>
+            <div class="stat-sub">Kayıtlı mobil uygulama</div>
         </div>
         
-        <div class="w-full">
-            <div class="glass-panel pa-5 d-flex align-center justify-space-between" style="border-radius: 16px;">
-                <div>
-                    <p style="color: #64748b; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Aktif Cihazlar</p>
-                    <div class="d-flex align-center mt-2 gap-3">
-                        <h2 style="font-size: 2.2rem; font-weight: 900; color: var(--text-main) !important;">@_activeCount</h2>
-                        <span class="pulse-green"></span>
-                    </div>
-                </div>
-                <div class="pa-3" style="background: rgba(16, 185, 129, 0.08); border-radius: 12px;">
-                    <MudIcon Icon="@Icons.Material.Filled.Sensors" Style="color: #10b981; font-size: 32px;" />
-                </div>
+        <div class="stat-card">
+            <div class="stat-lbl">Aktif Cihazlar</div>
+            <div class="stat-val text-[var(--moss)]">@_activeCount</div>
+            <div class="stat-sub flex items-center gap-1.5 mt-1">
+                <span class="pulse-green"></span> Anlık bağlı cihaz
             </div>
         </div>
 
-        <div class="w-full">
-            <div class="glass-panel pa-5 d-flex align-center justify-space-between" style="border-radius: 16px;">
-                <div>
-                    <p style="color: #64748b; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Desteklenen Platform</p>
-                    <div class="d-flex align-center gap-4 mt-3">
-                        <span style="font-size: 14px; font-weight: 700; color: #10b981;">
-                            Android (.APK)
-                        </span>
-                    </div>
-                </div>
-                <div class="pa-3" style="background: rgba(16, 185, 129, 0.08); border-radius: 12px;">
-                    <MudIcon Icon="@Icons.Material.Filled.Android" Style="color: #10b981; font-size: 32px;" />
-                </div>
-            </div>
+        <div class="stat-card">
+            <div class="stat-lbl">Desteklenen Platform</div>
+            <div class="stat-val text-base md:text-lg font-serif">Android (.APK)</div>
+            <div class="stat-sub">Flutter Native Engine</div>
         </div>
     </div>
 
     <!-- Cihaz Tablosu -->
-    <div class="glass-panel pa-5" style="border-radius: 16px;">
+    <div class="card space-y-4">
+        <div class="border-b border-[var(--line)] pb-3">
+            <h3 class="font-serif font-semibold text-[var(--navy)] text-base">Bağlı Cihazlar Listesi</h3>
+            <p class="text-xs text-[var(--ink-soft)] mt-0.5">Uygulama üzerinden giriş yapmış yetkili cihazlar</p>
+        </div>
+
         @if (_isLoading)
         {
-            <div class="d-flex flex-column align-center justify-center py-10">
-                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-3" />
-                <p style="color: #64748b;">Cihaz listesi yükleniyor...</p>
+            <div class="flex flex-col items-center justify-center py-10 space-y-2">
+                <div class="w-8 h-8 border-3 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-xs text-[var(--ink-soft)]">Cihaz listesi yükleniyor...</p>
             </div>
         }
         else if (_devices == null || !_devices.Any())
         {
             <div class="text-center py-10">
-                <MudIcon Icon="@Icons.Material.Filled.Smartphone" Style="font-size: 48px; color: #cbd5e1;" Class="mb-3" />
-                <p style="color: #64748b; font-weight: 600; font-size: 14px;">Henüz kayıtlı cihaz yok</p>
-                <p style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Uygulamayı bir telefona kurup giriş yaptığınızda cihazınız burada listelenecektir.</p>
+                <i class="fa-solid fa-mobile-screen-button text-3xl text-[var(--slate)] mb-2"></i>
+                <p class="font-semibold text-xs text-[var(--navy)]">Henüz kayıtlı cihaz yok</p>
+                <p class="text-[11px] text-[var(--ink-soft)] mt-0.5">Uygulamayı bir telefona kurup giriş yaptığınızda cihazınız burada listelenecektir.</p>
             </div>
         }
         else
         {
-            <div style="overflow-x: auto;">
-                <table class="w-full" style="border-collapse: collapse;">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
                     <thead>
-                        <tr style="border-bottom: 2px solid rgba(187, 202, 191, 0.4); text-align: left;">
-                            <th class="py-3" style="color: var(--text-main); font-weight: 700;">Cihaz Adı</th>
-                            <th class="py-3" style="color: var(--text-main); font-weight: 700;">Platform</th>
-                            <th class="py-3" style="color: var(--text-main); font-weight: 700;">Kayıt Tarihi</th>
-                            <th class="py-3" style="color: var(--text-main); font-weight: 700;">Son Görülme</th>
-                            <th class="py-3" style="color: var(--text-main); font-weight: 700;">Durum</th>
-                            <th class="py-3 text-right" style="color: var(--text-main); font-weight: 700; text-align: right;">İşlem</th>
+                        <tr class="border-b border-[var(--line)] text-[var(--ink-soft)] font-semibold">
+                            <th class="pb-3">Cihaz Adı</th>
+                            <th class="pb-3">Platform</th>
+                            <th class="pb-3">Kayıt Tarihi</th>
+                            <th class="pb-3">Son Görülme</th>
+                            <th class="pb-3">Durum</th>
+                            <th class="pb-3 text-right">İşlem</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="divide-y divide-[var(--line)]">
                         @foreach (var dev in _devices)
                         {
-                            <tr style="border-bottom: 1px solid rgba(187, 202, 191, 0.2); transition: background-color 0.2s;" class="hover:bg-slate-950/20">
-                                <td class="py-4" style="font-weight: 600; color: var(--text-main);">
-                                    <div class="d-flex align-center gap-2">
-                                        <MudIcon Icon="@Icons.Material.Filled.PhoneAndroid" 
-                                                 Style="color: #64748b; font-size: 20px;" />
+                            <tr class="text-[var(--ink)] hover:bg-[var(--cream)] transition-colors">
+                                <td class="py-3 font-semibold text-[var(--navy)]">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-mobile-screen text-[var(--azure)]"></i>
                                         <span>@dev.DeviceName</span>
                                     </div>
                                 </td>
-                                <td class="py-4">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold" 
-                                          style="background: rgba(16, 185, 129, 0.08); color: #10b981;">
-                                        Android (.APK)
-                                    </span>
+                                <td class="py-3">
+                                    <span class="pill pill-moss text-[10.5px]">Android (.APK)</span>
                                 </td>
-                                <td class="py-4" style="color: #64748b;">@dev.CreatedAt.ToString("g")</td>
-                                <td class="py-4" style="color: #64748b;">@GetRelativeTimeString(dev.LastUsedAt)</td>
-                                <td class="py-4">
+                                <td class="py-3 font-mono text-[var(--ink-soft)]">@dev.CreatedAt.ToString("g")</td>
+                                <td class="py-3 text-[var(--ink-soft)]">@GetRelativeTimeString(dev.LastUsedAt)</td>
+                                <td class="py-3">
                                     @if (dev.IsActive)
                                     {
-                                        <div class="d-flex align-center gap-2">
-                                            <span class="pulse-green"></span>
-                                            <span style="color: #10b981; font-weight: 700; font-size: 12px;">Aktif</span>
-                                        </div>
+                                        <span class="pill pill-moss text-[10.5px]"><span class="dot"></span>Aktif</span>
                                     }
                                     else
                                     {
-                                        <div class="d-flex align-center gap-2">
-                                            <span style="width: 10px; height: 10px; background-color: #cbd5e1; border-radius: 50%; display: inline-block;"></span>
-                                            <span style="color: #94a3b8; font-weight: 600; font-size: 12px;">Pasif</span>
-                                        </div>
+                                        <span class="pill text-[10.5px] bg-[var(--cream)] text-[var(--ink-soft)]">Pasif</span>
                                     }
                                 </td>
-                                <td class="py-4 text-right" style="text-align: right;">
-                                    <div class="d-flex justify-end gap-2">
-                                        <MudTooltip Text="Test Bildirimi Gönder">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Send" 
-                                                           Color="Color.Success" 
-                                                           Size="Size.Small" 
-                                                           OnClick="@(() => SendTestNotification(dev))"
-                                                           Style="background: rgba(16, 185, 129, 0.05);" />
-                                        </MudTooltip>
-                                        <MudTooltip Text="Cihazı Kaldır">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                                           Color="Color.Error" 
-                                                           Size="Size.Small" 
-                                                           OnClick="@(() => PromptUnregister(dev))"
-                                                           Style="background: rgba(239, 68, 68, 0.05);" />
-                                        </MudTooltip>
-                                    </div>
+                                <td class="py-3 text-right space-x-2">
+                                    <button @onclick="@(() => SendTestNotification(dev))" class="text-[var(--moss)] hover:underline font-bold text-xs" title="Test Bildirimi Gönder">
+                                        <i class="fa-solid fa-paper-plane mr-1"></i> Test
+                                    </button>
+                                    <button @onclick="@(() => PromptUnregister(dev))" class="text-[var(--rose)] hover:underline font-bold text-xs ml-2" title="Cihazı Kaldır">
+                                        <i class="fa-solid fa-trash-can mr-1"></i> Kaldır
+                                    </button>
                                 </td>
                             </tr>
                         }
@@ -182,32 +142,28 @@
 </div>
 
 <!-- Cihaz Silme Onay Modalı -->
-<MudDialog @bind-Visible="_deleteConfirmVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
-    <DialogContent>
-        <div class="pa-4 text-center">
-            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Style="font-size: 48px;" Class="mb-3" />
-            <h3 style="color: var(--text-main); font-weight: 800; font-size: 15px; margin-bottom: 8px;">Cihaz Bağlantısını Kes</h3>
-            <p style="color: #64748b; font-size: 13px;">
+@if (_deleteConfirmVisible)
+{
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-sm p-6 space-y-4 text-center">
+            <div class="w-12 h-12 rounded-full bg-[var(--rose-bg)] text-[var(--rose)] flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="font-serif font-bold text-base text-[var(--navy)]">Cihaz Bağlantısını Kes</h3>
+            <p class="text-xs text-[var(--ink-soft)] leading-relaxed">
                 "<strong>@_deviceToDelete?.DeviceName</strong>" cihazının panelle olan bağlantısını kesmek istediğinizden emin misiniz?
             </p>
+            <div class="flex justify-center gap-2 pt-3 border-t border-[var(--line)]">
+                <button type="button" @onclick="@(() => _deleteConfirmVisible = false)" class="btn-secondary py-2 px-4 text-xs">
+                    Vazgeç
+                </button>
+                <button type="button" @onclick="ConfirmUnregister" class="btn-danger py-2 px-4 text-xs">
+                    Evet, Bağlantıyı Kes
+                </button>
+            </div>
         </div>
-    </DialogContent>
-    <DialogActions>
-        <div class="d-flex justify-end gap-2 w-full pa-4">
-            <MudButton OnClick="@(() => _deleteConfirmVisible = false)" 
-                       Variant="Variant.Outlined"
-                       Style="text-transform: none; border-radius: 8px; font-weight: 700; border-color: rgba(187, 202, 191, 0.4); color: var(--text-main);">
-                Vazgeç
-            </MudButton>
-            <MudButton OnClick="ConfirmUnregister" 
-                       Variant="Variant.Filled" 
-                       Color="Color.Error"
-                       Style="text-transform: none; border-radius: 8px; font-weight: 700;">
-                Evet, Bağlantıyı Kes
-            </MudButton>
-        </div>
-    </DialogActions>
-</MudDialog>
+    </div>
+}
 
 @code {
     private List<DeviceResponseDto>? _devices;

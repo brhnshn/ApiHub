@@ -8,38 +8,65 @@
 
 <PageTitle>Deployment Durumu</PageTitle>
 
-<div class="max-w-3xl mx-auto p-6 bg-slate-900 rounded-2xl border border-slate-800 text-white">
-    <div class="flex items-center justify-between mb-5">
-        <h2 class="font-bold">Deployment @Id.ToString("N")[..8]</h2>
-        <span class="text-xs px-2 py-1 rounded bg-indigo-500/20 text-indigo-300">@_deployment?.Status</span>
+<div class="max-w-3xl mx-auto card space-y-5">
+    <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+        <div>
+            <div class="eyebrow">Dağıtım & Pipeline İzleyici</div>
+            <h2 class="font-serif font-semibold text-lg text-[var(--navy)]">Deployment #@Id.ToString("N")[..8]</h2>
+        </div>
+        <span class="pill pill-azure text-xs">@_deployment?.Status</span>
     </div>
+
     @if (_deployment == null)
     {
-        <p class="text-slate-400">Deployment durumu yükleniyor...</p>
+        <div class="flex flex-col items-center justify-center py-10 space-y-2">
+            <div class="w-8 h-8 border-3 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-xs text-[var(--ink-soft)]">Deployment durumu yükleniyor...</p>
+        </div>
     }
     else
     {
-        <div class="space-y-2">
+        <div class="space-y-2 text-xs">
             @foreach (var step in _deployment.Steps.OrderBy(s => s.Order))
             {
-                <div class="flex justify-between p-2 rounded bg-slate-950 text-xs">
-                    <span>@step.Name</span><span class="@(step.Status == "Failed" ? "text-rose-400" : step.Status == "Succeeded" ? "text-emerald-400" : "text-slate-400")">@step.Status</span>
+                <div class="flex items-center justify-between p-3 rounded-lg bg-[var(--cream)] border border-[var(--line)]">
+                    <span class="font-semibold text-[var(--navy)]">@step.Name</span>
+                    @if (step.Status == "Failed")
+                    {
+                        <span class="pill pill-rose text-[10.5px]">Başarısız</span>
+                    }
+                    else if (step.Status == "Succeeded")
+                    {
+                        <span class="pill pill-moss text-[10.5px]">Başarılı</span>
+                    }
+                    else
+                    {
+                        <span class="pill pill-amber text-[10.5px]">@step.Status</span>
+                    }
                 </div>
             }
         </div>
+
         @if (_deployment.Status == DeploymentStatus.RollbackPending.ToString())
         {
-            <div class="mt-5 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10">
-                <p class="text-sm text-amber-200">Pipeline başarısız oldu. Rollback için @_secondsRemaining saniye kaldı.</p>
-                <button class="mt-3 px-3 py-2 rounded bg-amber-600 text-white text-xs font-bold" @onclick="RollbackAsync">Hemen Geri Al</button>
+            <div class="p-4 rounded-xl border border-[var(--amber)] bg-[var(--amber-bg)] space-y-2 text-xs">
+                <div class="flex items-center gap-2 text-[var(--amber)] font-bold">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Pipeline Başarısız Oldu</span>
+                </div>
+                <p class="text-[var(--ink)]">Geri alma (Rollback) için @_secondsRemaining saniye kaldı.</p>
+                <button class="btn-primary py-2 px-4 text-xs font-bold mt-2" @onclick="RollbackAsync">Hemen Geri Al</button>
             </div>
         }
         @if (_deployment.Status == DeploymentStatus.RollbackFailed.ToString())
         {
-            <div class="mt-5 p-4 rounded-xl border border-rose-500/30 bg-rose-500/10">
-                <p class="text-sm text-rose-200">Rollback tamamlanamadı.</p>
-                <p class="mt-1 text-xs text-rose-300">@_deployment.ErrorMessage</p>
-                <button class="mt-3 px-3 py-2 rounded bg-rose-600 text-white text-xs font-bold" @onclick="RetryRollbackAsync">Tekrar Dene</button>
+            <div class="p-4 rounded-xl border border-[var(--rose)] bg-[var(--rose-bg)] space-y-2 text-xs">
+                <div class="flex items-center gap-2 text-[var(--rose)] font-bold">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                    <span>Rollback Tamamlanamadı</span>
+                </div>
+                <p class="text-[var(--ink)] text-[11px]">@_deployment.ErrorMessage</p>
+                <button class="btn-danger py-2 px-4 text-xs font-bold mt-2" @onclick="RetryRollbackAsync">Tekrar Dene</button>
             </div>
         }
     }

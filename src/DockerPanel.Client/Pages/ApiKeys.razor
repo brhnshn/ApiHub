@@ -1,4 +1,4 @@
-﻿@page "/apikeys"
+@page "/apikeys"
 @attribute [Authorize]
 @inject HttpClient Http
 @inject ISnackbar Snackbar
@@ -9,63 +9,56 @@
 
 <PageTitle>API Anahtarları - ApiHub</PageTitle>
 
-<div class="space-y-6 @(PlatformInfo.IsMobileApp ? "text-[#e1e2ec]" : "text-[#0b1c30]")">
+<div class="space-y-6">
     <!-- Üst Başlık -->
-    <div class="flex justify-between items-start gap-4">
+    <div class="flex justify-between items-start gap-4 flex-wrap">
         <div>
-            <h2 class="text-2xl font-extrabold tracking-tight @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">API Anahtarları</h2>
-            <p class="text-xs font-medium mt-1 @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-400")">Mobil uygulamanız veya dış servisleriniz için güvenli erişim anahtarları oluşturun ve yönetin.</p>
+            <div class="eyebrow">Geliştirici & Entegrasyon</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">API Anahtarları</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">Mobil uygulamanız veya dış servisleriniz için güvenli erişim anahtarları oluşturun ve yönetin.</p>
         </div>
-        <button @onclick="LoadKeys" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all active:scale-95 @(PlatformInfo.IsMobileApp ? "bg-white/5 border-white/10 text-white hover:bg-white/10" : "bg-white border-slate-200 text-[#0b1c30] hover:bg-slate-50")">
-            <span class="material-symbols-outlined text-[16px] @(_isRefreshing ? "animate-spin" : "")">sync</span>
-            Yenile
+        <button @onclick="LoadKeys" class="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5">
+            <i class="fa-solid fa-arrows-rotate text-xs @(_isRefreshing ? "animate-spin" : "")"></i>
+            <span>Yenile</span>
         </button>
     </div>
 
     <!-- Bento Grid İstatistikler -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bento-card-custom rounded-xl p-5 border shadow-md flex justify-between items-center @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5" : "bg-white border-slate-100")">
-            <div>
-                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Toplam Anahtar</p>
-                <h3 class="text-2xl font-black mt-1 @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">@_keys.Count</h3>
-            </div>
-            <div class="p-3 rounded-xl @(PlatformInfo.IsMobileApp ? "bg-[#4edea3]/10 text-[#4edea3]" : "bg-[#006c49]/10 text-[#006c49]")">
-                <span class="material-symbols-outlined text-2xl">key</span>
-            </div>
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-lbl">Toplam Anahtar</div>
+            <div class="stat-val">@_keys.Count</div>
+            <div class="stat-sub">Sistemde kayıtlı anahtarlar</div>
         </div>
 
-        <div class="bento-card-custom rounded-xl p-5 border shadow-md flex justify-between items-center @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5" : "bg-white border-slate-100")">
-            <div>
-                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Aktif Anahtarlar</p>
-                <h3 class="text-2xl font-black mt-1 text-[#4edea3]">@_keys.Count(k => k.IsActive)</h3>
-            </div>
-            <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
-                <span class="material-symbols-outlined text-2xl">vpn_key</span>
-            </div>
+        <div class="stat-card">
+            <div class="stat-lbl">Aktif Anahtarlar</div>
+            <div class="stat-val text-[var(--moss)]">@_keys.Count(k => k.IsActive)</div>
+            <div class="stat-sub">Yetkilendirilmiş erişim</div>
         </div>
 
-        <div class="bento-card-custom rounded-xl p-5 border shadow-md flex justify-between items-center @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5" : "bg-white border-slate-100")">
-            <div>
-                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Güvenlik Sınırı</p>
-                <h3 class="text-xs font-bold mt-2 text-slate-400">SHA-256 Korumalı</h3>
-            </div>
-            <div class="p-3 rounded-xl bg-[#3b82f6]/10 text-[#3b82f6]">
-                <span class="material-symbols-outlined text-2xl">security</span>
-            </div>
+        <div class="stat-card">
+            <div class="stat-lbl">Güvenlik Katmanı</div>
+            <div class="stat-val text-base md:text-lg font-serif">SHA-256</div>
+            <div class="stat-sub">Tek yönlü karma şifreleme</div>
         </div>
     </div>
 
     <!-- Yeni Anahtar Üretme Formu -->
-    <div class="bento-card-custom rounded-xl p-6 border shadow-xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")">
-        <h4 class="text-sm font-black uppercase tracking-wider mb-4 text-[#4edea3]">Yeni API Anahtarı Oluştur</h4>
+    <div class="card space-y-4">
+        <div class="border-b border-[var(--line)] pb-3">
+            <h3 class="font-serif font-semibold text-[var(--navy)] text-base">Yeni API Anahtarı Oluştur</h3>
+            <p class="text-xs text-[var(--ink-soft)] mt-0.5">Mobil istemci veya harici entegrasyonlar için yetki belirteci</p>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div class="md:col-span-5">
-                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Anahtar Adı</label>
-                <input @bind="_newKeyName" class="w-full text-xs px-3 py-2.5 rounded-lg outline-none transition-all @(PlatformInfo.IsMobileApp ? "bg-white/5 border border-white/10 text-white focus:border-[#4edea3]" : "bg-slate-50 border border-slate-200 text-[#0b1c30] focus:border-[#006c49]")" placeholder="Örn: Mobil Telefonum" />
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-[var(--ink-soft)] mb-1">Anahtar Adı</label>
+                <input @bind="_newKeyName" class="w-full text-xs px-3 py-2.5 rounded-lg outline-none bg-[var(--paper)] border border-[var(--line)] text-[var(--ink)] focus:border-[var(--azure)]" placeholder="Örn: Mobil Telefonum" />
             </div>
             <div class="md:col-span-4">
-                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Geçerlilik Süresi</label>
-                <select @bind="_durationDays" class="w-full text-xs px-3 py-2.5 rounded-lg outline-none transition-all @(PlatformInfo.IsMobileApp ? "bg-[#171a21] border border-white/10 text-white focus:border-[#4edea3]" : "bg-white border border-slate-200 text-[#0b1c30] focus:border-[#006c49]")">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-[var(--ink-soft)] mb-1">Geçerlilik Süresi</label>
+                <select @bind="_durationDays" class="w-full text-xs px-3 py-2.5 rounded-lg outline-none bg-[var(--paper)] border border-[var(--line)] text-[var(--ink)] focus:border-[var(--azure)]">
                     <option value="">Süresiz (Sonsuz)</option>
                     <option value="7">7 Gün</option>
                     <option value="30">30 Gün</option>
@@ -74,16 +67,17 @@
                 </select>
             </div>
             <div class="md:col-span-3">
-                <button @onclick="GenerateKey" disabled="@_isGenerating" class="w-full py-2.5 rounded-lg text-xs font-bold text-white transition-all active:scale-95 flex items-center justify-center gap-2 @(PlatformInfo.IsMobileApp ? "bg-[#006c49] hover:bg-[#006c49]/90" : "bg-[#006c49] hover:bg-[#006c49]/90")">
+                <button @onclick="GenerateKey" disabled="@_isGenerating" class="btn-primary w-full py-2.5 text-xs flex items-center justify-center gap-2">
                     @if (_isGenerating)
                     {
                         <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Üretiliyor...</span>
                     }
                     else
                     {
-                        <span class="material-symbols-outlined text-[16px]">add_circle</span>
+                        <i class="fa-solid fa-key text-xs"></i>
+                        <span>Anahtar Üret</span>
                     }
-                    Anahtar Üret
                 </button>
             </div>
         </div>
@@ -91,90 +85,88 @@
         @if (!string.IsNullOrEmpty(_generatedRawKey))
         {
             <!-- Oluşturulan Anahtar Bölümü -->
-            <div class="mt-6 p-4 rounded-xl border bg-amber-500/10 border-amber-500/20 text-white space-y-4">
-                <div class="flex items-start gap-3">
-                    <span class="material-symbols-outlined text-amber-400 text-2xl animate-pulse">warning</span>
+            <div class="mt-4 p-4 rounded-xl border border-[var(--amber)] bg-[var(--amber-bg)] space-y-3 text-xs">
+                <div class="flex items-start gap-2.5 text-[var(--amber)]">
+                    <i class="fa-solid fa-triangle-exclamation text-base mt-0.5"></i>
                     <div>
-                        <h5 class="text-xs font-bold text-amber-400">Önemli Güvenlik Uyarısı</h5>
-                        <p class="text-[10px] text-slate-300 mt-0.5 leading-relaxed">Bu API anahtarını güvenli bir yere kaydedin. API anahtarınız veritabanımızda güvenli şifreleme algoritmalarıyla saklanmaktadır. Dilerseniz bu sayfadan veya aşağıdaki listeden göz simgesine tıklayarak anahtarınızı daha sonra da görüntüleyebilirsiniz.</p>
+                        <h5 class="font-bold text-xs">Önemli Güvenlik Uyarısı</h5>
+                        <p class="text-[11px] mt-0.5 text-[var(--ink)] leading-relaxed">Bu API anahtarını güvenli bir yere kaydedin. API anahtarınız veritabanımızda güvenli şifreleme algoritmalarıyla saklanmaktadır. Dilerseniz bu sayfadan veya aşağıdaki listeden göz simgesine tıklayarak anahtarınızı daha sonra da görüntüleyebilirsiniz.</p>
                     </div>
                 </div>
 
                 <div class="space-y-1.5">
-                    <span class="text-[10px] font-black uppercase text-amber-400 tracking-wider">Ham API Anahtarı</span>
-                    <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
-                        <span class="font-mono text-xs select-all text-[#4edea3] break-all">@_generatedRawKey</span>
-                        <button @onclick="CopyGeneratedKey" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Kopyala">
-                            <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                    <span class="text-[10px] font-bold uppercase text-[var(--navy)] tracking-wider">Ham API Anahtarı</span>
+                    <div class="flex items-center gap-2 bg-[#1C2630] border border-[var(--navy)] rounded-lg p-2.5 justify-between">
+                        <span class="font-mono text-xs select-all text-[#8FD6B4] break-all">@_generatedRawKey</span>
+                        <button @onclick="CopyGeneratedKey" class="p-1.5 hover:bg-white/10 rounded-lg transition-colors flex items-center text-[#8FA6BB] hover:text-white" title="Kopyala">
+                            <i class="fa-regular fa-copy text-sm"></i>
                         </button>
                     </div>
                 </div>
-
             </div>
         }
     </div>
 
     <!-- Mevcut Anahtarlar Tablosu -->
-    <div class="bento-card-custom rounded-xl p-6 border shadow-xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")">
-        <h4 class="text-sm font-black uppercase tracking-wider mb-4 @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">Aktif API Anahtarlarınız</h4>
+    <div class="card space-y-4">
+        <div class="border-b border-[var(--line)] pb-3">
+            <h3 class="font-serif font-semibold text-[var(--navy)] text-base">Aktif API Anahtarlarınız</h3>
+            <p class="text-xs text-[var(--ink-soft)] mt-0.5">Sistem erişimine açık anahtar listesi</p>
+        </div>
 
         @if (_isLoading)
         {
-            <div class="flex flex-col justify-center items-center py-12">
-                <div class="w-8 h-8 border-3 border-[#006c49] border-t-transparent rounded-full animate-spin"></div>
-                <p class="text-xs text-slate-400 mt-2">Anahtarlar yükleniyor...</p>
+            <div class="flex flex-col justify-center items-center py-10 space-y-2">
+                <div class="w-8 h-8 border-3 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-xs text-[var(--ink-soft)]">Anahtarlar yükleniyor...</p>
             </div>
         }
         else if (!_keys.Any())
         {
-            <div class="text-center py-12 text-slate-500">
-                <span class="material-symbols-outlined text-4xl block mb-2 text-slate-600">key_off</span>
-                <p class="text-xs font-bold">Kayıtlı API anahtarı bulunamadı.</p>
-                <p class="text-[10px] text-slate-400 mt-0.5">Mobil uygulamanızdan erişmek için yukarıdaki formu kullanarak yeni bir anahtar oluşturabilirsiniz.</p>
+            <div class="text-center py-10 text-[var(--ink-soft)]">
+                <i class="fa-solid fa-key text-3xl text-[var(--slate)] mb-2"></i>
+                <p class="text-xs font-semibold text-[var(--navy)]">Kayıtlı API anahtarı bulunamadı.</p>
+                <p class="text-[11px] text-[var(--ink-soft)] mt-0.5">Mobil uygulamanızdan erişmek için yukarıdaki formu kullanarak yeni bir anahtar oluşturabilirsiniz.</p>
             </div>
         }
         else
         {
-            <div class="overflow-x-auto w-full no-scrollbar">
-                <table class="w-full text-left border-collapse">
+            <div class="overflow-x-auto w-full">
+                <table class="w-full text-left border-collapse text-xs">
                     <thead>
-                        <tr class="border-b @(PlatformInfo.IsMobileApp ? "border-white/5 text-slate-400" : "border-slate-100 text-slate-500")">
-                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">İsim</th>
-                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">API Anahtarı</th>
-                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">Oluşturma</th>
-                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">Son Kullanım</th>
-                            <th class="py-3 text-[10px] font-black uppercase tracking-wider">Bitiş</th>
-                            <th class="py-3 text-[10px] font-black uppercase tracking-wider text-center">Durum</th>
-                            <th class="py-3 text-[10px] font-black uppercase tracking-wider text-right">İşlemler</th>
+                        <tr class="border-b border-[var(--line)] text-[var(--ink-soft)] font-semibold">
+                            <th class="pb-3">İsim</th>
+                            <th class="pb-3">API Anahtarı</th>
+                            <th class="pb-3">Oluşturma</th>
+                            <th class="pb-3">Son Kullanım</th>
+                            <th class="pb-3">Bitiş</th>
+                            <th class="pb-3 text-center">Durum</th>
+                            <th class="pb-3 text-right">İşlemler</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y @(PlatformInfo.IsMobileApp ? "divide-white/5" : "divide-slate-100")">
+                    <tbody class="divide-y divide-[var(--line)] text-[var(--ink)]">
                         @foreach (var key in _keys)
                         {
-                            <tr class="text-xs hover:bg-slate-500/5">
-                                <td class="py-3.5 font-bold">@key.Name</td>
-                                <td class="py-3.5 font-mono text-slate-400 select-all">@key.MaskedKey</td>
-                                <td class="py-3.5 text-slate-400">@key.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                                <td class="py-3.5 text-slate-400">
+                            <tr class="hover:bg-[var(--cream)] transition-colors">
+                                <td class="py-3 font-semibold text-[var(--navy)]">@key.Name</td>
+                                <td class="py-3 font-mono text-[var(--ink-soft)] select-all">@key.MaskedKey</td>
+                                <td class="py-3 font-mono text-[var(--ink-soft)]">@key.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                <td class="py-3 text-[var(--ink-soft)]">
                                     @(key.LastUsedAt.HasValue ? key.LastUsedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "Hiç kullanılmadı")
                                 </td>
-                                <td class="py-3.5 text-slate-400">
+                                <td class="py-3 text-[var(--ink-soft)]">
                                     @(key.ExpiresAt.HasValue ? key.ExpiresAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "Süresiz")
                                 </td>
-                                <td class="py-3.5 text-center">
-                                    <div class="flex items-center justify-center">
-                                        <input type="checkbox" checked="@key.IsActive" @onchange="() => ToggleKey(key)" class="ios-toggle-custom" />
-                                    </div>
+                                <td class="py-3 text-center">
+                                    <input type="checkbox" checked="@key.IsActive" @onchange="() => ToggleKey(key)" class="w-4 h-4 rounded text-[var(--azure)]" />
                                 </td>
-                                <td class="py-3.5 text-right">
-                                    <div class="flex gap-1.5 justify-end">
-                                        <button @onclick="() => RevealKey(key)" class="p-1.5 text-[#4edea3] hover:bg-[#4edea3]/10 rounded-lg transition-colors flex items-center justify-center" title="Anahtarı Göster">
-                                            <span class="material-symbols-outlined text-[18px]">visibility</span>
-                                        </button>
-                                        <button @onclick="() => ConfirmDeleteKey(key)" class="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center justify-center" title="Anahtarı Sil (Revoke)">
-                                            <span class="material-symbols-outlined text-[18px]">delete</span>
-                                        </button>
-                                    </div>
+                                <td class="py-3 text-right space-x-2">
+                                    <button @onclick="() => RevealKey(key)" class="text-[var(--moss)] hover:underline font-bold text-xs" title="Anahtarı Göster">
+                                        <i class="fa-solid fa-eye mr-1"></i> Göster
+                                    </button>
+                                    <button @onclick="() => ConfirmDeleteKey(key)" class="text-[var(--rose)] hover:underline font-bold text-xs ml-2" title="Anahtarı Sil (Revoke)">
+                                        <i class="fa-solid fa-trash-can mr-1"></i> Sil
+                                    </button>
                                 </td>
                             </tr>
                         }
@@ -188,25 +180,20 @@
 <!-- Silme Onay Modalı -->
 @if (_keyToDelete != null)
 {
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 animate-fade-in">
-        <div class="glass max-w-sm w-full rounded-2xl p-6 text-left relative space-y-4 shadow-2xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/95 border border-white/10 text-white" : "bg-white border border-slate-200 text-[#0b1c30]")" style="border-radius: 16px;">
-            <div class="flex items-center gap-3 text-rose-500">
-                <span class="material-symbols-outlined text-3xl">warning</span>
-                <div>
-                    <h3 class="text-base font-extrabold" style="margin:0;">Anahtarı İptal Et?</h3>
-                    <p class="text-[10px] text-rose-500" style="margin:2px 0 0 0;">Bu işlem geri alınamaz</p>
-                </div>
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-sm p-6 space-y-4 text-center">
+            <div class="w-12 h-12 rounded-full bg-[var(--rose-bg)] text-[var(--rose)] flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
             </div>
-
-            <p class="text-xs text-slate-300 leading-relaxed">
-                <strong>@_keyToDelete.Name</strong> isimli API anahtarı tamamen silinecektir. Bu anahtarı kullanan tüm mobil uygulamalar sunucuya erişimini **anında kaybedecektir.**
+            <h3 class="font-serif font-bold text-base text-[var(--navy)]">Anahtarı İptal Et?</h3>
+            <p class="text-xs text-[var(--ink-soft)] leading-relaxed">
+                <strong>@_keyToDelete.Name</strong> isimli API anahtarı tamamen silinecektir. Bu anahtarı kullanan tüm mobil uygulamalar sunucuya erişimini <strong>anında kaybedecektir.</strong>
             </p>
-
-            <div class="flex gap-2 pt-2">
-                <button @onclick="() => _keyToDelete = null" class="flex-1 text-xs font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2 rounded-xl transition-all" style="border-radius: 8px;">
+            <div class="flex justify-center gap-2 pt-3 border-t border-[var(--line)]">
+                <button @onclick="() => _keyToDelete = null" class="btn-secondary py-2 px-4 text-xs">
                     İptal
                 </button>
-                <button @onclick="DeleteKey" class="flex-1 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 py-2 rounded-xl transition-all shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2" style="border-radius: 8px;">
+                <button @onclick="DeleteKey" class="btn-danger py-2 px-4 text-xs">
                     Evet, Sil!
                 </button>
             </div>
@@ -217,30 +204,30 @@
 <!-- Anahtarı Göster Modalı -->
 @if (!string.IsNullOrEmpty(_revealedRawKey))
 {
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 animate-fade-in">
-        <div class="glass max-w-sm w-full rounded-2xl p-6 text-left relative space-y-4 shadow-2xl @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/95 border border-white/10 text-white" : "bg-white border border-slate-200 text-[#0b1c30]")" style="border-radius: 16px;">
-            <div class="flex items-center gap-3 text-[#4edea3]">
-                <div class="p-3 bg-[#4edea3]/10 rounded-xl text-[#4edea3] flex-shrink-0" style="border-radius: 12px;">
-                    <span class="material-symbols-outlined text-2xl">vpn_key</span>
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-sm p-6 space-y-4">
+            <div class="flex items-center gap-3 text-[var(--moss)] border-b border-[var(--line)] pb-3">
+                <div class="p-2.5 bg-[var(--moss-bg)] text-[var(--moss)] rounded-xl">
+                    <i class="fa-solid fa-key text-lg"></i>
                 </div>
                 <div>
-                    <h3 class="text-base font-extrabold" style="margin:0;">API Anahtarı Çözüldü</h3>
-                    <p class="text-[10px] text-slate-400" style="margin:2px 0 0 0;">@_revealedKeyName</p>
+                    <h3 class="font-serif font-bold text-base text-[var(--navy)] m-0">API Anahtarı Çözüldü</h3>
+                    <p class="text-[11px] text-[var(--ink-soft)] m-0">@_revealedKeyName</p>
                 </div>
             </div>
 
             <div class="space-y-1.5">
-                <span class="text-[9px] font-black uppercase tracking-wider @(PlatformInfo.IsMobileApp ? "text-slate-400" : "text-slate-500")">API Anahtarı</span>
-                <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 justify-between">
-                    <span class="font-mono text-xs select-all text-[#4edea3] break-all">@_revealedRawKey</span>
-                    <button @onclick="CopyRevealedKey" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center text-slate-300 hover:text-white" title="Kopyala">
-                        <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-[var(--ink-soft)]">API Anahtarı</span>
+                <div class="flex items-center gap-2 bg-[#1C2630] border border-[var(--navy)] rounded-lg p-2.5 justify-between">
+                    <span class="font-mono text-xs select-all text-[#8FD6B4] break-all">@_revealedRawKey</span>
+                    <button @onclick="CopyRevealedKey" class="p-1.5 hover:bg-white/10 rounded-lg transition-colors flex items-center text-[#8FA6BB] hover:text-white" title="Kopyala">
+                        <i class="fa-regular fa-copy text-sm"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="flex gap-2 pt-2">
-                <button @onclick="() => { _revealedRawKey = null; _revealedKeyName = null; }" class="w-full text-xs font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all" style="border-radius: 8px;">
+            <div class="pt-2 border-t border-[var(--line)]">
+                <button @onclick="() => { _revealedRawKey = null; _revealedKeyName = null; }" class="btn-secondary w-full py-2 text-xs font-semibold">
                     Kapat
                 </button>
             </div>

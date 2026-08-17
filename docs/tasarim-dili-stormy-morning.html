@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Tasarım Dili Rehberi — Stormy Morning</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root{
+    /* Stormy Morning palette */
+    --slate:#6A89A7;
+    --sky:#BDDDFC;
+    --azure:#88BDF2;
+    --navy:#384959;
+
+    --paper:#FCFDFF;
+    --cream:#F1F5FA;
+    --ink:#212B34;
+    --ink-soft:#5B6B7A;
+    --line:#DCE6EE;
+    --accent:var(--azure);
+    --accent-bg:#E4F0FD;
+    --moss:#4C8067;
+    --moss-bg:#E4EFE9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--cream); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  h1,h2,h3{font-family:'Source Serif 4',Georgia,serif; font-weight:600; margin:0; letter-spacing:-0.01em;}
+
+  .wrap{max-width:980px; margin:0 auto; padding:70px 28px 100px;}
+
+  .hero{margin-bottom:70px;}
+  .eyebrow{
+    font-size:11.5px; text-transform:uppercase; letter-spacing:.1em;
+    color:var(--slate); font-weight:700; margin-bottom:14px;
+  }
+  .hero h1{font-size:44px; line-height:1.08; max-width:680px; color:var(--navy);}
+  .hero p{color:var(--ink-soft); font-size:16px; max-width:560px; margin-top:16px; line-height:1.6;}
+
+  section{margin-bottom:64px;}
+  .sec-label{
+    font-size:11.5px; text-transform:uppercase; letter-spacing:.09em;
+    color:var(--ink-soft); font-weight:700; border-bottom:1px solid var(--line);
+    padding-bottom:12px; margin-bottom:24px;
+  }
+
+  /* PALETTE */
+  .palette{display:grid; grid-template-columns:repeat(6,1fr); gap:14px;}
+  .swatch{border-radius:12px; overflow:hidden; border:1px solid var(--line);}
+  .swatch-color{height:80px;}
+  .swatch-meta{background:var(--paper); padding:10px 12px;}
+  .swatch-meta .name{font-size:12px; font-weight:600; color:var(--navy);}
+  .swatch-meta .hex{font-size:11px; color:var(--ink-soft);}
+
+  /* TYPE */
+  .type-row{display:flex; align-items:baseline; gap:20px; padding:16px 0; border-top:1px solid var(--line);}
+  .type-row:last-child{border-bottom:1px solid var(--line);}
+  .type-tag{font-size:11px; color:var(--ink-soft); width:150px; flex-shrink:0;}
+  .t-display{font-size:34px; color:var(--navy);}
+  .t-h2{font-size:24px; color:var(--navy);}
+  .t-body{font-size:16px; font-family:'Inter'; line-height:1.5;}
+  .t-mono{font-size:14px;}
+  .t-caption{font-size:12px; color:var(--ink-soft);}
+
+  /* BUTTONS */
+  .row{display:flex; gap:14px; flex-wrap:wrap; align-items:center;}
+  .btn-primary{
+    background:var(--navy); color:#F4F8FD; border:none;
+    padding:11px 20px; border-radius:9px; font-weight:600; font-size:13.5px; cursor:pointer;
+  }
+  .btn-primary:hover{background:var(--azure); color:var(--navy);}
+  .btn-secondary{
+    background:var(--paper); color:var(--navy); border:1px solid var(--line);
+    padding:11px 20px; border-radius:9px; font-weight:600; font-size:13.5px; cursor:pointer;
+  }
+  .btn-secondary:hover{border-color:var(--azure); color:var(--azure);}
+  .btn-ghost{
+    background:transparent; color:var(--ink-soft); border:none;
+    padding:11px 6px; font-weight:600; font-size:13.5px; cursor:pointer;
+  }
+  .btn-ghost:hover{color:var(--azure);}
+
+  /* CARDS */
+  .card-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  .demo-card{background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:20px;}
+  .demo-card .ic{
+    width:34px;height:34px;border-radius:9px; background:var(--accent-bg); color:var(--navy);
+    display:flex;align-items:center;justify-content:center; margin-bottom:14px;
+  }
+  .demo-card h3{font-size:15.5px; margin-bottom:6px; color:var(--navy);}
+  .demo-card p{font-size:13px; color:var(--ink-soft); line-height:1.5; margin:0;}
+
+  /* STATUS / PILLS */
+  .pill{
+    font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px;
+    display:inline-flex; align-items:center; gap:5px;
+  }
+  .pill-moss{background:var(--moss-bg); color:var(--moss);}
+  .pill-azure{background:var(--accent-bg); color:var(--navy);}
+  .pill .dot{width:6px;height:6px;border-radius:50%; background:currentColor;}
+
+  /* INPUT */
+  .field{display:flex; flex-direction:column; gap:6px; max-width:320px;}
+  .field label{font-size:12px; font-weight:600; color:var(--ink-soft);}
+  .field input{
+    border:1px solid var(--line); background:var(--paper); border-radius:8px;
+    padding:10px 12px; font-size:13.5px; font-family:'Inter'; outline:none; color:var(--ink);
+  }
+  .field input:focus{border-color:var(--azure);}
+
+  /* PROGRESS */
+  .bar-track{height:6px; background:var(--paper); border:1px solid var(--line); border-radius:4px; overflow:hidden; max-width:320px;}
+  .bar-fill{height:100%; background:var(--azure); border-radius:4px;}
+
+  footer{
+    border-top:1px solid var(--line); padding-top:24px; margin-top:80px;
+    font-size:12px; color:var(--ink-soft); display:flex; justify-content:space-between;
+  }
+
+  @media (max-width:720px){
+    .palette{grid-template-columns:repeat(3,1fr);}
+    .card-grid{grid-template-columns:1fr;}
+    .hero h1{font-size:32px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow">Tasarım Dili · Rehber</div>
+    <h1>Soğuk mavi tonlarla kurulmuş, sakin ve güvenilir bir arayüz sistemi.</h1>
+    <p>Lacivert zemin, gök mavisi vurgu ve serif/sans başlık eşleşmesiyle kurulmuş bu dil; panel, form ve durum bileşenlerinde tutarlı bir kimlik sağlar.</p>
+  </div>
+
+  <!-- PALETTE -->
+  <section>
+    <div class="sec-label">Renk Paleti — Stormy Morning</div>
+    <div class="palette">
+      <div class="swatch">
+        <div class="swatch-color" style="background:#6A89A7;"></div>
+        <div class="swatch-meta"><div class="name">Slate</div><div class="hex mono">#6A89A7</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#BDDDFC;"></div>
+        <div class="swatch-meta"><div class="name">Sky</div><div class="hex mono">#BDDDFC</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#88BDF2;"></div>
+        <div class="swatch-meta"><div class="name">Azure</div><div class="hex mono">#88BDF2</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#384959;"></div>
+        <div class="swatch-meta"><div class="name">Navy</div><div class="hex mono">#384959</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#FCFDFF;"></div>
+        <div class="swatch-meta"><div class="name">Paper</div><div class="hex mono">#FCFDFF</div></div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#DCE6EE;"></div>
+        <div class="swatch-meta"><div class="name">Line</div><div class="hex mono">#DCE6EE</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TYPE -->
+  <section>
+    <div class="sec-label">Tipografi</div>
+    <div class="type-row"><div class="type-tag mono">DISPLAY / SERIF 34</div><div class="t-display">Source Serif 4</div></div>
+    <div class="type-row"><div class="type-tag mono">H2 / SERIF 24</div><div class="t-h2">Başlık örneği</div></div>
+    <div class="type-row"><div class="type-tag mono">BODY / SANS 16</div><div class="t-body">Inter ile yazılan gövde metni okunabilirliği artırır.</div></div>
+    <div class="type-row"><div class="type-tag mono">MONO / DATA 14</div><div class="t-mono mono">server.status = "running"</div></div>
+    <div class="type-row"><div class="type-tag mono">CAPTION 12</div><div class="t-caption">İkincil açıklama metni, yardımcı bilgiler için.</div></div>
+  </section>
+
+  <!-- BUTTONS -->
+  <section>
+    <div class="sec-label">Butonlar</div>
+    <div class="row">
+      <button class="btn-primary">Birincil İşlem</button>
+      <button class="btn-secondary">İkincil İşlem</button>
+      <button class="btn-ghost">Metin Bağlantısı</button>
+    </div>
+  </section>
+
+  <!-- STATUS -->
+  <section>
+    <div class="sec-label">Durum Etiketleri</div>
+    <div class="row">
+      <span class="pill pill-moss"><span class="dot"></span>ÇALIŞIYOR</span>
+      <span class="pill pill-azure"><span class="dot"></span>BEKLEMEDE</span>
+    </div>
+  </section>
+
+  <!-- FORM -->
+  <section>
+    <div class="sec-label">Form Alanı</div>
+    <div class="field">
+      <label>Sunucu Adı</label>
+      <input type="text" placeholder="ör. api.example.com">
+    </div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section>
+    <div class="sec-label">İlerleme Çubuğu</div>
+    <div class="bar-track"><div class="bar-fill" style="width:62%;"></div></div>
+  </section>
+
+  <!-- CARDS -->
+  <section>
+    <div class="sec-label">Kart Bileşeni</div>
+    <div class="card-grid">
+      <div class="demo-card">
+        <div class="ic">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
+        </div>
+        <h3>Konteynerler</h3>
+        <p>Çalışan tüm servisleri tek panelde izleyin.</p>
+      </div>
+      <div class="demo-card">
+        <div class="ic">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+        </div>
+        <h3>Domainler</h3>
+        <p>SSL durumunu ve DNS kayıtlarını yönetin.</p>
+      </div>
+      <div class="demo-card">
+        <div class="ic">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 11h14M12 4v14"/></svg>
+        </div>
+        <h3>Yedekler</h3>
+        <p>Otomatik yedekleme geçmişini görüntüleyin.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Tasarım Dili Rehberi</span>
+    <span class="mono">v1.1 — Stormy Morning</span>
+  </footer>
+
+</div>
+</body>
+</html>

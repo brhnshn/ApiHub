@@ -6,157 +6,273 @@
 
 <PageTitle>E-Posta Yönetimi - ApiHub</PageTitle>
 
-<div class="mb-6">
-    <MudText Typo="Typo.h4" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px;">E-Posta Sunucusu Yönetimi</MudText>
-    <MudText Typo="Typo.body2" Class="mud-text-secondary">E-posta hesaplarınızı, SMTP ayarlarınızı ve yönlendirmeleri buradan yönetin.</MudText>
-</div>
+<div class="space-y-6">
+    <!-- Üst Başlık -->
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <div class="eyebrow">İletişim ve E-Posta</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">E-Posta Sunucusu Yönetimi</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">
+                E-posta hesaplarınızı, SMTP ayarlarınızı ve yönlendirmeleri buradan yönetin.
+            </p>
+        </div>
+    </div>
 
-<MudGrid Class="mb-6">
-    <!-- E-Posta İstemci Bilgileri Kartı -->
-    <MudItem xs="12" md="4">
-        <div class="glass-panel pa-6 h-100 d-flex flex-column justify-between mb-4" style="border-radius: 12px !important;">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- E-Posta İstemci Bilgileri Kartı -->
+        <div class="lg:col-span-4 card flex flex-col justify-between space-y-4">
             <div>
-                <MudText Typo="Typo.h6" Style="font-weight: 700; color: var(--text-main); font-family: 'Outfit', sans-serif;" Class="mb-4">İstemci Bilgileri</MudText>
-                
-                <div class="mb-4">
-                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; display: block; margin-bottom: 4px;">IMAP (Gelen Posta)</span>
-                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-main); background: var(--bg-sub); padding: 8px; border-radius: 6px; border: 1px solid var(--border-color);">
-                        Host: mail.burhansahin.com.tr<br>
-                        Port: 993 (SSL)
+                <div class="flex items-center justify-between border-b border-[var(--line)] pb-3 mb-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-envelope text-[var(--azure)] text-base"></i>
+                        <h3 class="font-serif font-semibold text-[var(--navy)] text-base">İstemci Bilgileri</h3>
                     </div>
+                    <span class="pill pill-moss text-[10.5px]"><span class="dot"></span>SSL/TLS</span>
                 </div>
+                
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase text-[var(--ink-soft)] block mb-1">IMAP (Gelen Posta)</span>
+                        <div class="font-mono text-xs text-[var(--navy)] bg-[var(--cream)] p-2.5 rounded-lg border border-[var(--line)]">
+                            <div>Host: <span class="font-bold">mail.burhansahin.com.tr</span></div>
+                            <div>Port: <span class="font-bold text-[var(--moss)]">993</span> (SSL)</div>
+                        </div>
+                    </div>
 
-                <div class="mb-4">
-                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; display: block; margin-bottom: 4px;">SMTP (Giden Posta)</span>
-                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-main); background: var(--bg-sub); padding: 8px; border-radius: 6px; border: 1px solid var(--border-color);">
-                        Host: mail.burhansahin.com.tr<br>
-                        Port: 587 (TLS)
+                    <div>
+                        <span class="text-[10px] font-bold uppercase text-[var(--ink-soft)] block mb-1">SMTP (Giden Posta)</span>
+                        <div class="font-mono text-xs text-[var(--navy)] bg-[var(--cream)] p-2.5 rounded-lg border border-[var(--line)]">
+                            <div>Host: <span class="font-bold">mail.burhansahin.com.tr</span></div>
+                            <div>Port: <span class="font-bold text-[var(--moss)]">587</span> (TLS)</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </MudItem>
 
-    <!-- Kayıtlı E-Postalar Tablosu -->
-    <MudItem xs="12" md="8">
-        <div class="glass-panel pa-6 h-100" style="border-radius: 12px !important;">
-            <div class="d-flex align-center justify-between mb-6">
-                <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--text-main);">Aktif E-Posta Hesapları</MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateModal" Style="text-transform: none; border-radius: 8px;">Yeni Hesap</MudButton>
+            <div class="pt-3 border-t border-[var(--line)] text-[11px] text-[var(--ink-soft)]">
+                <a href="/webmail" class="btn-secondary w-full py-2 text-center block text-xs font-semibold">
+                    <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Webmail İstemcisini Aç
+                </a>
+            </div>
+        </div>
+
+        <!-- Kayıtlı E-Postalar Tablosu -->
+        <div class="lg:col-span-8 card space-y-4">
+            <div class="flex items-center justify-between flex-wrap gap-3 border-b border-[var(--line)] pb-3">
+                <div>
+                    <h3 class="font-serif font-semibold text-[var(--navy)] text-base">Aktif E-Posta Hesapları</h3>
+                    <p class="text-xs text-[var(--ink-soft)] mt-0.5">Sunucuda tanımlı posta kutuları</p>
+                </div>
+                <button @onclick="OpenCreateModal" class="btn-primary text-xs py-2 px-3 flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus text-xs"></i> Yeni Hesap Ekle
+                </button>
             </div>
 
             @if (_isLoading)
             {
-                <div class="d-flex align-center justify-center py-6">
-                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <div class="flex flex-col items-center justify-center py-10 space-y-2">
+                    <div class="w-8 h-8 border-3 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-xs text-[var(--ink-soft)]">Hesaplar yükleniyor...</span>
                 </div>
             }
             else
             {
-                <MudTable Items="_accounts" Elevation="0" Hover="true" Breakpoint="Breakpoint.Sm" Class="glass-panel" Style="border: none !important;">
-                    <HeaderContent>
-                        <MudTh Style="color: #94a3b8; font-weight: 700;">Görünen Ad</MudTh>
-                        <MudTh Style="color: #94a3b8; font-weight: 700;">E-Posta Adresi</MudTh>
-                        <MudTh Style="color: #94a3b8; font-weight: 700;">Durum</MudTh>
-                        <MudTh Style="color: #94a3b8; font-weight: 700; text-align: right;">İşlemler</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Görünen Ad">
-                            <span style="font-weight: 600; color: var(--text-main);">@(string.IsNullOrEmpty(context.DisplayName) ? "-" : context.DisplayName)</span>
-                        </MudTd>
-                        <MudTd DataLabel="E-Posta Adresi">
-                            <span style="font-family: 'JetBrains Mono', monospace; color: #10b981; font-weight: 700;">@context.EmailAddress</span>
-                        </MudTd>
-                        <MudTd DataLabel="Durum">
-                            @if (context.ForwardingEnabled)
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-[var(--line)] text-[var(--ink-soft)] font-semibold">
+                                <th class="pb-3">Görünen Ad</th>
+                                <th class="pb-3">E-Posta Adresi</th>
+                                <th class="pb-3">Durum</th>
+                                <th class="pb-3 text-right">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[var(--line)]">
+                            @if (!_accounts.Any())
                             {
-                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Text">Yönlendiriliyor</MudChip>
+                                <tr>
+                                    <td colspan="4" class="py-6 text-center text-[var(--ink-soft)]">
+                                        Henüz açılmış bir e-posta hesabı bulunmamaktadır.
+                                    </td>
+                                </tr>
                             }
                             else
                             {
-                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Text">Aktif</MudChip>
+                                @foreach (var context in _accounts)
+                                {
+                                    <tr class="text-[var(--ink)] hover:bg-[var(--cream)] transition-colors">
+                                        <td class="py-3 font-semibold text-[var(--navy)]">
+                                            @(string.IsNullOrEmpty(context.DisplayName) ? "-" : context.DisplayName)
+                                        </td>
+                                        <td class="py-3 font-mono font-bold text-[var(--moss)]">
+                                            @context.EmailAddress
+                                        </td>
+                                        <td class="py-3">
+                                            @if (context.ForwardingEnabled)
+                                            {
+                                                <span class="pill pill-amber text-[10.5px]">Yönlendiriliyor</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="pill pill-moss text-[10.5px]"><span class="dot"></span>Aktif</span>
+                                            }
+                                        </td>
+                                        <td class="py-3 text-right space-x-2">
+                                            <button @onclick="@(() => OpenEditModal(context))" class="text-[var(--azure)] hover:underline font-bold text-xs">
+                                                <i class="fa-solid fa-pen-to-square"></i> Düzenle
+                                            </button>
+                                            <button @onclick="@(() => DeleteAccount(context))" class="text-[var(--rose)] hover:underline font-bold text-xs ml-2">
+                                                <i class="fa-solid fa-trash-can"></i> Sil
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
                             }
-                        </MudTd>
-                        <MudTd DataLabel="İşlemler" Style="text-align: right;">
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="@(() => OpenEditModal(context))" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteAccount(context))" />
-                        </MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <MudText Typo="Typo.body2" Class="text-center py-6 mud-text-secondary">Henüz açılmış bir hesap bulunmamaktadır.</MudText>
-                    </NoRecordsContent>
-                </MudTable>
+                        </tbody>
+                    </table>
+                </div>
             }
         </div>
-    </MudItem>
-</MudGrid>
+    </div>
+</div>
 
 <!-- Yeni E-Posta Modalı -->
-<MudDialog @bind-Visible="_createModalVisible">
-    <TitleContent>
-        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Yeni E-Posta Ekle</MudText>
-    </TitleContent>
-    <DialogContent>
-        <EditForm Model="@_createModel" OnValidSubmit="HandleCreate">
-            <DataAnnotationsValidator />
-            
-            <div class="mb-4">
-                <MudTextField @bind-Value="_createModel.EmailAddress" Label="E-Posta Adresi" Placeholder="örn: info@alanadi.com" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.EmailAddress)" />
-            </div>
-            
-            <div class="mb-4">
-                <MudTextField @bind-Value="_createModel.DisplayName" Label="Görünen Ad" Placeholder="örn: ApiHub Destek" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.DisplayName)" />
+@if (_createModalVisible)
+{
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-semibold text-[var(--navy)] flex items-center gap-2">
+                    <i class="fa-solid fa-envelope text-[var(--azure)]"></i> Yeni E-Posta Hesabı Ekle
+                </h3>
+                <button @onclick="() => _createModalVisible = false" class="btn-ghost p-1 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
             </div>
 
-            <div class="mb-4">
-                <MudTextField @bind-Value="_createModel.Password" Label="Hesap Şifresi" InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense" For="@(() => _createModel.Password)" />
-            </div>
+            <EditForm Model="@_createModel" OnValidSubmit="HandleCreate">
+                <DataAnnotationsValidator />
+                
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">E-Posta Adresi</label>
+                        <InputText @bind-Value="_createModel.EmailAddress" placeholder="örn: info@alanadi.com"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--navy)] font-mono font-bold focus:outline-none focus:border-[var(--azure)]" />
+                        <ValidationMessage For="@(() => _createModel.EmailAddress)" class="text-[var(--rose)] text-[10px] mt-0.5" />
+                    </div>
+                    
+                    <div>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Görünen Ad</label>
+                        <InputText @bind-Value="_createModel.DisplayName" placeholder="örn: ApiHub Destek"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]" />
+                        <ValidationMessage For="@(() => _createModel.DisplayName)" class="text-[var(--rose)] text-[10px] mt-0.5" />
+                    </div>
 
-            <div class="mb-6">
-                <MudNumericField T="int" @bind-Value="_createModel.QuotaMb" Label="Kota Sınırı (MB)" Min="100" Max="10240" Variant="Variant.Outlined" Margin="Margin.Dense" />
-            </div>
+                    <div>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Hesap Şifresi</label>
+                        <InputText @bind-Value="_createModel.Password" type="password" placeholder="Güçlü şifre"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]" />
+                        <ValidationMessage For="@(() => _createModel.Password)" class="text-[var(--rose)] text-[10px] mt-0.5" />
+                    </div>
 
-            <div class="d-flex justify-end gap-2">
-                <MudButton OnClick="() => _createModalVisible = false" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none;">İptal</MudButton>
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_isProcessing" Style="text-transform: none;">Oluştur</MudButton>
-            </div>
-        </EditForm>
-    </DialogContent>
-</MudDialog>
+                    <div>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Kota Sınırı (MB)</label>
+                        <InputNumber @bind-Value="_createModel.QuotaMb" min="100" max="10240"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]" />
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-4 border-t border-[var(--line)] mt-4">
+                    <button type="button" @onclick="() => _createModalVisible = false" class="btn-secondary py-2 px-4 text-xs">İptal</button>
+                    <button type="submit" disabled="@_isProcessing" class="btn-primary py-2 px-4 text-xs flex items-center gap-1.5">
+                        @if (_isProcessing)
+                        {
+                            <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>Oluşturuluyor...</span>
+                        }
+                        else
+                        {
+                            <span>Oluştur</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
 
 <!-- Düzenleme Modalı -->
-<MudDialog @bind-Visible="_editModalVisible">
-    <TitleContent>
-        <MudText Typo="Typo.h5" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main);">Hesabı Düzenle: @_editModel.EmailAddress</MudText>
-    </TitleContent>
-    <DialogContent>
-        <EditForm Model="@_editModel" OnValidSubmit="HandleEdit">
-            <DataAnnotationsValidator />
-            
-            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="pa-4">
-                <MudTabPanel Text="Genel">
-                    <MudTextField @bind-Value="_editModel.DisplayName" Label="Görünen Ad" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
-                    <MudNumericField T="int" @bind-Value="_editModel.QuotaMb" Label="Kota Sınırı (MB)" Min="100" Max="10240" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudTabPanel>
-                
-                <MudTabPanel Text="Yönlendirme">
-                    <MudSwitch @bind-Value="_editModel.ForwardingEnabled" Label="Yönlendirme Aktif" Color="Color.Primary" Class="mb-4" />
-                    <MudTextField @bind-Value="_editModel.ForwardingAddress" Label="Yönlendirilecek E-Posta" Disabled="!_editModel.ForwardingEnabled" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">Bu hesaba gelen tüm postalar arka planda girilen adrese iletilir.</MudText>
-                </MudTabPanel>
-                
-                <MudTabPanel Text="Şifre Sıfırlama">
-                    <MudTextField @bind-Value="_editModel.NewPassword" Label="Yeni Şifre" InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Değiştirmek istemiyorsanız boş bırakın." />
-                </MudTabPanel>
-            </MudTabs>
-
-            <div class="d-flex justify-end gap-2 mt-4">
-                <MudButton OnClick="() => _editModalVisible = false" Variant="Variant.Outlined" Color="Color.Secondary" Style="text-transform: none;">İptal</MudButton>
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_isProcessing" Style="text-transform: none;">Kaydet</MudButton>
+@if (_editModalVisible)
+{
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-semibold text-[var(--navy)] flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-[var(--azure)]"></i> Düzenle: <span class="font-mono text-xs">@_editModel.EmailAddress</span>
+                </h3>
+                <button @onclick="() => _editModalVisible = false" class="btn-ghost p-1 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
             </div>
-        </EditForm>
-    </DialogContent>
-</MudDialog>
+
+            <EditForm Model="@_editModel" OnValidSubmit="HandleEdit">
+                <DataAnnotationsValidator />
+                
+                <div class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Görünen Ad</label>
+                        <InputText @bind-Value="_editModel.DisplayName"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]" />
+                    </div>
+
+                    <div>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Kota Sınırı (MB)</label>
+                        <InputNumber @bind-Value="_editModel.QuotaMb" min="100" max="10240"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]" />
+                    </div>
+
+                    <div class="p-3 bg-[var(--cream)] border border-[var(--line)] rounded-xl space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-semibold text-[var(--navy)]">Yönlendirme Aktif</span>
+                            <input type="checkbox" @bind="_editModel.ForwardingEnabled" class="w-4 h-4 rounded text-[var(--azure)]" />
+                        </div>
+                        @if (_editModel.ForwardingEnabled)
+                        {
+                            <div>
+                                <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1">Yönlendirilecek E-Posta</label>
+                                <InputText @bind-Value="_editModel.ForwardingAddress" placeholder="hedef@domain.com"
+                                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]" />
+                            </div>
+                        }
+                        <p class="text-[10px] text-[var(--ink-soft)]">Bu hesaba gelen tüm postalar arka planda girilen adrese iletilir.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Yeni Şifre</label>
+                        <InputText @bind-Value="_editModel.NewPassword" type="password" placeholder="Değiştirmek istemiyorsanız boş bırakın"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]" />
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-4 border-t border-[var(--line)] mt-4">
+                    <button type="button" @onclick="() => _editModalVisible = false" class="btn-secondary py-2 px-4 text-xs">İptal</button>
+                    <button type="submit" disabled="@_isProcessing" class="btn-primary py-2 px-4 text-xs flex items-center gap-1.5">
+                        @if (_isProcessing)
+                        {
+                            <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>Kaydediliyor...</span>
+                        }
+                        else
+                        {
+                            <span>Kaydet</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
 
 @code {
     private List<MailAccountDto> _accounts = new();

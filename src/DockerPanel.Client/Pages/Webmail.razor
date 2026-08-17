@@ -2112,16 +2112,16 @@ else
     {
         if (_activeFolder == folder)
         {
-            return "background-color: #adedd3 !important; color: #306d58 !important; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid #006c49 !important;";
+            return "background-color: var(--accent-bg) !important; color: var(--navy) !important; font-weight: 700; border-left: 3px solid var(--azure) !important;";
         }
-        return "color: #3c4a42 !important; background-color: transparent !important; border-left: 4px solid transparent !important;";
+        return "color: var(--ink-soft) !important; background-color: transparent !important; border-left: 3px solid transparent !important;";
     }
 
     private string GetRowStyle(bool isSelected)
     {
         if (isSelected)
         {
-            return "background-color: rgba(173, 237, 211, 0.3) !important; border-left-color: #006c49 !important;";
+            return "background-color: var(--accent-bg) !important; border-left-color: var(--azure) !important;";
         }
         return "background-color: transparent !important; border-left-color: transparent !important;";
     }

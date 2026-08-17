@@ -5,131 +5,131 @@
 
 <PageTitle>Uygulama Rehberi - ApiHub</PageTitle>
 
-<div class="space-y-6 @(PlatformInfo.IsMobileApp ? "text-[#e1e2ec]" : "text-[#0b1c30]")">
+<div class="space-y-6">
     <!-- Üst Başlık -->
-    <div class="flex justify-between items-start gap-4">
+    <div class="flex justify-between items-start gap-4 flex-wrap">
         <div>
-            <h2 class="text-2xl font-extrabold tracking-tight @(PlatformInfo.IsMobileApp ? "text-white" : "text-[#0b1c30]")">Uygulama Rehberi & Kılavuz</h2>
-            <p class="text-xs font-medium mt-1 @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-400")">ApiHub sisteminin çalışma mekanizmasını ve tüm yönetim modüllerini yakından tanıyın.</p>
+            <div class="eyebrow">Yardım & Dokümantasyon</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">Uygulama Rehberi & Kılavuz</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">ApiHub sisteminin çalışma mekanizmasını ve tüm yönetim modüllerini yakından tanıyın.</p>
         </div>
-        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border @(PlatformInfo.IsMobileApp ? "bg-[#c9e6ff]/10 border-[#c9e6ff]/20 text-[#c9e6ff]" : "bg-[#0b1c30]/10 border-[#0b1c30]/20 text-[#0b1c30]")">
-            <span class="material-symbols-outlined text-[12px]">menu_book</span>
-            Kılavuz
+        <div class="pill pill-azure text-xs">
+            <i class="fa-solid fa-book-open text-xs mr-1"></i> Kılavuz
         </div>
     </div>
 
-    <!-- Acil Durdurma Bento Kartı (En Üstte - Dikkat Çekici Premium Siber Ruby Kalkan) -->
-    <div class="p-6 rounded-2xl border bg-gradient-to-br transition-all duration-300 shadow-xl @(PlatformInfo.IsMobileApp ? "from-rose-950/40 via-[#171a21]/80 to-[#171a21]/90 border-rose-500/25 text-white" : "from-rose-50 to-white border-rose-200 text-[#0b1c30]")" style="border-radius: 20px;">
+    <!-- Acil Durdurma Bento Kartı -->
+    <div class="card bg-[var(--rose-bg)] border-[var(--rose)]/30 space-y-3">
         <div class="flex items-start gap-4">
-            <div class="p-3.5 bg-rose-500/10 rounded-2xl text-rose-400 border border-rose-500/20 shrink-0 animate-pulse">
-                <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">warning</span>
+            <div class="p-3 bg-[var(--rose-bg)] text-[var(--rose)] rounded-xl shrink-0 text-2xl">
+                <i class="fa-solid fa-shield-halved"></i>
             </div>
-            <div class="space-y-2">
-                <h3 class="text-base font-extrabold text-rose-400 uppercase tracking-wider flex items-center gap-2">
-                    🛡️ Acil Durdurma (Panic Stop) Mekanizması
+            <div class="space-y-2 flex-1">
+                <h3 class="font-serif font-bold text-base text-[var(--rose)] uppercase tracking-wider flex items-center gap-2">
+                    Acil Durdurma (Panic Stop) Mekanizması
                 </h3>
-                <p class="text-xs leading-relaxed @(PlatformInfo.IsMobileApp ? "text-gray-300" : "text-slate-600")">
-                    Alt barın tam ortasında bulunan kırmızı ünlem logolu <strong>"Acil Durdurma"</strong> butonu, sunucunuzda olağanüstü bir durum (güvenlik ihlali, aşırı kaynak tüketimi, siber saldırı) algılandığında sistemi anında ve güvenli bir şekilde kilitlemek için tasarlanmış bir <strong>siber savunma kalkanıdır</strong>.
+                <p class="text-xs leading-relaxed text-[var(--ink)]">
+                    Kırmızı ünlem logolu <strong>"Acil Durdurma"</strong> butonu, sunucunuzda olağanüstü bir durum (güvenlik ihlali, aşırı kaynak tüketimi, siber saldırı) algılandığında sistemi anında ve güvenli bir şekilde kilitlemek için tasarlanmış bir <strong>siber savunma kalkanıdır</strong>.
                 </p>
                 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 pt-3 text-[11px]">
-                    <div class="p-3 bg-white/5 border border-white/5 rounded-xl space-y-1">
-                        <span class="font-extrabold text-rose-400 block uppercase tracking-tight">1. Konteyner Kilidi</span>
-                        <p class="@(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-500") leading-snug">Çalışan tüm Docker konteynerleri asenkron <code>docker-compose stop</code> komutuyla anında güvenli şekilde durdurulur.</p>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2 text-xs">
+                    <div class="p-3 bg-[var(--paper)] border border-[var(--rose)]/20 rounded-xl space-y-1">
+                        <span class="font-bold text-[var(--rose)] block text-[11px] uppercase">1. Konteyner Kilidi</span>
+                        <p class="text-[var(--ink-soft)] text-[11px] leading-snug">Çalışan tüm Docker konteynerleri asenkron <code>docker-compose stop</code> komutuyla anında durdurulur.</p>
                     </div>
-                    <div class="p-3 bg-white/5 border border-white/5 rounded-xl space-y-1">
-                        <span class="font-extrabold text-rose-400 block uppercase tracking-tight">2. Native Kapatma</span>
-                        <p class="@(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-500") leading-snug">Sunucuda koşan native web servisleri, süreç yöneticisi tarafından <code>kill -9</code> sinyaliyle anında sonlandırılır.</p>
+                    <div class="p-3 bg-[var(--paper)] border border-[var(--rose)]/20 rounded-xl space-y-1">
+                        <span class="font-bold text-[var(--rose)] block text-[11px] uppercase">2. Native Kapatma</span>
+                        <p class="text-[var(--ink-soft)] text-[11px] leading-snug">Sunucuda koşan native web servisleri, süreç yöneticisi tarafından <code>kill -9</code> sinyaliyle sonlandırılır.</p>
                     </div>
-                    <div class="p-3 bg-white/5 border border-white/5 rounded-xl space-y-1">
-                        <span class="font-extrabold text-rose-400 block uppercase tracking-tight">3. Proxy Askısı</span>
-                        <p class="@(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-500") leading-snug">Tüm Nginx subdomain vhost yönlendirmeleri sıfır gecikmeyle askıya alınarak gelen HTTP/HTTPS istekleri durdurulur.</p>
+                    <div class="p-3 bg-[var(--paper)] border border-[var(--rose)]/20 rounded-xl space-y-1">
+                        <span class="font-bold text-[var(--rose)] block text-[11px] uppercase">3. Proxy Askısı</span>
+                        <p class="text-[var(--ink-soft)] text-[11px] leading-snug">Tüm Nginx subdomain vhost yönlendirmeleri sıfır gecikmeyle askıya alınarak gelen istekler durdurulur.</p>
                     </div>
-                    <div class="p-3 bg-white/5 border border-white/5 rounded-xl space-y-1">
-                        <span class="font-extrabold text-rose-400 block uppercase tracking-tight">4. Güvenlik Duvarı</span>
-                        <p class="@(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-500") leading-snug">Host UFW güvenlik duvarı tüm dış erişim portlarını kapatarak sunucuyu izole eder ve tam güvenli uyku moduna geçirir.</p>
+                    <div class="p-3 bg-[var(--paper)] border border-[var(--rose)]/20 rounded-xl space-y-1">
+                        <span class="font-bold text-[var(--rose)] block text-[11px] uppercase">4. Güvenlik Duvarı</span>
+                        <p class="text-[var(--ink-soft)] text-[11px] leading-snug">Host UFW güvenlik duvarı tüm dış erişim portlarını kapatır ve güvenli uyku moduna geçirir.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bento Grid Sayfa Açıklamaları -->
+    <!-- Grid Modül Açıklamaları -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         <!-- Genel Bakış -->
-        <div class="p-5 rounded-2xl border transition-all duration-300 shadow-md flex items-start gap-4 @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")" style="border-radius: 16px;">
-            <div class="p-3 bg-[#adc6ff]/10 rounded-xl text-[#adc6ff] shrink-0">
-                <span class="material-symbols-outlined text-2xl">monitoring</span>
+        <div class="card flex items-start gap-4">
+            <div class="p-3 bg-[var(--accent-bg)] rounded-xl text-[var(--azure)] shrink-0 text-xl">
+                <i class="fa-solid fa-chart-line"></i>
             </div>
             <div class="space-y-1">
-                <h4 class="font-bold text-sm text-white">Genel Bakış (Dashboard)</h4>
-                <p class="text-[11px] leading-relaxed @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-500")">
-                    Sunucunun genel işlemci (CPU), bellek (RAM), disk tüketim verilerini ve aktif servis sayılarını tek bir ekrandan izlemenizi sağlar. Arka plandaki <strong>SignalR veri hattı</strong> sayesinde donanım tüketimi her 3 saniyede bir SVG grafiklerine canlı yansır.
+                <h4 class="font-serif font-bold text-sm text-[var(--navy)]">Genel Bakış (Dashboard)</h4>
+                <p class="text-xs leading-relaxed text-[var(--ink-soft)]">
+                    Sunucunun genel işlemci (CPU), bellek (RAM), disk tüketim verilerini ve aktif servis sayılarını tek bir ekrandan izlemenizi sağlar. Arka plandaki <strong>SignalR veri hattı</strong> sayesinde donanım tüketimi her 3 saniyede bir grafiklere canlı yansır.
                 </p>
             </div>
         </div>
 
         <!-- Konteyner & Proje Yönetimi -->
-        <div class="p-5 rounded-2xl border transition-all duration-300 shadow-md flex items-start gap-4 @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")" style="border-radius: 16px;">
-            <div class="p-3 bg-[#4edea3]/10 rounded-xl text-[#4edea3] shrink-0">
-                <span class="material-symbols-outlined text-2xl">view_module</span>
+        <div class="card flex items-start gap-4">
+            <div class="p-3 bg-[var(--moss-bg)] rounded-xl text-[var(--moss)] shrink-0 text-xl">
+                <i class="fa-solid fa-boxes-stacked"></i>
             </div>
             <div class="space-y-1">
-                <h4 class="font-bold text-sm text-white">Konteyner ve Servis Yönetimi</h4>
-                <p class="text-[11px] leading-relaxed @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-500")">
-                    Sunucudaki izole Docker konteynerlerini, native olarak barındırılan ZIP projelerinizi ve statik web sitelerinizi kontrol etmenizi sağlar. Mobil uygulamaya özel olarak tasarlanan <strong>turuncu neon "Yeniden Başlat"</strong> butonu sayesinde tek dokunuşla servislerinizi asenkron reload edebilirsiniz.
+                <h4 class="font-serif font-bold text-sm text-[var(--navy)]">Konteyner ve Servis Yönetimi</h4>
+                <p class="text-xs leading-relaxed text-[var(--ink-soft)]">
+                    Sunucudaki izole Docker konteynerlerini, native olarak barındırılan ZIP projelerinizi ve statik web sitelerinizi kontrol etmenizi sağlar. Tek dokunuşla servislerinizi asenkron reload edebilirsiniz.
                 </p>
             </div>
         </div>
 
         <!-- Domain & Nginx Proxy -->
-        <div class="p-5 rounded-2xl border transition-all duration-300 shadow-md flex items-start gap-4 @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")" style="border-radius: 16px;">
-            <div class="p-3 bg-[#adc6ff]/10 rounded-xl text-[#adc6ff] shrink-0">
-                <span class="material-symbols-outlined text-2xl">dns</span>
+        <div class="card flex items-start gap-4">
+            <div class="p-3 bg-[var(--accent-bg)] rounded-xl text-[var(--azure)] shrink-0 text-xl">
+                <i class="fa-solid fa-network-wired"></i>
             </div>
             <div class="space-y-1">
-                <h4 class="font-bold text-sm text-white">Subdomain & SSL / DNS Ayarları</h4>
-                <p class="text-[11px] leading-relaxed @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-500")">
-                    Host üzerinde koşan bare-metal Nginx Gateway proxy sunucusunu yönetir. Zero-downtime Nginx reload yeteneğiyle alt alan adlarınızı (subdomain) Let's Encrypt SSL sertifikalarıyla güvenli hale getirebilir, dilerseniz tek bir anahtarla <strong>Cloudflare v4 API</strong> bağlantısını entegre edebilirsiniz.
+                <h4 class="font-serif font-bold text-sm text-[var(--navy)]">Subdomain & SSL / DNS Ayarları</h4>
+                <p class="text-xs leading-relaxed text-[var(--ink-soft)]">
+                    Host üzerinde koşan bare-metal Nginx Gateway proxy sunucusunu yönetir. Zero-downtime Nginx reload yeteneğiyle alt alan adlarınızı Let's Encrypt SSL sertifikalarıyla güvenli hale getirebilir, <strong>Cloudflare v4 API</strong> bağlantısını entegre edebilirsiniz.
                 </p>
             </div>
         </div>
 
         <!-- PostgreSQL -->
-        <div class="p-5 rounded-2xl border transition-all duration-300 shadow-md flex items-start gap-4 @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")" style="border-radius: 16px;">
-            <div class="p-3 bg-[#4edea3]/10 rounded-xl text-[#4edea3] shrink-0">
-                <span class="material-symbols-outlined text-2xl">database</span>
+        <div class="card flex items-start gap-4">
+            <div class="p-3 bg-[var(--moss-bg)] rounded-xl text-[var(--moss)] shrink-0 text-xl">
+                <i class="fa-solid fa-database"></i>
             </div>
             <div class="space-y-1">
-                <h4 class="font-bold text-sm text-white">PostgreSQL Veritabanı Yönetimi</h4>
-                <p class="text-[11px] leading-relaxed @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-500")">
-                    PostgreSQL master sunucusu üzerinde dış dünyaya tamamen izole, şifreli şemalar oluşturmanızı ve bağımsız kullanıcı yetkilendirmeleri atamanızı sağlar. Tümüyle yerel docker ağı üzerinden konuşan bu sistem, sunucu verilerinizin dış ağ sızıntılarına karşı korunmasını garantiler.
+                <h4 class="font-serif font-bold text-sm text-[var(--navy)]">PostgreSQL Veritabanı Yönetimi</h4>
+                <p class="text-xs leading-relaxed text-[var(--ink-soft)]">
+                    PostgreSQL master sunucusu üzerinde dış dünyaya tamamen izole, şifreli şemalar oluşturmanızı ve bağımsız kullanıcı yetkilendirmeleri atamanızı sağlar.
                 </p>
             </div>
         </div>
 
         <!-- E-Posta Sunucusu -->
-        <div class="p-5 rounded-2xl border transition-all duration-300 shadow-md flex items-start gap-4 @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")" style="border-radius: 16px;">
-            <div class="p-3 bg-[#4edea3]/10 rounded-xl text-[#4edea3] shrink-0">
-                <span class="material-symbols-outlined text-2xl">mail</span>
+        <div class="card flex items-start gap-4">
+            <div class="p-3 bg-[var(--accent-bg)] rounded-xl text-[var(--azure)] shrink-0 text-xl">
+                <i class="fa-solid fa-envelope"></i>
             </div>
             <div class="space-y-1">
-                <h4 class="font-bold text-sm text-white">E-Posta Hesapları & Webmail</h4>
-                <p class="text-[11px] leading-relaxed @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-500")">
-                    Postfix, Dovecot ve SpamAssassin entegreli kurumsal <strong>docker-mailserver</strong> posta kutularını yönetir. Entegre <strong>Webmail İstemcisi</strong> mobil cihazda kararlı dosya ekleme altyapısına sahiptir. Özel HTML toolbar ile e-postalarınıza zengin biçimlendirmeler ekleyebilirsiniz.
+                <h4 class="font-serif font-bold text-sm text-[var(--navy)]">E-Posta Hesapları & Webmail</h4>
+                <p class="text-xs leading-relaxed text-[var(--ink-soft)]">
+                    Postfix, Dovecot ve SpamAssassin entegreli kurumsal <strong>docker-mailserver</strong> posta kutularını yönetir. Entegre <strong>Webmail İstemcisi</strong> kararlı dosya ekleme altyapısına ve zengin metin düzenleyicisine sahiptir.
                 </p>
             </div>
         </div>
 
         <!-- Yedekleme & VDS Taşıma -->
-        <div class="p-5 rounded-2xl border transition-all duration-300 shadow-md flex items-start gap-4 @(PlatformInfo.IsMobileApp ? "bg-[#171a21]/80 border-white/5 text-white" : "bg-white border-slate-100 text-[#0b1c30]")" style="border-radius: 16px;">
-            <div class="p-3 bg-[#ffb4ab]/10 rounded-xl text-[#ffb4ab] shrink-0">
-                <span class="material-symbols-outlined text-2xl">backup</span>
+        <div class="card flex items-start gap-4">
+            <div class="p-3 bg-[var(--amber-bg)] rounded-xl text-[var(--amber)] shrink-0 text-xl">
+                <i class="fa-solid fa-box-archive"></i>
             </div>
             <div class="space-y-1">
-                <h4 class="font-bold text-sm text-white">Uzak SSH Yedekleme & Kurtarma</h4>
-                <p class="text-[11px] leading-relaxed @(PlatformInfo.IsMobileApp ? "text-gray-400" : "text-slate-500")">
+                <h4 class="font-serif font-bold text-sm text-[var(--navy)]">Uzak SSH Yedekleme & Kurtarma</h4>
+                <p class="text-xs leading-relaxed text-[var(--ink-soft)]">
                     Sunucudaki tüm dosyaları, veri tabanını ve Nginx konfigürasyonlarını sıkıştırarak yedek arşivleri oluşturur. <strong>Tek Tıkla Kurtarma (restore-all.sh)</strong> script'i sayesinde, yeni aldığınız tertemiz bir VDS sunucusuna tüm yedeğinizi ve paneli 2 dakika içinde eksiksiz taşıyabilirsiniz.
                 </p>
             </div>
@@ -137,9 +137,9 @@
 
     </div>
 
-    <!-- Mobil Alt Kapatma Eylemi -->
-    <div class="pt-6 text-center">
-        <button @onclick='() => NavigationManager.NavigateTo("/")' class="px-8 py-3 rounded-xl font-bold bg-[#4edea3] hover:bg-[#38c18c] text-slate-900 shadow-lg shadow-[#4edea3]/20 active:scale-95 transition-all text-xs" style="border-radius: 12px;">
+    <!-- Alt Kapatma Eylemi -->
+    <div class="pt-4 text-center">
+        <button @onclick='() => NavigationManager.NavigateTo("/")' class="btn-primary py-2.5 px-8 text-xs font-semibold">
             Rehberi Tamamla & Ana Sayfaya Dön
         </button>
     </div>

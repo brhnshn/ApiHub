@@ -8,26 +8,29 @@
 
 <div class="space-y-6">
     <!-- Üst Başlık -->
-    <div>
-        <h2 class="text-2xl font-extrabold text-[#0b1c30] tracking-tight">Güvenlik & UFW Güvenlik Duvarı</h2>
-        <p class="text-xs text-slate-500 font-medium mt-1">
-            Sunucu port erişim limitlerini, IP kurallarını ve işletim sistemi UFW filtreleme servislerini tek bir panelden güvenle yönetin.
-        </p>
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <div class="eyebrow">Ağ ve Güvenlik</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">Güvenlik & UFW Güvenlik Duvarı</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">
+                Sunucu port erişim limitlerini, IP kurallarını ve işletim sistemi UFW filtreleme servislerini tek bir panelden güvenle yönetin.
+            </p>
+        </div>
     </div>
 
     @if (_isForbidden)
     {
         <!-- Yetkisiz Erişim Uyarısı (Customer Rolü İçin) -->
-        <div class="bg-rose-950/20 border border-rose-500/30 rounded-xl p-6 text-center space-y-4 max-w-2xl mx-auto shadow-2xl">
-            <div class="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto text-rose-500 animate-pulse border border-rose-500/20">
-                <i class="fa-solid fa-shield-halved text-3xl"></i>
+        <div class="bg-[var(--rose-bg)] border border-[var(--rose)] rounded-xl p-6 text-center space-y-4 max-w-2xl mx-auto shadow-sm">
+            <div class="w-14 h-14 bg-white rounded-full flex items-center justify-center mx-auto text-[var(--rose)] shadow-sm">
+                <i class="fa-solid fa-shield-halved text-2xl"></i>
             </div>
-            <h3 class="text-lg font-bold text-rose-400">Yönetici Yetkisi Gerekli</h3>
-            <p class="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+            <h3 class="text-base font-serif font-bold text-[var(--rose)]">Yönetici Yetkisi Gerekli</h3>
+            <p class="text-xs text-[var(--ink)] max-w-md mx-auto leading-relaxed">
                 UFW Güvenlik Duvarı yönetimi sunucu genelinde kritik kuralları kapsadığı için sadece <strong>Administrator</strong> (Yönetici) rolündeki hesaplara açıktır. Müşteri hesapları bu sayfaya erişemez.
             </p>
             <div class="pt-2">
-                <a href="" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-bold px-4 py-2 rounded-lg border border-slate-700 transition-all">
+                <a href="" class="btn-secondary text-xs inline-flex items-center gap-1.5">
                     Genel Bakışa Dön
                 </a>
             </div>
@@ -37,21 +40,21 @@
     {
         <!-- Yükleniyor Spinner Ekranı -->
         <div class="flex flex-col items-center justify-center py-20 space-y-4">
-            <div class="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-            <p class="text-xs text-slate-400 font-medium">UFW Güvenlik Duvarı verileri çekiliyor...</p>
+            <div class="w-10 h-10 border-3 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-xs text-[var(--ink-soft)] font-medium">UFW Güvenlik Duvarı verileri çekiliyor...</p>
         </div>
     }
     else
     {
         <!-- DURUM VE ORKESTRASYON BARKODU -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="card flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-4">
-                <div class="p-3.5 rounded-lg border @(_firewallActive ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-500") shadow-md">
-                    <i class="fa-solid fa-shield-halved text-2xl"></i>
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl shadow-sm @(_firewallActive ? "bg-[var(--moss-bg)] text-[var(--moss)] border border-[var(--moss)]" : "bg-[var(--rose-bg)] text-[var(--rose)] border border-[var(--rose)]")">
+                    <i class="fa-solid fa-shield-halved"></i>
                 </div>
                 <div>
-                    <h3 class="font-bold text-[#0b1c30] text-sm">Sunucu Güvenlik Duvarı Durumu</h3>
-                    <p class="text-[11px] text-slate-500 mt-0.5">
+                    <h3 class="font-serif font-semibold text-[var(--navy)] text-base">Sunucu Güvenlik Duvarı Durumu</h3>
+                    <p class="text-xs text-[var(--ink-soft)] mt-0.5">
                         @if (_firewallActive)
                         {
                             <span>UFW Servisi şu anda aktif ve sunucunun dış kapılarını filtreliyor.</span>
@@ -65,15 +68,17 @@
             </div>
 
             <div class="flex items-center gap-3">
-                <div class="flex items-center gap-2 bg-white border border-[#bbcabf]/30 px-4 py-2.5 rounded-lg">
-                    <span class="@(_firewallActive ? "pulse-green" : "pulse-red")"></span>
-                    <span class="text-xs font-bold text-[#0b1c30] uppercase tracking-wider">
-                        @(_firewallActive ? "AKTİF / KORUMADA" : "PASİF / GÜVENSİZ")
-                    </span>
-                </div>
+                @if (_firewallActive)
+                {
+                    <span class="pill pill-moss text-xs"><span class="dot"></span>AKTİF / KORUMADA</span>
+                }
+                else
+                {
+                    <span class="pill pill-rose text-xs"><span class="dot"></span>PASİF / GÜVENSİZ</span>
+                }
                 
                 <button @onclick="ToggleFirewall" disabled="@_isProcessingToggle"
-                    class="px-4 py-2.5 rounded-lg text-xs font-bold text-white transition-all shadow-md flex items-center gap-2 @(_firewallActive ? "bg-rose-600 hover:bg-rose-500" : "bg-emerald-600 hover:bg-emerald-500")">
+                    class="@(_firewallActive ? "btn-danger" : "btn-primary") text-xs py-2 px-3.5 flex items-center gap-2">
                     @if (_isProcessingToggle)
                     {
                         <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -81,7 +86,7 @@
                     }
                     else
                     {
-                        <i class="fa-solid fa-power-off"></i>
+                        <i class="fa-solid fa-power-off text-xs"></i>
                         <span>@(_firewallActive ? "Güvenlik Duvarını Kapat" : "Güvenlik Duvarını Aç")</span>
                     }
                 </button>
@@ -89,36 +94,35 @@
         </div>
 
         <!-- UFW Kurallar Tablosu -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
-            <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-3">
+        <div class="card space-y-4">
+            <div class="flex justify-between items-center border-b border-[var(--line)] pb-3">
                 <div>
-                    <h3 class="font-bold text-[#0b1c30] text-sm">UFW Filtreleme ve Geçiş Kuralları</h3>
-                    <p class="text-[11px] text-slate-400 mt-0.5">Belirli portların dış trafiğe izin verilmesi veya engellenmesi kuralları listesi</p>
+                    <h3 class="font-serif font-semibold text-[var(--navy)] text-base">UFW Filtreleme ve Geçiş Kuralları</h3>
+                    <p class="text-xs text-[var(--ink-soft)] mt-0.5">Belirli portların dış trafiğe izin verilmesi veya engellenmesi kuralları listesi</p>
                 </div>
-                <button @onclick="OpenAddRuleModal"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md">
-                    <i class="fa-solid fa-plus"></i> Yeni Port Kuralı Ekle
+                <button @onclick="OpenAddRuleModal" class="btn-primary text-xs py-2 px-3.5 flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus text-xs"></i> Yeni Port Kuralı Ekle
                 </button>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
-                        <tr class="border-b border-slate-800 text-slate-400">
-                            <th class="pb-3 font-semibold w-12">#No</th>
-                            <th class="pb-3 font-semibold">Hedef Port</th>
-                            <th class="pb-3 font-semibold">Protokol</th>
-                            <th class="pb-3 font-semibold">Aksiyon</th>
-                            <th class="pb-3 font-semibold">Yön</th>
-                            <th class="pb-3 font-semibold">Kimden (Kaynak)</th>
-                            <th class="pb-3 font-semibold text-right">İşlemler</th>
+                        <tr class="border-b border-[var(--line)] text-[var(--ink-soft)] font-semibold">
+                            <th class="pb-3 w-12">#No</th>
+                            <th class="pb-3">Hedef Port</th>
+                            <th class="pb-3">Protokol</th>
+                            <th class="pb-3">Aksiyon</th>
+                            <th class="pb-3">Yön</th>
+                            <th class="pb-3">Kimden (Kaynak)</th>
+                            <th class="pb-3 text-right">İşlemler</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-800">
+                    <tbody class="divide-y divide-[var(--line)]">
                         @if (!_rules.Any())
                         {
                             <tr>
-                                <td colspan="7" class="py-6 text-center text-slate-500">
+                                <td colspan="7" class="py-6 text-center text-[var(--ink-soft)]">
                                     Güvenlik duvarında tanımlanmış herhangi bir kural bulunmamaktadır.
                                 </td>
                             </tr>
@@ -127,10 +131,10 @@
                         {
                             @foreach (var rule in _rules)
                             {
-                                <tr class="text-slate-300 hover:bg-slate-950/20 transition-colors">
-                                    <td class="py-3 font-mono text-slate-400">@rule.Number</td>
+                                <tr class="text-[var(--ink)] hover:bg-[var(--cream)] transition-colors">
+                                    <td class="py-3 font-mono text-[var(--ink-soft)]">@rule.Number</td>
                                     <td class="py-3 font-semibold">
-                                        <span class="bg-[#eff4ff] border border-[#bbcabf]/30 text-[#006c49] font-mono px-2 py-0.5 rounded font-bold">
+                                        <span class="bg-[var(--cream)] border border-[var(--line)] text-[var(--navy)] font-mono px-2 py-0.5 rounded font-bold">
                                             @rule.Port
                                         </span>
                                     </td>
@@ -138,29 +142,29 @@
                                     <td class="py-3">
                                         @if (rule.Action.Equals("ALLOW", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+                                            <span class="pill pill-moss text-[10.5px]">
                                                 ALLOW (İzinli)
                                             </span>
                                         }
                                         else
                                         {
-                                            <span class="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded-full font-bold">
+                                            <span class="pill pill-rose text-[10.5px]">
                                                 DENY (Engelli)
                                             </span>
                                         }
                                     </td>
-                                    <td class="py-3 font-mono text-slate-400">@rule.Direction</td>
-                                    <td class="py-3 font-mono text-slate-400">@rule.From</td>
+                                    <td class="py-3 font-mono text-[var(--ink-soft)]">@rule.Direction</td>
+                                    <td class="py-3 font-mono text-[var(--ink-soft)]">@rule.From</td>
                                     <td class="py-3 text-right">
                                         <button @onclick="@(() => DeleteRule(rule.Number))" disabled="@_deletingRuleNumbers.Contains(rule.Number)"
-                                            class="text-rose-500 hover:text-rose-400 font-bold text-xs transition-colors disabled:opacity-50 flex items-center gap-1 ml-auto">
+                                            class="text-[var(--rose)] hover:underline font-bold text-xs transition-colors disabled:opacity-50 inline-flex items-center gap-1">
                                             @if (_deletingRuleNumbers.Contains(rule.Number))
                                             {
-                                                <span class="w-3 h-3 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></span>
+                                                <span class="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                                             }
                                             else
                                             {
-                                                <i class="fa-solid fa-trash-can"></i>
+                                                <i class="fa-solid fa-trash-can text-[11px]"></i>
                                             }
                                             <span>Kaldır</span>
                                         </button>
@@ -178,39 +182,39 @@
 <!-- YENİ KURAL EKLEME MODALI -->
 @if (_addRuleModalVisible)
 {
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
-            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <h3 class="text-lg font-bold text-[#0b1c30] flex items-center gap-2">
-                    <i class="fa-solid fa-shield-halved text-[#006c49]"></i> Yeni UFW Kuralı Ekle
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-semibold text-[var(--navy)] flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-[var(--azure)]"></i> Yeni UFW Kuralı Ekle
                 </h3>
-                <button @onclick="CloseAddRuleModal" class="text-slate-400 hover:text-white transition-colors">
-                    <i class="fa-solid fa-xmark text-lg"></i>
+                <button @onclick="CloseAddRuleModal" class="btn-ghost p-1 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
             
             <div class="space-y-4 text-xs">
                 <div>
-                    <label class="block text-slate-400 font-semibold mb-1">Hedef Port veya Port Aralığı</label>
+                    <label class="block text-[var(--ink-soft)] font-semibold mb-1">Hedef Port veya Port Aralığı</label>
                     <input type="text" @bind="_newRuleModel.Port" placeholder="örn: 80, 22, 3000-4000"
-                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono focus:outline-none focus:border-indigo-500">
-                    <span class="text-[10px] text-slate-500 block mt-1">Tek bir port numarası veya aralık belirtebilirsiniz.</span>
+                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--navy)] font-mono focus:outline-none focus:border-[var(--azure)] font-bold">
+                    <span class="text-[10px] text-[var(--ink-soft)] block mt-1">Tek bir port numarası veya aralık belirtebilirsiniz.</span>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-slate-400 font-semibold mb-1">Protokol</label>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Protokol</label>
                         <select @bind="_newRuleModel.Protocol"
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] font-mono">
                             <option value="tcp">TCP</option>
                             <option value="udp">UDP</option>
                             <option value="any">TÜMÜ (Any)</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-slate-400 font-semibold mb-1">Aksiyon</label>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Aksiyon</label>
                         <select @bind="_newRuleModel.Action"
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]">
                             <option value="ALLOW">ALLOW (İzin Ver)</option>
                             <option value="DENY">DENY (Engelle)</option>
                         </select>
@@ -218,11 +222,11 @@
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+            <div class="flex justify-end gap-2 pt-4 border-t border-[var(--line)]">
                 <button type="button" @onclick="CloseAddRuleModal"
-                    class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors text-xs font-semibold">İptal</button>
+                    class="btn-secondary py-2 px-4 text-xs">İptal</button>
                 <button type="button" @onclick="HandleCreateRule" disabled="@_isProcessingAdd"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+                    class="btn-primary py-2 px-4 text-xs flex items-center gap-1.5">
                     @if (_isProcessingAdd)
                     {
                         <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>

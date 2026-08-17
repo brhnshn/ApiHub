@@ -252,37 +252,34 @@ else
     <!-- DESKTOP VIEW -->
     <div class="d-flex align-center justify-between mb-6 flex-wrap gap-4">
         <div>
-            <MudText Typo="Typo.h4" Style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px;">Proje & Servis Yönetimi</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Hibrit Docker konteynerlerinizi ve Native web projelerinizi tek bir merkezden canlı takip edin.</MudText>
+            <div class="eyebrow">Konteyner ve Süreçler</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">Proje & Servis Yönetimi</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">Hibrit Docker konteynerlerinizi ve Native web projelerinizi tek bir merkezden canlı takip edin.</p>
         </div>
         
         <div class="d-flex gap-3 align-center">
             <!-- Toplu Bakım Modu Butonu -->
-            <MudButton Variant="Variant.Outlined" 
-                       Color="Color.Warning" 
-                       StartIcon="@Icons.Material.Filled.Build" 
-                       OnClick="@(() => { _bulkMaintenanceModalOpen = true; if (!_maintenancePages.Any()) LoadMaintenancePagesAsync(); })" 
-                       Style="font-weight: 700; text-transform: none; border-radius: 8px; font-family: 'Outfit', sans-serif;">
+            <button @onclick="@(() => { _bulkMaintenanceModalOpen = true; if (!_maintenancePages.Any()) LoadMaintenancePagesAsync(); })" 
+                    class="btn-secondary">
+                <i class="fa-solid fa-wrench text-xs text-[var(--amber)]"></i>
                 <span>Tüm Projeleri Bakıma Al</span>
-            </MudButton>
+            </button>
 
             <!-- Toplu Yeniden Başlat Butonu -->
-            <MudButton Variant="Variant.Outlined" 
-                       Color="Color.Warning" 
-                       StartIcon="@Icons.Material.Filled.RestartAlt" 
-                       OnClick="RestartAllProjects" 
-                       Disabled="_isBulkRestarting"
-                       Style="font-weight: 700; text-transform: none; border-radius: 8px; font-family: 'Outfit', sans-serif; border: 1.5px solid #f59e0b !important;">
+            <button @onclick="RestartAllProjects" 
+                    disabled="@_isBulkRestarting"
+                    class="btn-secondary">
                 @if (_isBulkRestarting)
                 {
-                    <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <i class="fa-solid fa-rotate-right text-xs animate-spin text-[var(--azure)]"></i>
                     <span>Yeniden Başlatılıyor...</span>
                 }
                 else
                 {
-                    <span>Tüm Projeleri Yeniden Başlat</span>
+                    <i class="fa-solid fa-rotate-right text-xs text-[var(--azure)]"></i>
+                    <span>Tümünü Yeniden Başlat</span>
                 }
-            </MudButton>
+            </button>
         </div>
     </div>
 
@@ -295,173 +292,156 @@ else
     }
     else if (!_projects.Any())
     {
-        <div class="glass-panel pa-12 text-center" style="border-radius: 12px !important;">
-            <MudIcon Icon="@Icons.Material.Filled.Inbox" Style="font-size: 64px; color: #64748b;" Class="mb-4" />
-            <MudText Typo="Typo.h6" Style="color: var(--text-main); font-weight: 700;">Henüz hiç proje bulunmuyor</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-6">Yeni servis veya native proje eklemek için Dağıtım Sihirbazı sayfasını kullanın.</MudText>
+        <div class="card pa-12 text-center">
+            <MudIcon Icon="@Icons.Material.Filled.Inbox" Style="font-size: 64px; color: var(--slate);" Class="mb-4" />
+            <h3 class="text-lg font-semibold text-[var(--navy)] mb-1">Henüz hiç proje bulunmuyor</h3>
+            <p class="text-xs text-[var(--ink-soft)] mb-6">Yeni servis veya native proje eklemek için Dağıtım Sihirbazı sayfasını kullanın.</p>
         </div>
     }
     else
     {
-        <MudGrid>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach (var project in _projects)
             {
-                <MudItem xs="12" sm="6" md="4">
-                    <div class="glass-panel pa-6 zoom-hover d-flex flex-column h-100" style="border-radius: 12px !important; position: relative; border: 1px solid rgba(255,255,255,0.06);">
-                        <!-- Tip Etiketi (Docker vs Native) -->
-                        <div style="position: absolute; top: 12px; right: 12px;" class="d-flex align-center gap-1">
-                            @if (project.Type == ProjectType.DockerContainer)
-                            {
-                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="font-weight: 700; font-size: 9px; height: 18px; margin: 0;">DOCKER</MudChip>
-                            }
-                            else if (project.Type == ProjectType.NativeProject)
-                            {
-                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Style="font-weight: 700; font-size: 9px; height: 18px; margin: 0; background-color: #10b981 !important;">NATIVE</MudChip>
-                            }
-                            else if (project.Type == ProjectType.StaticSite)
-                            {
-                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Style="font-weight: 700; font-size: 9px; height: 18px; margin: 0; background-color: #6366f1 !important;">STATIC</MudChip>
-                            }
-                        </div>
+                <div class="card flex flex-col justify-between h-full relative">
+                    <!-- Tip Etiketi (Docker vs Native) -->
+                    <div style="position: absolute; top: 16px; right: 16px;" class="flex items-center gap-1">
+                        @if (project.Type == ProjectType.DockerContainer)
+                        {
+                            <span class="pill pill-azure text-[10px] py-0.5 px-2">DOCKER</span>
+                        }
+                        else if (project.Type == ProjectType.NativeProject)
+                        {
+                            <span class="pill pill-moss text-[10px] py-0.5 px-2">NATIVE</span>
+                        }
+                        else if (project.Type == ProjectType.StaticSite)
+                        {
+                            <span class="pill pill-azure text-[10px] py-0.5 px-2">STATIC</span>
+                        }
+                    </div>
 
+                    <div>
                         <!-- Başlık ve Durum -->
-                        <div class="d-flex align-start justify-between mb-4 mt-2">
-                            <div>
-                                <MudText Typo="Typo.h6" Style="font-weight: 700; color: var(--text-main); font-family: 'Outfit', sans-serif; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@project.Name</MudText>
-                                <span style="font-size: 10px; color: #64748b; font-family: 'JetBrains Mono', monospace; display: block; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <div class="flex items-start justify-between mb-3 mt-1">
+                            <div class="max-w-[70%]">
+                                <h3 class="font-serif font-semibold text-base text-[var(--navy)] truncate" title="@project.Name">@project.Name</h3>
+                                <span class="text-[11px] text-[var(--ink-soft)] font-mono block truncate" title="@(project.Type == ProjectType.DockerContainer ? project.ImageOrPath : (project.Type == ProjectType.StaticSite ? (project.EnablePhp ? "Statik Web (PHP)" : "Statik Web Dizini") : "Native Deploy Dizini"))">
                                     @(project.Type == ProjectType.DockerContainer ? project.ImageOrPath : (project.Type == ProjectType.StaticSite ? (project.EnablePhp ? "Statik Web (PHP)" : "Statik Web Dizini") : "Native Deploy Dizini"))
                                 </span>
                             </div>
-                            
-                            <!-- Aktiflik Durumu -->
-                            <div class="d-flex align-center gap-1.5" style="margin-right: 50px;">
-                                @if (project.Status == ProjectStatus.Running)
-                                {
-                                    <span class="pulse-green"></span>
-                                    <span style="font-size: 11px; color: #10b981; font-weight: 700;">Aktif</span>
-                                }
-                                else if (project.Status == ProjectStatus.Provisioning)
-                                {
-                                    <MudProgressCircular Color="Color.Warning" Size="Size.Small" Indeterminate="true" style="width:10px; height:10px;" />
-                                    <span style="font-size: 11px; color: #f59e0b; font-weight: 700;">Dağıtılıyor / Yarım Kaldı</span>
-                                }
-                                else if (project.Status == ProjectStatus.Error)
-                                {
-                                    <span class="pulse-red"></span>
-                                    <span style="font-size: 11px; color: #ef4444; font-weight: 700;">Hata</span>
-                                }
-                                else
-                                {
-                                    <span class="pulse-red" style="background-color: #94a3b8; box-shadow: none;"></span>
-                                    <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">Durduruldu</span>
-                                }
-                            </div>
+                        </div>
+
+                        <!-- Aktiflik Durumu -->
+                        <div class="mb-3">
+                            @if (project.Status == ProjectStatus.Running)
+                            {
+                                <span class="pill pill-moss text-[11px]"><span class="dot"></span>Aktif</span>
+                            }
+                            else if (project.Status == ProjectStatus.Provisioning)
+                            {
+                                <span class="pill pill-amber text-[11px]"><span class="dot"></span>Dağıtılıyor</span>
+                            }
+                            else if (project.Status == ProjectStatus.Error)
+                            {
+                                <span class="pill pill-rose text-[11px]"><span class="dot"></span>Hata</span>
+                            }
+                            else
+                            {
+                                <span class="pill text-[11px] bg-[var(--cream)] text-[var(--ink-soft)]"><span class="dot" style="background:#8497A9;"></span>Durduruldu</span>
+                            }
                         </div>
 
                         <!-- Canlı Metrik İlerleme Çubukları -->
-                        <div class="my-4 flex-grow-1">
+                        <div class="my-3">
                             @if (project.Status == ProjectStatus.Running)
                             {
                                 <!-- CPU -->
-                                <div class="mb-3">
-                                    <div class="d-flex justify-between mb-1" style="font-size: 10px; font-weight: 700; letter-spacing: 0.5px;">
-                                        <span style="color: #94a3b8;">CANLI CPU KULLANIMI</span>
-                                        <span style="color: #10b981;">%@project.LiveCpu</span>
+                                <div class="mb-2.5">
+                                    <div class="flex justify-between mb-1 text-[10.5px] font-semibold text-[var(--ink-soft)] font-mono">
+                                        <span>CANLI CPU</span>
+                                        <span class="text-[var(--navy)] font-bold">%@project.LiveCpu</span>
                                     </div>
-                                    <MudProgressLinear Color="Color.Secondary" Value="@project.LiveCpu" Min="0" Max="100" Class="rounded-pill" Style="height: 5px;" />
+                                    <div class="bar-track mt-0 h-1.5">
+                                        <div class="bar-fill" style="width: @Math.Min(project.LiveCpu, 100)%"></div>
+                                    </div>
                                 </div>
 
                                 <!-- Memory -->
                                 <div>
-                                    <div class="d-flex justify-between mb-1" style="font-size: 10px; font-weight: 700; letter-spacing: 0.5px;">
-                                        <span style="color: #94a3b8;">CANLI RAM KULLANIMI</span>
-                                        <span style="color: #6366f1;">%@project.LiveRamPct (@GetReadableBytes(project.LiveRamBytes))</span>
+                                    <div class="flex justify-between mb-1 text-[10.5px] font-semibold text-[var(--ink-soft)] font-mono">
+                                        <span>CANLI RAM</span>
+                                        <span class="text-[var(--moss)] font-bold">%@project.LiveRamPct (@GetReadableBytes(project.LiveRamBytes))</span>
                                     </div>
-                                    <MudProgressLinear Color="Color.Primary" Value="@project.LiveRamPct" Min="0" Max="100" Class="rounded-pill" Style="height: 5px;" />
+                                    <div class="bar-track mt-0 h-1.5">
+                                        <div class="bar-fill" style="width: @Math.Min(project.LiveRamPct, 100)%; background: var(--moss);"></div>
+                                    </div>
                                 </div>
                             }
                             else
                             {
-                                <div class="d-flex align-center justify-center py-6" style="background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.05); color: #64748b; font-size: 11px;">
-                                    Proje çalışmadığından canlı performans metrikleri kapalı.
+                                <div class="flex items-center justify-center py-4 bg-[var(--cream)] rounded-lg border border-[var(--line)] text-[var(--ink-soft)] text-xs">
+                                    Canlı performans metrikleri kapalı.
                                 </div>
                             }
                         </div>
 
                         <!-- Alt Bilgiler -->
-                        <div class="d-flex justify-between align-center mt-4 pt-3" style="border-top: 1px solid var(--border-light); font-size: 11px; color: var(--text-secondary);">
-                            <span>Host Port: <strong style="color: var(--text-main);">@project.HostPort</strong>@(project.ContainerPort.HasValue && project.ContainerPort != project.HostPort ? $" → {project.ContainerPort}" : "")</span>
-                            <span>Limit: <strong style="color: var(--text-main);">@project.CpuCount CPU / @(project.MemoryLimitBytes / 1048576) MB</strong></span>
+                        <div class="flex justify-between items-center pt-2.5 border-t border-[var(--line)] text-xs text-[var(--ink-soft)] font-mono">
+                            <span>Port: <strong class="text-[var(--navy)]">@project.HostPort</strong>@(project.ContainerPort.HasValue && project.ContainerPort != project.HostPort ? $" → {project.ContainerPort}" : "")</span>
+                            <span>Limit: <strong class="text-[var(--navy)]">@project.CpuCount CPU / @(project.MemoryLimitBytes / 1048576) MB</strong></span>
                         </div>
                         @if (project.Status == ProjectStatus.Running && project.StartedAt.HasValue)
                         {
-                            <div class="d-flex align-center gap-1 mt-2" style="font-size: 11px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: @GetUptimeColor(project.StartedAt.Value);">
-                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                            <div class="flex items-center gap-1.5 mt-2 text-[11px] font-mono text-[var(--slate)]">
+                                <i class="fa-regular fa-clock text-[10px]"></i>
                                 <span>@GetUptimeText(project.StartedAt.Value)</span>
                             </div>
                         }
-                        @if (project.Status == ProjectStatus.Stopped && project.ActiveMaintenancePageId.HasValue)
+                    </div>
+
+                    <!-- Aksiyon Butonları -->
+                    <div class="flex items-center gap-1.5 mt-4 pt-3 border-t border-[var(--line)]">
+                        @if (project.Status == ProjectStatus.Running)
                         {
-                            <div class="d-flex align-center gap-1 mt-2">
-                                <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;">
-                                    <span style="width:7px; height:7px; background:#f59e0b; border-radius:50%; display:inline-block; animation: pulse 2s infinite;"></span>
-                                    Bakım Sayfası Yayında
-                                </span>
-                            </div>
+                            <button @onclick="@(() => StopProject(project))" class="btn-danger flex-1 text-xs py-1.5">Durdur</button>
+                        }
+                        else if (project.Status == ProjectStatus.Stopped || project.Status == ProjectStatus.Error)
+                        {
+                            <button @onclick="@(() => StartProject(project))" class="btn-secondary flex-1 text-xs py-1.5">Başlat</button>
+                        }
+                        else
+                        {
+                            <button disabled class="btn-secondary flex-1 text-xs py-1.5 opacity-50">İşleniyor...</button>
                         }
 
-                        <!-- Aksiyon Butonları -->
-                        <div class="d-flex gap-2 mt-4">
-                            @if (project.Status == ProjectStatus.Running)
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true" OnClick="@(() => StopProject(project))" Size="Size.Small" Style="font-weight: 700; text-transform:none;">Durdur</MudButton>
-                            }
-                            else if (project.Status == ProjectStatus.Stopped || project.Status == ProjectStatus.Error)
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="@(() => StartProject(project))" Size="Size.Small" Style="font-weight: 700; text-transform:none;">Başlat</MudButton>
-                            }
-                            else
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Dark" FullWidth="true" Disabled="true" Size="Size.Small">İşleniyor...</MudButton>
-                            }
+                        @if (project.Type == ProjectType.NativeProject && project.Status == ProjectStatus.Running)
+                        {
+                            <button @onclick="@(() => RestartProject(project))" 
+                                    disabled="@_restartingProjectIds.Contains(project.Id)"
+                                    class="btn-ghost p-2" title="Yeniden Başlat">
+                                <i class="fa-solid fa-rotate-right text-xs @(_restartingProjectIds.Contains(project.Id) ? "animate-spin text-[var(--azure)]" : "")"></i>
+                            </button>
+                        }
 
-                            @if (project.Type == ProjectType.NativeProject && project.Status == ProjectStatus.Running)
-                            {
-                                <MudTooltip Text="Native projeyi yeniden başlat">
-                                    <MudIconButton Icon="@( _restartingProjectIds.Contains(project.Id) ? Icons.Material.Filled.Sync : Icons.Material.Filled.RestartAlt )"
-                                                   Color="Color.Warning"
-                                                   Disabled="_restartingProjectIds.Contains(project.Id)"
-                                                   OnClick="@(() => RestartProject(project))"
-                                                   Variant="Variant.Outlined"
-                                                   Size="Size.Small" />
-                                </MudTooltip>
-                            }
-
-                            <MudTooltip Text="Canlı Log Gör">
-                                <MudIconButton Icon="@Icons.Material.Filled.Terminal" Color="Color.Inherit" OnClick="@(() => OpenLogsDrawer(project))" Variant="Variant.Outlined" Size="Size.Small" />
-                            </MudTooltip>
-                            @if (project.Type != ProjectType.DockerContainer)
-                            {
-                                <MudTooltip Text="Yeni ZIP Sürümü Yükle">
-                                    <MudIconButton Icon="@Icons.Material.Filled.CloudUpload" 
-                                                   Color="Color.Info" 
-                                                   OnClick="@(() => OpenZipUploadModal(project))" 
-                                                   Variant="Variant.Outlined" 
-                                                   Size="Size.Small" 
-                                                   Style="border-color: rgba(59, 130, 246, 0.3) !important;" />
-                                </MudTooltip>
-                            }
-                            <MudTooltip Text="Kaynak Limitlerini Düzenle">
-                                <MudIconButton Icon="@Icons.Material.Filled.Tune" Color="Color.Primary" OnClick="@(() => OpenLimitModal(project))" Variant="Variant.Outlined" Size="Size.Small" />
-                            </MudTooltip>
-                            <MudTooltip Text="Projeyi Yok Et">
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteProject(project))" Variant="Variant.Outlined" Size="Size.Small" Style="border-color: rgba(239, 68, 68, 0.3) !important;" />
-                            </MudTooltip>
-                        </div>
+                        <button @onclick="@(() => OpenLogsDrawer(project))" class="btn-ghost p-2" title="Canlı Log Gör">
+                            <i class="fa-solid fa-terminal text-xs"></i>
+                        </button>
+                        @if (project.Type != ProjectType.DockerContainer)
+                        {
+                            <button @onclick="@(() => OpenZipUploadModal(project))" class="btn-ghost p-2" title="Yeni ZIP Sürümü Yükle">
+                                <i class="fa-solid fa-cloud-arrow-up text-xs"></i>
+                            </button>
+                        }
+                        <button @onclick="@(() => OpenLimitModal(project))" class="btn-ghost p-2" title="Limitleri Düzenle">
+                            <i class="fa-solid fa-sliders text-xs"></i>
+                        </button>
+                        <button @onclick="@(() => DeleteProject(project))" class="btn-ghost p-2 text-[var(--rose)] hover:text-red-700" title="Projeyi Sil">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
                     </div>
-                </MudItem>
+                </div>
             }
-        </MudGrid>
+        </div>
     }
 }
 

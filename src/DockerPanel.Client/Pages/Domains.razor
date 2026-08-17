@@ -8,62 +8,66 @@
 
 <div class="space-y-6">
     <!-- Üst Başlık -->
-    <div>
-        <h2 class="text-2xl font-extrabold text-[#0b1c30] tracking-tight">Domain & DNS Yönetimi</h2>
-        <p class="text-xs text-slate-500 font-medium mt-1">Nginx Reverse Proxy yönlendirmelerini yapın ve Cloudflare API entegrasyonlu DNS alanlarını tek bir noktadan yönetin.</p>
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <div class="eyebrow">Ağ ve Yönlendirme</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">Domain & DNS Yönetimi</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">Nginx Reverse Proxy yönlendirmelerini yapın ve Cloudflare API entegrasyonlu DNS alanlarını tek bir noktadan yönetin.</p>
+        </div>
     </div>
 
     <!-- ANA ALAN ADLARI (ROOT DOMAINS) BÖLÜMÜ -->
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 shadow-xl">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+    <div class="card space-y-4">
+        <div class="flex items-center justify-between border-b border-[var(--line)] pb-3 flex-wrap gap-2">
             <div class="flex items-center gap-2">
-                <i class="fa-solid fa-globe text-xl text-indigo-400"></i>
-                <h3 class="font-bold text-white text-sm">Kayıtlı Ana Alan Adları (Root Domains)</h3>
+                <div class="stat-icon ic-azure w-8 h-8 rounded-lg flex items-center justify-center">
+                    <i class="fa-solid fa-globe text-sm"></i>
+                </div>
+                <h3 class="font-serif font-semibold text-[var(--navy)] text-base">Kayıtlı Ana Alan Adları (Root Domains)</h3>
             </div>
             <button @onclick="OpenRootDomainModal"
-                class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md">
-                <i class="fa-solid fa-plus"></i> Yeni Alan Adı Ekle
+                class="btn-primary py-1.5 px-3 text-xs">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span>Yeni Alan Adı Ekle</span>
             </button>
         </div>
 
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
-                    <tr class="border-b border-slate-800 text-slate-400">
-                        <th class="pb-2 font-semibold">Alan Adı</th>
-                        <th class="pb-2 font-semibold">Cloudflare Entegrasyon Durumu</th>
-                        <th class="pb-2 font-semibold">Kayıt Tarihi</th>
-                        <th class="pb-2 font-semibold text-right">İşlemler</th>
+                    <tr class="border-b border-[var(--line)] bg-[var(--cream)] text-[var(--ink-soft)]">
+                        <th class="py-2.5 px-3 font-semibold">Alan Adı</th>
+                        <th class="py-2.5 px-3 font-semibold">Cloudflare Entegrasyon Durumu</th>
+                        <th class="py-2.5 px-3 font-semibold">Kayıt Tarihi</th>
+                        <th class="py-2.5 px-3 font-semibold text-right">İşlemler</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-800 text-slate-300">
+                <tbody class="divide-y divide-[var(--line)] text-[var(--ink)]">
                     @if (!_rootDomains.Any())
                     {
                         <tr>
-                            <td colspan="4" class="py-4 text-center text-slate-500">Kayıtlı ana alan adı bulunmamaktadır. DNS ve Proxy işlemlerinden önce bir root domain ekleyin.</td>
+                            <td colspan="4" class="py-6 text-center text-[var(--ink-soft)]">Kayıtlı ana alan adı bulunmamaktadır. DNS ve Proxy işlemlerinden önce bir root domain ekleyin.</td>
                         </tr>
                     }
                     else
                     {
                         @foreach (var rd in _rootDomains)
                         {
-                            <tr class="hover:bg-slate-950/20 transition-colors">
-                                <td class="py-2.5 font-bold font-mono text-indigo-300">@rd.Name</td>
-                                <td class="py-2.5">
+                            <tr class="hover:bg-[var(--cream)] transition-colors">
+                                <td class="py-3 px-3 font-bold font-mono text-[var(--navy)]">@rd.Name</td>
+                                <td class="py-3 px-3">
                                     @if (!string.IsNullOrEmpty(rd.CloudflareToken) && !string.IsNullOrEmpty(rd.CloudflareZoneId))
                                     {
-                                        <span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2.5 py-1 rounded-full border border-emerald-500/20 font-bold flex items-center gap-1 w-max">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> BULUT ENTEGRASYONU AKTİF
-                                        </span>
+                                        <span class="pill pill-moss text-[11px]"><span class="dot"></span>Bulut Entegrasyonu Aktif</span>
                                     }
                                     else
                                     {
-                                        <span class="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded-full w-max">Entegrasyon Yok</span>
+                                        <span class="pill text-[11px] bg-[var(--cream)] text-[var(--ink-soft)]">Entegrasyon Yok</span>
                                     }
                                 </td>
-                                <td class="py-2.5 text-slate-400">@rd.CreatedAt.ToString("g")</td>
-                                <td class="py-2.5 text-right">
-                                    <button @onclick="@(() => DeleteRootDomain(rd))" class="text-rose-500 hover:text-rose-400 font-bold text-xs">
+                                <td class="py-3 px-3 text-[var(--ink-soft)]">@rd.CreatedAt.ToString("g")</td>
+                                <td class="py-3 px-3 text-right">
+                                    <button @onclick="@(() => DeleteRootDomain(rd))" class="btn-ghost text-[var(--rose)] hover:text-red-700 py-1 px-2 text-xs">
                                         <i class="fa-solid fa-trash-can"></i> Sil
                                     </button>
                                 </td>
@@ -76,59 +80,60 @@
     </div>
 
     <!-- Nginx Proxy Kuralları -->
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-200 pb-3">
+    <div class="card space-y-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-[var(--line)] pb-3">
             <div>
-                <h3 class="font-bold text-[#0b1c30] text-sm">Nginx Reverse Proxy Konfigürasyonu</h3>
-                <p class="text-[11px] text-slate-400 mt-0.5">Alt alan adlarının sunucu üzerindeki konteynerlere yönlendirilmesi</p>
+                <h3 class="font-serif font-semibold text-[var(--navy)] text-base">Nginx Reverse Proxy Konfigürasyonu</h3>
+                <p class="text-xs text-[var(--ink-soft)] mt-0.5">Alt alan adlarının sunucu üzerindeki konteynerlere yönlendirilmesi</p>
             </div>
-            <div class="flex items-center gap-3 w-full md:w-auto">
+            <div class="flex items-center gap-2 flex-wrap w-full md:w-auto">
                 <button @onclick="TriggerNginxSync" disabled="@_isSyncing"
-                    class="bg-slate-850 hover:bg-slate-800 border border-slate-850 text-slate-100 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md">
+                    class="btn-secondary py-1.5 px-3 text-xs">
                     @if (_isSyncing)
                     {
-                        <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span class="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                         <span>Taranıyor...</span>
                     }
                     else
                     {
-                        <i class="fa-solid fa-arrows-rotate animate-spin-hover"></i>
+                        <i class="fa-solid fa-arrows-rotate text-xs text-[var(--azure)]"></i>
                         <span>Nginx Yapılandırmalarını Eşitle</span>
                     }
                 </button>
                 <button @onclick="TriggerNginxRebuild" disabled="@_isRebuilding"
-                    class="bg-rose-900/20 hover:bg-rose-900/40 border border-rose-500/30 text-rose-300 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md font-bold text-slate-300">
+                    class="btn-ghost text-[var(--rose)] border border-[rgba(224,104,90,0.3)] py-1.5 px-3 text-xs">
                     @if (_isRebuilding)
                     {
-                        <span class="w-3 h-3 border-2 border-rose-300 border-t-transparent rounded-full animate-spin"></span>
+                        <span class="w-3 h-3 border-2 border-rose-400 border-t-transparent rounded-full animate-spin"></span>
                         <span>Onarılıyor...</span>
                     }
                     else
                     {
-                        <i class="fa-solid fa-wrench text-rose-400"></i>
-                        <span>Yapılandırmaları Yeniden Oluştur / Onar</span>
+                        <i class="fa-solid fa-wrench text-xs text-[var(--rose)]"></i>
+                        <span>Yeniden Oluştur / Onar</span>
                     }
                 </button>
 
                 <button @onclick="OpenProxyModal"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md whitespace-nowrap">
-                    <i class="fa-solid fa-plus"></i> Yeni Proxy Kaydı
+                    class="btn-primary py-1.5 px-3 text-xs whitespace-nowrap">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    <span>Yeni Proxy Kaydı</span>
                 </button>
             </div>
         </div>
 
         <!-- Arama ve Filtreleme Bölümü -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[var(--cream)] p-3 rounded-xl border border-[var(--line)]">
             <div class="sm:col-span-2 relative">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <i class="fa-solid fa-magnifying-glass"></i>
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
                 </span>
                 <input type="text" @bind="_searchQuery" @bind:event="oninput" placeholder="Subdomain veya alan adı ara..."
-                    class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg pl-9 pr-3 py-2 text-xs text-[var(--ink)] placeholder-[var(--ink-soft)] focus:outline-none focus:border-[var(--azure)]">
             </div>
             <div>
                 <select @bind="_sslFilter"
-                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg px-2.5 py-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]">
                     <option value="all">Filtrele: Tümü (SSL / HTTP)</option>
                     <option value="ssl">Sadece SSL Aktif</option>
                     <option value="nossl">Sadece HTTP Standart</option>
@@ -139,19 +144,19 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
-                    <tr class="border-b border-slate-800 text-slate-400">
-                        <th class="pb-3 font-semibold">Subdomain Adresi</th>
-                        <th class="pb-3 font-semibold">Hedef Konteyner (IP:Port)</th>
-                        <th class="pb-3 font-semibold">Proxy Durumu</th>
-                        <th class="pb-3 font-semibold">SSL Sertifikası (Let's Encrypt)</th>
-                        <th class="pb-3 font-semibold text-right">İşlemler</th>
+                    <tr class="border-b border-[var(--line)] bg-[var(--cream)] text-[var(--ink-soft)]">
+                        <th class="py-2.5 px-3 font-semibold">Subdomain Adresi</th>
+                        <th class="py-2.5 px-3 font-semibold">Hedef Konteyner (IP:Port)</th>
+                        <th class="py-2.5 px-3 font-semibold">Proxy Durumu</th>
+                        <th class="py-2.5 px-3 font-semibold">SSL Sertifikası (Let's Encrypt)</th>
+                        <th class="py-2.5 px-3 font-semibold text-right">İşlemler</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-800">
+                <tbody class="divide-y divide-[var(--line)] text-[var(--ink)]">
                     @if (!FilteredSubdomains.Any())
                     {
                         <tr>
-                            <td colspan="5" class="py-6 text-center text-slate-500">
+                            <td colspan="5" class="py-6 text-center text-[var(--ink-soft)]">
                                 @if (_subdomains.Any())
                                 {
                                     <span>Arama kriterlerinize uyan reverse proxy kuralı bulunamadı.</span>
@@ -167,56 +172,53 @@
                     {
                         @foreach (var context in FilteredSubdomains)
                         {
-                            <tr class="text-slate-300 hover:bg-slate-950/20 transition-colors">
-                                <td class="py-3 font-semibold">
+                            <tr class="hover:bg-[var(--cream)] transition-colors">
+                                <td class="py-3 px-3 font-bold font-mono text-[var(--navy)]">
                                     @(string.IsNullOrWhiteSpace(context.SubdomainName) ? context.DomainName : $"{context.SubdomainName}.{context.DomainName}")
                                 </td>
-                                <td class="py-3">
+                                <td class="py-3 px-3 font-mono">
                                     @if (context.ProjectId.HasValue && context.ProjectId.Value != Guid.Empty)
                                     {
-                                        <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-max">
+                                        <span class="pill pill-azure text-[11px] font-bold">
                                             <i class="fa-solid fa-cube text-[10px]"></i> @context.ContainerName (Port: @context.ContainerPort)
                                         </span>
                                     }
                                     else
                                     {
-                                        <span class="bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-max">
-                                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Bağımsız / Dış Servis (Port: @context.ContainerPort)
+                                        <span class="pill text-[11px] bg-[var(--cream)] text-[var(--ink-soft)]">
+                                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Dış Servis (Port: @context.ContainerPort)
                                         </span>
                                     }
                                 </td>
-                                <td class="py-3">
-                                    <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
-                                        AKTİF
-                                    </span>
+                                <td class="py-3 px-3">
+                                    <span class="pill pill-moss text-[11px]"><span class="dot"></span>AKTİF</span>
                                 </td>
-                                <td class="py-3">
+                                <td class="py-3 px-3">
                                     @if (context.SslEnabled)
                                     {
-                                        <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 w-max font-bold">
+                                        <span class="ssl-chip">
                                             <i class="fa-solid fa-lock text-[10px]"></i> Let's Encrypt SSL
                                         </span>
                                     }
                                     else
                                     {
                                         <div class="flex items-center gap-2">
-                                            <span class="bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full">
+                                            <span class="pill text-[11px] bg-[var(--cream)] text-[var(--ink-soft)]">
                                                 HTTP Standart
                                             </span>
                                             <button @onclick="@(() => GenerateSslForSubdomain(context))"
-                                                class="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white px-2 py-0.5 rounded border border-emerald-500/30 text-[10px] font-bold transition-all flex items-center gap-1">
-                                                <i class="fa-solid fa-shield-halved"></i> SSL Kur
+                                                class="btn-secondary py-0.5 px-2 text-[10.5px]">
+                                                <i class="fa-solid fa-shield-halved text-[10px] text-[var(--azure)]"></i> SSL Kur
                                             </button>
                                         </div>
                                     }
                                 </td>
-                                <td class="py-3 text-right">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <button @onclick="@(() => OpenEditModal(context))" class="text-indigo-400 hover:text-indigo-300 font-bold text-xs transition-colors px-1">
+                                <td class="py-3 px-3 text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button @onclick="@(() => OpenEditModal(context))" class="btn-ghost text-[var(--azure)] hover:text-blue-700 py-1 px-2 text-xs">
                                             <i class="fa-regular fa-pen-to-square"></i> Düzenle
                                         </button>
-                                        <span class="text-slate-700">|</span>
-                                        <button @onclick="@(() => DeleteProxyRule(context))" class="text-rose-500 hover:text-rose-400 font-bold text-xs transition-colors px-1">
+                                        <button @onclick="@(() => DeleteProxyRule(context))" class="btn-ghost text-[var(--rose)] hover:text-red-700 py-1 px-2 text-xs">
                                             <i class="fa-solid fa-trash-can"></i> Sil
                                         </button>
                                     </div>
@@ -230,15 +232,15 @@
     </div>
 
     <!-- DNS Zone Kayıtları Tablosu -->
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
-        <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-3">
+    <div class="card space-y-4">
+        <div class="flex justify-between items-center mb-1 border-b border-[var(--line)] pb-3 flex-wrap gap-2">
             <div>
-                <h3 class="font-bold text-[#0b1c30] text-sm">DNS Bölge (Zone) Kayıtları</h3>
-                <p class="text-xs text-slate-400 mt-0.5">Subdomainlerin dünya genelinde çözümlenmesi için Cloudflare DNS kayıtları</p>
+                <h3 class="font-serif font-semibold text-[var(--navy)] text-base">DNS Bölge (Zone) Kayıtları</h3>
+                <p class="text-xs text-[var(--ink-soft)] mt-0.5">Subdomainlerin dünya genelinde çözümlenmesi için Cloudflare DNS kayıtları</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
                 <select @bind="_selectedDnsFilterDomain"
-                    class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    class="bg-[var(--paper)] border border-[var(--line)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]">
                     <option value="">Filtrele: Tüm Alan Adları</option>
                     @foreach (var rd in _rootDomains)
                     {
@@ -246,8 +248,9 @@
                     }
                 </select>
                 <button @onclick="OpenDnsModal"
-                    class="bg-[#006c49] hover:bg-[#005236] text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-md border border-[#006c49]/10">
-                    <i class="fa-solid fa-plus-square"></i> Yeni DNS Kaydı Ekle
+                    class="btn-primary py-1.5 px-3 text-xs">
+                    <i class="fa-solid fa-plus-square text-xs"></i>
+                    <span>Yeni DNS Kaydı Ekle</span>
                 </button>
             </div>
         </div>
@@ -255,20 +258,20 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
-                    <tr class="border-b border-slate-800 text-slate-400">
-                        <th class="pb-3 font-semibold">Tip</th>
-                        <th class="pb-3 font-semibold">İsim</th>
-                        <th class="pb-3 font-semibold">Değer (Hedef IP / Host)</th>
-                        <th class="pb-3 font-semibold">TTL</th>
-                        <th class="pb-3 font-semibold">Proxy Durumu</th>
-                        <th class="pb-3 font-semibold text-right">Aksiyonlar</th>
+                    <tr class="border-b border-[var(--line)] bg-[var(--cream)] text-[var(--ink-soft)]">
+                        <th class="py-2.5 px-3 font-semibold">Tip</th>
+                        <th class="py-2.5 px-3 font-semibold">İsim</th>
+                        <th class="py-2.5 px-3 font-semibold">Değer (Hedef IP / Host)</th>
+                        <th class="py-2.5 px-3 font-semibold">TTL</th>
+                        <th class="py-2.5 px-3 font-semibold">Proxy Durumu</th>
+                        <th class="py-2.5 px-3 font-semibold text-right">Aksiyonlar</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-800">
+                <tbody class="divide-y divide-[var(--line)] text-[var(--ink)]">
                     @if (!FilteredDnsRecords.Any())
                     {
                         <tr>
-                            <td colspan="6" class="py-6 text-center text-slate-500">
+                            <td colspan="6" class="py-6 text-center text-[var(--ink-soft)]">
                                 Kayıtlı DNS kaydı bulunmamaktadır.
                             </td>
                         </tr>
@@ -277,39 +280,39 @@
                     {
                         @foreach (var context in FilteredDnsRecords)
                         {
-                            <tr class="text-slate-300 hover:bg-slate-950/20 transition-colors">
-                                <td class="py-3">
-                                    <span class="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2.5 py-0.5 rounded font-bold">
+                            <tr class="hover:bg-[var(--cream)] transition-colors">
+                                <td class="py-3 px-3">
+                                    <span class="pill pill-amber text-[10px] font-bold">
                                         @context.Type
                                     </span>
                                 </td>
-                                <td class="py-3 font-mono font-semibold">@context.Name</td>
-                                <td class="py-3 font-mono flex items-center">
+                                <td class="py-3 px-3 font-mono font-semibold text-[var(--navy)]">@context.Name</td>
+                                <td class="py-3 px-3 font-mono flex items-center">
                                     <span>@TruncateDnsValue(context.Value, 30)</span>
                                     @if (context.Value != null && context.Value.Length > 30)
                                     {
-                                        <button @onclick="@(() => ShowFullDnsValue(context))" class="ml-2 bg-[#006c49]/10 text-[#006c49] hover:bg-[#006c49] hover:text-white px-1.5 py-0.5 rounded border border-[#006c49]/20 text-[10px] font-bold transition-all flex items-center gap-0.5">
-                                            <i class="fa-solid fa-eye"></i> Gerçeğini Gör
+                                        <button @onclick="@(() => ShowFullDnsValue(context))" class="ml-2 btn-ghost py-0.5 px-1.5 text-[10px]">
+                                            <i class="fa-solid fa-eye text-xs"></i> Gerçeğini Gör
                                         </button>
                                     }
                                 </td>
-                                <td class="py-3">@context.Ttl sn</td>
-                                <td class="py-3">
+                                <td class="py-3 px-3 font-mono text-[var(--ink-soft)]">@context.Ttl sn</td>
+                                <td class="py-3 px-3">
                                     @if (context.Proxied)
                                     {
-                                        <span class="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 w-max font-bold">
+                                        <span class="pill pill-amber text-[10.5px]">
                                             <i class="fa-brands fa-cloudflare text-[10px]"></i> Proxied
                                         </span>
                                     }
                                     else
                                     {
-                                        <span class="bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1 w-max">
+                                        <span class="pill text-[10.5px] bg-[var(--cream)] text-[var(--ink-soft)]">
                                             DNS Only
                                         </span>
                                     }
                                 </td>
-                                <td class="py-3 text-right">
-                                    <button @onclick="@(() => DeleteDnsRecord(context))" class="text-rose-500 hover:text-rose-400 p-1 font-bold text-xs transition-colors">
+                                <td class="py-3 px-3 text-right">
+                                    <button @onclick="@(() => DeleteDnsRecord(context))" class="btn-ghost text-[var(--rose)] hover:text-red-700 py-1 px-2 text-xs">
                                         <i class="fa-solid fa-trash-can"></i> Sil
                                     </button>
                                 </td>
@@ -327,26 +330,26 @@
 <!-- 1. MODAL: YENİ PROXY KAYDI -->
 @if (_proxyModalVisible)
 {
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
-            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <h3 class="text-lg font-bold text-[#0b1c30]">Yeni Proxy Kuralı Ekle</h3>
-                <button @onclick="CloseProxyModal" class="text-slate-400 hover:text-white transition-colors">
-                    <i class="fa-solid fa-xmark text-lg"></i>
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-semibold text-[var(--navy)]">Yeni Proxy Kuralı Ekle</h3>
+                <button @onclick="CloseProxyModal" class="btn-ghost p-1 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
             
-            <div class="space-y-4 text-xs">
+            <div class="space-y-3.5 text-xs">
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-slate-400 font-semibold mb-1">Subdomain Ön Eki</label>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Subdomain Ön Eki</label>
                         <input type="text" @bind="_proxyModel.SubdomainName" @bind:event="oninput" placeholder="örn: api"
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]">
                     </div>
                     <div>
-                        <label class="block text-slate-400 font-semibold mb-1">Ana Alan Adı</label>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Ana Alan Adı</label>
                         <select @bind="_proxyModel.DomainName"
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]">
                             <option value="">Seçiniz...</option>
                             @foreach (var rd in _rootDomains)
                             {
@@ -358,21 +361,21 @@
 
                 @if (_proxyModel.SubdomainName != null && _proxyModel.SubdomainName.Contains("*"))
                 {
-                    <div class="bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-lg p-3 flex gap-2.5 items-start">
-                        <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 text-sm"></i>
+                    <div class="bg-[var(--amber-bg)] text-[var(--amber)] border border-[var(--line)] rounded-lg p-3 flex gap-2.5 items-start">
+                        <i class="fa-solid fa-triangle-exclamation mt-0.5 text-sm"></i>
                         <div>
                             <span class="font-bold block text-[11px] uppercase tracking-wider mb-0.5">DNS-01 Doğrulama Uyarısı</span>
-                            <span class="text-[10px] leading-relaxed block text-slate-600">
-                                Yaban karakter (*.domain.com) alt alan adları <strong>DNS-01 doğrulaması</strong> gerektirir (örneğin Cloudflare DNS API'leri). Standart HTTP Let's Encrypt doğrulamaları başarısız olacaktır.
+                            <span class="text-[11px] leading-relaxed block text-[var(--ink-soft)]">
+                                Yaban karakter (*.domain.com) alt alan adları <strong>DNS-01 doğrulaması</strong> gerektirir. Standart HTTP Let's Encrypt doğrulamaları başarısız olacaktır.
                             </span>
                         </div>
                     </div>
                 }
 
                 <div>
-                    <label class="block text-slate-400 font-semibold mb-1">Hedef Konteyner / Servis</label>
+                    <label class="block text-[var(--ink-soft)] font-semibold mb-1">Hedef Konteyner / Servis</label>
                     <select @bind="_proxyModel.ProjectId"
-                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]">
                         <option value="@Guid.Empty">Bağımsız / Dış Servis (Projesiz)</option>
                         @foreach (var c in _activeContainers)
                         {
@@ -384,23 +387,23 @@
                 @if (_proxyModel.ProjectId == Guid.Empty)
                 {
                     <div>
-                        <label class="block text-slate-400 font-semibold mb-1">Harici Bağlantı Portu (Independent Port)</label>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Harici Bağlantı Portu (Independent Port)</label>
                         <input type="number" @bind="_proxyModel.ExternalPort" min="1" max="65535"
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]">
                     </div>
                 }
 
-                <div class="flex items-center gap-2 pt-2">
-                    <input type="checkbox" id="ssl-checkbox" @bind="_proxyModel.SslEnabled" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-800">
-                    <label for="ssl-checkbox" class="text-slate-300 font-medium">Let's Encrypt Wildcard SSL sertifikası üret</label>
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="ssl-checkbox" @bind="_proxyModel.SslEnabled" class="w-4 h-4 rounded text-[var(--azure)] focus:ring-[var(--azure)]">
+                    <label for="ssl-checkbox" class="text-[var(--ink)] font-medium">Let's Encrypt SSL sertifikası üret</label>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+            <div class="flex justify-end gap-2 pt-3 border-t border-[var(--line)]">
                 <button type="button" @onclick="CloseProxyModal"
-                    class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors text-xs font-semibold">İptal</button>
+                    class="btn-secondary py-2 px-4 text-xs">İptal</button>
                 <button type="button" @onclick="HandleCreateProxyRule"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+                    class="btn-primary py-2 px-4 text-xs">
                     @if (_isProcessingProxy)
                     {
                         <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -419,34 +422,34 @@
 <!-- 2. MODAL: DÜZENLEME MODALI -->
 @if (_editModalVisible)
 {
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
-            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <h3 class="text-lg font-bold text-[#0b1c30] flex items-center gap-2">
-                    <i class="fa-regular fa-pen-to-square text-indigo-400"></i> Proxy Yönlendirmesini Düzenle
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-semibold text-[var(--navy)] flex items-center gap-2">
+                    <i class="fa-regular fa-pen-to-square text-[var(--azure)]"></i> Proxy Yönlendirmesini Düzenle
                 </h3>
-                <button @onclick="CloseEditModal" class="text-slate-400 hover:text-white transition-colors">
-                    <i class="fa-solid fa-xmark text-lg"></i>
+                <button @onclick="CloseEditModal" class="btn-ghost p-1 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
             
-            <div class="space-y-4 text-xs">
-                <div class="bg-slate-950 p-3 rounded border border-slate-800/80">
-                    <span class="text-[10px] text-slate-500 block">DÜZENLENEN ALAN ADI</span>
+            <div class="space-y-3.5 text-xs">
+                <div class="bg-[var(--cream)] p-3 rounded-lg border border-[var(--line)]">
+                    <span class="text-[10px] text-[var(--ink-soft)] block font-semibold">DÜZENLENEN ALAN ADI</span>
                     @if (string.IsNullOrWhiteSpace(_editModel.SubdomainName))
                     {
-                        <span class="font-mono text-sm font-bold text-emerald-400">@_editModel.DomainName</span>
+                        <span class="font-mono text-sm font-bold text-[var(--navy)]">@_editModel.DomainName</span>
                     }
                     else
                     {
-                        <span class="font-mono text-sm font-bold text-emerald-400">@_editModel.SubdomainName</span><span class="font-mono text-sm font-bold">.@_editModel.DomainName</span>
+                        <span class="font-mono text-sm font-bold text-[var(--navy)]">@_editModel.SubdomainName</span><span class="font-mono text-sm font-bold text-[var(--ink-soft)]">.@_editModel.DomainName</span>
                     }
                 </div>
 
                 <div>
-                    <label class="block text-slate-400 font-semibold mb-1">Hedef Konteyner / Servis</label>
+                    <label class="block text-[var(--ink-soft)] font-semibold mb-1">Hedef Konteyner / Servis</label>
                     <select @bind="_editModel.ProjectId"
-                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]">
                         <option value="@Guid.Empty">Bağımsız / Dış Servis (Projesiz)</option>
                         @foreach (var c in _activeContainers)
                         {
@@ -458,23 +461,23 @@
                 @if (_editModel.ProjectId == Guid.Empty)
                 {
                     <div>
-                        <label class="block text-slate-400 font-semibold mb-1">Harici Bağlantı Portu (Independent Port)</label>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Harici Bağlantı Portu (Independent Port)</label>
                         <input type="number" @bind="_editModel.ExternalPort" min="1" max="65535"
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]">
                     </div>
                 }
 
-                <div class="flex items-center gap-2 pt-2">
-                    <input type="checkbox" id="edit-ssl-checkbox" @bind="_editModel.SslEnabled" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-800">
-                    <label for="edit-ssl-checkbox" class="text-slate-300 font-medium">SSL Sertifikasını Aktifleştir</label>
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="edit-ssl-checkbox" @bind="_editModel.SslEnabled" class="w-4 h-4 rounded text-[var(--azure)] focus:ring-[var(--azure)]">
+                    <label for="edit-ssl-checkbox" class="text-[var(--ink)] font-medium">SSL Sertifikasını Aktifleştir</label>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+            <div class="flex justify-end gap-2 pt-3 border-t border-[var(--line)]">
                 <button type="button" @onclick="CloseEditModal"
-                    class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors text-xs font-semibold">İptal</button>
+                    class="btn-secondary py-2 px-4 text-xs">İptal</button>
                 <button type="button" @onclick="HandleUpdateProxyRule" disabled="@_isProcessingEdit"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+                    class="btn-primary py-2 px-4 text-xs">
                     @if (_isProcessingEdit)
                     {
                         <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -493,21 +496,21 @@
 <!-- 3. MODAL: YENİ DNS KAYDI -->
 @if (_dnsModalVisible)
 {
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
-            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <h3 class="text-lg font-bold text-[#0b1c30]">Yeni DNS Zone Kaydı Ekle</h3>
-                <button @onclick="CloseDnsModal" class="text-slate-400 hover:text-white transition-colors">
-                    <i class="fa-solid fa-xmark text-lg"></i>
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-semibold text-[var(--navy)]">Yeni DNS Zone Kaydı Ekle</h3>
+                <button @onclick="CloseDnsModal" class="btn-ghost p-1 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
             
-            <div class="space-y-4 text-xs">
-                <div class="grid grid-cols-3 gap-3">
+            <div class="space-y-3.5 text-xs">
+                <div class="grid grid-cols-3 gap-2.5">
                     <div>
-                        <label class="block text-slate-400 font-semibold mb-1">Kayıt Tipi</label>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Kayıt Tipi</label>
                         <select @bind="_dnsModel.Type"
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]">
                             <option value="A">A</option>
                             <option value="CNAME">CNAME</option>
                             <option value="MX">MX</option>
@@ -515,14 +518,14 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-slate-400 font-semibold mb-1">Ön Ek (Subdomain)</label>
-                        <input type="text" @bind="_dnsPrefix" placeholder="örn: api veya @@"
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Ön Ek</label>
+                        <input type="text" @bind="_dnsPrefix" placeholder="örn: api"
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]">
                     </div>
                     <div>
-                        <label class="block text-slate-400 font-semibold mb-1">Ana Alan Adı</label>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">Ana Alan Adı</label>
                         <select @bind="_dnsRootDomainName"
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500">
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] focus:outline-none focus:border-[var(--azure)]">
                             <option value="">Seçiniz...</option>
                             @foreach (var rd in _rootDomains)
                             {
@@ -533,29 +536,29 @@
                 </div>
 
                 <div>
-                    <label class="block text-slate-400 font-semibold mb-1">Hedef Değer (Value)</label>
+                    <label class="block text-[var(--ink-soft)] font-semibold mb-1">Hedef Değer (Value)</label>
                     <input type="text" @bind="_dnsModel.Value" placeholder="örn: IP Adresi veya Sunucu Alanı"
-                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]">
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-slate-400 font-semibold mb-1">TTL (Saniye)</label>
+                        <label class="block text-[var(--ink-soft)] font-semibold mb-1">TTL (Saniye)</label>
                         <input type="number" @bind="_dnsModel.Ttl" min="120" max="86400"
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]">
                     </div>
-                    <div class="flex items-center gap-2 pt-5">
-                        <input type="checkbox" id="proxied-checkbox" @bind="_dnsModel.Proxied" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-800">
-                        <label for="proxied-checkbox" class="text-slate-300 font-medium">Proxy Koruma (CDN)</label>
+                    <div class="flex items-center gap-2 pt-6">
+                        <input type="checkbox" id="proxied-checkbox" @bind="_dnsModel.Proxied" class="w-4 h-4 rounded text-[var(--azure)] focus:ring-[var(--azure)]">
+                        <label for="proxied-checkbox" class="text-[var(--ink)] font-medium">Proxy (CDN)</label>
                     </div>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+            <div class="flex justify-end gap-2 pt-3 border-t border-[var(--line)]">
                 <button type="button" @onclick="CloseDnsModal"
-                    class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors text-xs font-semibold">İptal</button>
+                    class="btn-secondary py-2 px-4 text-xs">İptal</button>
                 <button type="button" @onclick="HandleCreateDnsRecord"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+                    class="btn-primary py-2 px-4 text-xs">
                     @if (_isProcessingDns)
                     {
                         <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -571,112 +574,112 @@
     </div>
 }
 
-<!-- ================= 4. PREMIUM ONAYLANMA / SSL YÜKLENİYOR EKRANI (VERIFYING / PROGRESS SCREEN) ================= -->
+<!-- ================= 4. PREMIUM ONAYLANMA / SSL YÜKLENİYOR EKRANI ================= -->
 @if (_sslOverlayVisible)
 {
-    <div class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in">
-        <div class="max-w-md w-full p-8 mx-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl text-center space-y-6">
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div class="modal-dialog max-w-md w-full p-8 text-center space-y-5">
             
             @if (_sslVerificationState == SslState.Processing)
             {
                 <!-- Yükleniyor / Doğrulanıyor Animasyonu -->
-                <div class="relative w-28 h-28 mx-auto flex items-center justify-center">
-                    <div class="absolute inset-0 border-4 border-emerald-500/10 rounded-full"></div>
-                    <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    <div class="w-16 h-16 bg-gradient-to-tr from-indigo-500/20 to-emerald-500/20 rounded-full flex items-center justify-center border border-indigo-500/30 text-indigo-400 animate-pulse">
-                        <i class="fa-solid fa-shield-halved text-2xl"></i>
+                <div class="relative w-24 h-24 mx-auto flex items-center justify-center">
+                    <div class="absolute inset-0 border-4 border-[var(--line)] rounded-full"></div>
+                    <div class="absolute inset-0 border-4 border-[var(--azure)] border-t-transparent rounded-full animate-spin"></div>
+                    <div class="w-14 h-14 bg-[var(--accent-bg)] rounded-full flex items-center justify-center text-[var(--azure)]">
+                        <i class="fa-solid fa-shield-halved text-xl"></i>
                     </div>
                 </div>
 
-                <div class="space-y-2">
-                    <h3 class="text-lg font-extrabold text-white tracking-tight">Onaylanıyor...</h3>
-                    <p class="text-xs text-indigo-400 font-semibold uppercase tracking-wider">Let's Encrypt SSL Doğrulaması</p>
-                    <p class="text-[11px] text-slate-400">Sunucu Certbot modülü aracılığıyla HTTPS geçiş doğrulamalarını gerçekleştiriyor. Lütfen bekleyin.</p>
+                <div class="space-y-1.5">
+                    <h3 class="text-lg font-serif font-semibold text-[var(--navy)]">Onaylanıyor...</h3>
+                    <p class="text-xs text-[var(--azure)] font-semibold uppercase tracking-wider font-mono">Let's Encrypt SSL Doğrulaması</p>
+                    <p class="text-xs text-[var(--ink-soft)]">Sunucu Certbot modülü aracılığıyla HTTPS geçiş doğrulamalarını gerçekleştiriyor. Lütfen bekleyin.</p>
                 </div>
 
-                <!-- Süreç Adımları (Verifying Progress Steps) -->
-                <div class="text-left bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 space-y-2.5 text-[11px]">
+                <!-- Süreç Adımları -->
+                <div class="text-left bg-[var(--cream)] p-4 rounded-xl border border-[var(--line)] space-y-2 text-xs">
                     <div class="flex items-center gap-2">
                         @if (_sslStep >= 1)
                         {
-                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                            <i class="fa-solid fa-circle-check text-[var(--moss)]"></i>
                         }
                         else
                         {
-                            <i class="fa-regular fa-circle text-slate-600"></i>
+                            <i class="fa-regular fa-circle text-[var(--ink-soft)]"></i>
                         }
-                        <span class="@(_sslStep == 1 ? "text-white font-bold" : "text-slate-400")">Adım 1: DNS A kaydı doğrulanıyor...</span>
+                        <span class="@(_sslStep == 1 ? "text-[var(--navy)] font-bold" : "text-[var(--ink-soft)]")">Adım 1: DNS A kaydı doğrulanıyor...</span>
                     </div>
 
                     <div class="flex items-center gap-2">
                         @if (_sslStep >= 2)
                         {
-                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                            <i class="fa-solid fa-circle-check text-[var(--moss)]"></i>
                         }
                         else if (_sslStep == 1)
                         {
-                            <i class="fa-solid fa-spinner animate-spin text-indigo-400"></i>
+                            <i class="fa-solid fa-spinner animate-spin text-[var(--azure)]"></i>
                         }
                         else
                         {
-                            <i class="fa-regular fa-circle text-slate-600"></i>
+                            <i class="fa-regular fa-circle text-[var(--ink-soft)]"></i>
                         }
-                        <span class="@(_sslStep == 2 ? "text-white font-bold" : "text-slate-400")">Adım 2: Let's Encrypt HTTP sorgusu iletiliyor...</span>
+                        <span class="@(_sslStep == 2 ? "text-[var(--navy)] font-bold" : "text-[var(--ink-soft)]")">Adım 2: Let's Encrypt HTTP sorgusu iletiliyor...</span>
                     </div>
 
                     <div class="flex items-center gap-2">
                         @if (_sslStep >= 3)
                         {
-                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                            <i class="fa-solid fa-circle-check text-[var(--moss)]"></i>
                         }
                         else if (_sslStep == 2)
                         {
-                            <i class="fa-solid fa-spinner animate-spin text-indigo-400"></i>
+                            <i class="fa-solid fa-spinner animate-spin text-[var(--azure)]"></i>
                         }
                         else
                         {
-                            <i class="fa-regular fa-circle text-slate-600"></i>
+                            <i class="fa-regular fa-circle text-[var(--ink-soft)]"></i>
                         }
-                        <span class="@(_sslStep == 3 ? "text-white font-bold" : "text-slate-400")">Adım 3: Certbot challenge token doğrulandı...</span>
+                        <span class="@(_sslStep == 3 ? "text-[var(--navy)] font-bold" : "text-[var(--ink-soft)]")">Adım 3: Certbot challenge token doğrulandı...</span>
                     </div>
 
                     <div class="flex items-center gap-2">
                         @if (_sslStep >= 4)
                         {
-                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                            <i class="fa-solid fa-circle-check text-[var(--moss)]"></i>
                         }
                         else if (_sslStep == 3)
                         {
-                            <i class="fa-solid fa-spinner animate-spin text-indigo-400"></i>
+                            <i class="fa-solid fa-spinner animate-spin text-[var(--azure)]"></i>
                         }
                         else
                         {
-                            <i class="fa-regular fa-circle text-slate-600"></i>
+                            <i class="fa-regular fa-circle text-[var(--ink-soft)]"></i>
                         }
-                        <span class="@(_sslStep == 4 ? "text-white font-bold" : "text-slate-400")">Adım 4: Nginx SSL yönlendirmesi kuruluyor...</span>
+                        <span class="@(_sslStep == 4 ? "text-[var(--navy)] font-bold" : "text-[var(--ink-soft)]")">Adım 4: Nginx SSL yönlendirmesi kuruluyor...</span>
                     </div>
                 </div>
             }
             else if (_sslVerificationState == SslState.Success)
             {
-                <!-- Tamamdır / Başarı Ekranı (Output Completed Success Screen) -->
-                <div class="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-emerald-400 border border-emerald-500/20 shadow-lg shadow-emerald-500/10 animate-bounce">
-                    <i class="fa-solid fa-circle-check text-4xl"></i>
+                <!-- Başarı Ekranı -->
+                <div class="w-16 h-16 bg-[var(--moss-bg)] rounded-full flex items-center justify-center mx-auto text-[var(--moss)] border border-[var(--moss)]">
+                    <i class="fa-solid fa-circle-check text-3xl"></i>
                 </div>
 
                 <div class="space-y-2">
-                    <h3 class="text-xl font-extrabold text-emerald-400 tracking-tight">Tamamdır!</h3>
-                    <p class="text-xs text-slate-300">
+                    <h3 class="text-xl font-serif font-semibold text-[var(--moss)]">Tamamdır!</h3>
+                    <p class="text-xs text-[var(--ink-soft)]">
                         Let's Encrypt SSL sertifikası başarıyla üretildi ve Nginx proxy kuralınıza dahil edildi.
                     </p>
-                    <div class="font-mono text-xs bg-slate-950 p-2.5 rounded border border-slate-800 text-slate-300 break-all">
+                    <div class="font-mono text-xs bg-[var(--cream)] p-2.5 rounded-lg border border-[var(--line)] text-[var(--navy)] break-all font-bold">
                         HTTPS://@_sslTargetDomain
                     </div>
                 </div>
 
-                <div class="pt-4">
+                <div class="pt-3">
                     <button @onclick="CloseSslOverlay"
-                        class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 px-4 rounded-lg shadow-md shadow-emerald-600/10 transition-all">
+                        class="btn-primary w-full py-2.5">
                         Harika, Devam Et
                     </button>
                 </div>
@@ -684,24 +687,24 @@
             else
             {
                 <!-- Hata Ekranı -->
-                <div class="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto text-rose-500 border border-rose-500/20 shadow-lg animate-pulse">
-                    <i class="fa-solid fa-circle-xmark text-4xl"></i>
+                <div class="w-16 h-16 bg-[var(--rose-bg)] rounded-full flex items-center justify-center mx-auto text-[var(--rose)] border border-[var(--rose)]">
+                    <i class="fa-solid fa-circle-xmark text-3xl"></i>
                 </div>
 
                 <div class="space-y-2">
-                    <h3 class="text-xl font-extrabold text-rose-400 tracking-tight">İşlem Başarısız</h3>
-                    <p class="text-xs text-slate-300">
+                    <h3 class="text-xl font-serif font-semibold text-[var(--rose)]">İşlem Başarısız</h3>
+                    <p class="text-xs text-[var(--ink-soft)]">
                         Certbot doğrulaması sırasında bir sunucu hatası oluştu. Lütfen A/DNS kayıtlarınızı kontrol edin.
                     </p>
-                    <div class="text-left font-mono text-[10px] bg-slate-950 p-3 rounded border border-slate-850 text-rose-400 max-h-32 overflow-y-auto webmail-scroll break-all">
+                    <div class="text-left font-mono text-xs bg-[var(--rose-bg)] p-3 rounded-lg border border-[rgba(224,104,90,0.3)] text-[var(--rose)] max-h-32 overflow-y-auto break-all">
                         @_sslErrorMessage
                     </div>
                 </div>
 
-                <div class="pt-4">
+                <div class="pt-3">
                     <button @onclick="CloseSslOverlay"
-                        class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2.5 px-4 rounded-lg border border-slate-700 transition-all">
-                        Pencereli Kapat
+                        class="btn-secondary w-full py-2.5">
+                        Pencereyi Kapat
                     </button>
                 </div>
             }
@@ -713,31 +716,31 @@
 <!-- DNS TAM DEĞER GÖSTERME MODALİ -->
 @if (_dnsValueModalVisible)
 {
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-lg p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
-            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <h3 class="text-sm font-bold text-[#0b1c30]">Tam DNS Kayıt Değeri</h3>
-                <button @onclick="CloseDnsValueModal" class="text-slate-400 hover:text-slate-600 transition-colors">
-                    <i class="fa-solid fa-xmark text-lg"></i>
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-lg p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-semibold text-[var(--navy)]">Tam DNS Kayıt Değeri</h3>
+                <button @onclick="CloseDnsValueModal" class="btn-ghost p-1 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
             
             <div class="space-y-3">
                 <div>
-                    <label class="block text-[11px] text-[#6c7a71] font-semibold mb-1">KAYIT İSMİ</label>
-                    <div class="font-mono text-xs bg-[#eff4ff] p-2 rounded border border-[#bbcabf]/20 text-[#0b1c30] font-bold">
+                    <label class="block text-xs text-[var(--ink-soft)] font-semibold mb-1">KAYIT İSMİ</label>
+                    <div class="font-mono text-xs bg-[var(--cream)] p-2.5 rounded-lg border border-[var(--line)] text-[var(--navy)] font-bold">
                         @_selectedDnsRecordName
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[11px] text-[#6c7a71] font-semibold mb-1">DEĞER (VAL)</label>
-                    <textarea readonly class="w-full bg-[#eff4ff] border border-[#bbcabf]/30 rounded-lg p-3 text-xs font-mono text-[#0b1c30] font-medium h-48 focus:outline-none select-all" style="resize: none;">@_selectedDnsRecordValue</textarea>
+                    <label class="block text-xs text-[var(--ink-soft)] font-semibold mb-1">DEĞER (VAL)</label>
+                    <textarea readonly class="w-full bg-[var(--cream)] border border-[var(--line)] rounded-lg p-3 text-xs font-mono text-[var(--ink)] font-medium h-44 focus:outline-none select-all" style="resize: none;">@_selectedDnsRecordValue</textarea>
                 </div>
             </div>
 
-            <div class="flex justify-end pt-3 border-t border-slate-200">
+            <div class="flex justify-end pt-3 border-t border-[var(--line)]">
                 <button type="button" @onclick="CloseDnsValueModal"
-                    class="bg-[#006c49] text-white px-4 py-2 rounded-lg hover:bg-[#005236] transition-colors text-xs font-semibold">Kapat</button>
+                    class="btn-secondary py-2 px-4 text-xs">Kapat</button>
             </div>
         </div>
     </div>
@@ -746,46 +749,46 @@
 <!-- MODAL: YENİ ANA ALAN ADI EKLE -->
 @if (_rootDomainModalVisible)
 {
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-white border border-[#bbcabf]/30 rounded-xl w-full max-w-md p-6 space-y-4 text-[#0b1c30] shadow-2xl animate-fade-in">
-            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <h3 class="text-lg font-bold text-[#0b1c30]">Yeni Ana Alan Adı Ekle</h3>
-                <button @onclick="CloseRootDomainModal" class="text-slate-400 hover:text-slate-600 transition-colors">
-                    <i class="fa-solid fa-xmark text-lg"></i>
+    <div class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-dialog w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                <h3 class="text-base font-serif font-semibold text-[var(--navy)]">Yeni Ana Alan Adı Ekle</h3>
+                <button @onclick="CloseRootDomainModal" class="btn-ghost p-1 text-[var(--ink-soft)]">
+                    <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
             
-            <div class="space-y-4 text-xs">
+            <div class="space-y-3.5 text-xs">
                 <div>
-                    <label class="block text-slate-400 font-semibold mb-1">Alan Adı (Root Domain)</label>
+                    <label class="block text-[var(--ink-soft)] font-semibold mb-1">Alan Adı (Root Domain)</label>
                     <input type="text" @bind="_rootDomainModel.Name" placeholder="örn: site.com"
-                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]">
                 </div>
 
-                <div class="border-t border-slate-200 pt-3">
-                    <h4 class="font-bold text-xs text-[#0b1c30] mb-2 flex items-center gap-1.5">
-                        <i class="fa-brands fa-cloudflare text-orange-400 text-sm"></i> Cloudflare DNS Entegrasyonu (İsteğe Bağlı)
+                <div class="border-t border-[var(--line)] pt-3">
+                    <h4 class="font-semibold text-xs text-[var(--navy)] mb-2 flex items-center gap-1.5">
+                        <i class="fa-brands fa-cloudflare text-[var(--amber)] text-sm"></i> Cloudflare DNS Entegrasyonu (İsteğe Bağlı)
                     </h4>
                     <div class="space-y-3">
                         <div>
-                            <label class="block text-slate-400 font-semibold mb-1">Cloudflare API Token</label>
+                            <label class="block text-[var(--ink-soft)] font-semibold mb-1">Cloudflare API Token</label>
                             <input type="password" @bind="_rootDomainModel.CloudflareToken" placeholder="c8b2...a8f2"
-                                class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                                class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]">
                         </div>
                         <div>
-                            <label class="block text-slate-400 font-semibold mb-1">Zone ID</label>
+                            <label class="block text-[var(--ink-soft)] font-semibold mb-1">Zone ID</label>
                             <input type="text" @bind="_rootDomainModel.CloudflareZoneId" placeholder="89b88...238fc"
-                                class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-indigo-500">
+                                class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]">
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+            <div class="flex justify-end gap-2 pt-3 border-t border-[var(--line)]">
                 <button type="button" @onclick="CloseRootDomainModal"
-                    class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors text-xs font-semibold">İptal</button>
+                    class="btn-secondary py-2 px-4 text-xs">İptal</button>
                 <button type="button" @onclick="HandleCreateRootDomain"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-lg flex items-center gap-1.5">
+                    class="btn-primary py-2 px-4 text-xs">
                     @if (_isProcessingRootDomain)
                     {
                         <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>

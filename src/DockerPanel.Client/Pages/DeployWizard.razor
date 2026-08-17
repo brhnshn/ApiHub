@@ -10,74 +10,74 @@
     <!-- Üst Başlık ve Tanıtım -->
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
-            <h2 class="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-                <i class="fa-solid fa-wand-magic-sparkles text-indigo-400 animate-pulse"></i>
-                Süper Canlı Dağıtım Sihirbazı
-            </h2>
-            <p class="text-xs text-slate-400 font-medium mt-1">
+            <div class="eyebrow">Dağıtım ve Yayına Alma</div>
+            <h1 class="text-2xl md:text-3xl font-serif font-semibold text-[var(--navy)]">Canlı Dağıtım Sihirbazı</h1>
+            <p class="text-xs md:text-sm text-[var(--ink-soft)] mt-1">
                 ZIP dosyalarınızı yükleyin, port ve alan adı bilgilerini girin; gerisini ApiHub sunucuda tamamen otomatik yürütsün!
             </p>
         </div>
 
         <!-- Sekme Seçici (Dual Mode Toggle) -->
-        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+        <div class="flex bg-[var(--cream)] p-1 rounded-xl border border-[var(--line)]">
             <button @onclick='() => SetTab("auto")'
-                class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 @(_activeTab == "auto" ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20" : "text-slate-400 hover:text-slate-200")">
-                <i class="fa-solid fa-bolt"></i> Otomatik Dağıtım
+                class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 @(_activeTab == "auto" ? "bg-[var(--paper)] text-[var(--navy)] shadow-sm font-bold" : "text-[var(--ink-soft)] hover:text-[var(--navy)]")">
+                <i class="fa-solid fa-bolt text-xs text-[var(--azure)]"></i>
+                <span>Otomatik Dağıtım</span>
             </button>
             <button @onclick='() => SetTab("manual")'
-                class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 @(_activeTab == "manual" ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20" : "text-slate-400 hover:text-slate-200")">
-                <i class="fa-solid fa-book-open"></i> Manuel Kılavuz
+                class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 @(_activeTab == "manual" ? "bg-[var(--paper)] text-[var(--navy)] shadow-sm font-bold" : "text-[var(--ink-soft)] hover:text-[var(--navy)]")">
+                <i class="fa-solid fa-book-open text-xs text-[var(--slate)]"></i>
+                <span>Manuel Kılavuz</span>
             </button>
         </div>
     </div>
 
     @if (_activeTab == "auto")
     {
-        <!-- OTOMATİK CANLI DAÄITIM SİHİRBAZI -->
+        <!-- OTOMATİK CANLI DAĞITIM SİHİRBAZI -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <!-- Sol Sütun: Dağıtım Ayarları Formu -->
-            <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden backdrop-blur-md">
-                <div class="flex items-center gap-2 border-b border-slate-850 pb-3 mb-4">
-                    <i class="fa-solid fa-sliders text-indigo-400"></i>
-                    <h3 class="font-bold text-white text-sm">1. Uygulama ve Domain Bilgileri</h3>
+            <div class="lg:col-span-5 card space-y-4">
+                <div class="flex items-center gap-2 border-b border-[var(--line)] pb-3 mb-1">
+                    <i class="fa-solid fa-sliders text-[var(--azure)] text-sm"></i>
+                    <h3 class="font-serif font-semibold text-[var(--navy)] text-base">1. Uygulama ve Domain Bilgileri</h3>
                 </div>
 
                 <div class="space-y-4">
                     <!-- Dağıtım Modu Seçici -->
                     <div>
-                        <label class="block text-[10px] text-slate-400 font-semibold mb-1.5 uppercase tracking-wider">Dağıtım Modu</label>
+                        <label class="block text-[11px] text-[var(--ink-soft)] font-semibold mb-1.5 uppercase tracking-wider">Dağıtım Modu</label>
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             <button type="button" @onclick='() => _deployMode = "docker"'
                                 class="@ModeButtonClass("docker")">
-                                <i class="fa-brands fa-docker text-sm"></i>
+                                <i class="fa-brands fa-docker text-sm text-[var(--azure)]"></i>
                                 <div class="text-left">
-                                    <div class="text-[11px] font-extrabold leading-none">Docker</div>
-                                    <div class="text-[8px] opacity-70 mt-0.5">Konteyner</div>
+                                    <div class="text-[11px] font-bold leading-none">Docker</div>
+                                    <div class="text-[9px] opacity-70 mt-0.5">Konteyner</div>
                                 </div>
                             </button>
                             <button type="button" @onclick='() => _deployMode = "compose"'
                                 class="@ModeButtonClass("compose")">
-                                <i class="fa-solid fa-cubes text-sm"></i>
+                                <i class="fa-solid fa-cubes text-sm text-[var(--slate)]"></i>
                                 <div class="text-left">
-                                    <div class="text-[11px] font-extrabold leading-none">Compose</div>
-                                    <div class="text-[8px] opacity-70 mt-0.5">Çoklu Servis</div>
+                                    <div class="text-[11px] font-bold leading-none">Compose</div>
+                                    <div class="text-[9px] opacity-70 mt-0.5">Çoklu Servis</div>
                                 </div>
                             </button>
                             <button type="button" @onclick='() => _deployMode = "native"'
                                 class="@ModeButtonClass("native")">
-                                <i class="fa-regular fa-file-zip text-sm"></i>
+                                <i class="fa-regular fa-file-zip text-sm text-[var(--moss)]"></i>
                                 <div class="text-left">
-                                    <div class="text-[11px] font-extrabold leading-none">Native ZIP</div>
-                                    <div class="text-[8px] opacity-70 mt-0.5">Süreç Yönetici</div>
+                                    <div class="text-[11px] font-bold leading-none">Native ZIP</div>
+                                    <div class="text-[9px] opacity-70 mt-0.5">Süreç Yön.</div>
                                 </div>
                             </button>
                             <button type="button" @onclick='() => _deployMode = "static"'
                                 class="@ModeButtonClass("static")">
-                                <i class="fa-solid fa-code text-sm"></i>
+                                <i class="fa-solid fa-code text-sm text-[var(--azure)]"></i>
                                 <div class="text-left">
-                                    <div class="text-[11px] font-extrabold leading-none">Statik Web</div>
-                                    <div class="text-[8px] opacity-70 mt-0.5">Nginx Direct</div>
+                                    <div class="text-[11px] font-bold leading-none">Statik Web</div>
+                                    <div class="text-[9px] opacity-70 mt-0.5">Nginx Direct</div>
                                 </div>
                             </button>
                         </div>
@@ -85,50 +85,50 @@
 
                     <!-- Proje Adı -->
                     <div>
-                        <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Uygulama Adı</label>
+                        <label class="block text-[11px] text-[var(--ink-soft)] font-semibold mb-1 uppercase tracking-wider">Uygulama Adı</label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--ink-soft)] text-xs">
                                 <i class="fa-solid fa-cube"></i>
                             </span>
                             <input type="text" @bind="_projectName" @bind:event="oninput" placeholder="örn: bprojem" disabled="@_isDeploying"
-                                class="w-full bg-slate-950 border border-slate-850 rounded-lg pl-9 pr-3 py-2 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50">
+                                class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg pl-9 pr-3 py-2 text-xs text-[var(--navy)] font-bold focus:outline-none focus:border-[var(--azure)] transition-colors disabled:opacity-50">
                         </div>
-                        <p class="text-[9px] text-slate-500 mt-1">Sadece küçük harfler, rakamlar, tire (-) veya alt çizgi (_).</p>
+                        <p class="text-[10px] text-[var(--ink-soft)] mt-1">Sadece küçük harfler, rakamlar, tire (-) veya alt çizgi (_).</p>
                     </div>
 
                     @if (_deployMode != "static")
                     {
-                        <!-- Port Numaralari -->
+                        <!-- Port Numaraları -->
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Host Port (Dis)</label>
+                                <label class="block text-[11px] text-[var(--ink-soft)] font-semibold mb-1 uppercase tracking-wider">Host Port (Dış)</label>
                                 <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--ink-soft)] text-xs">
                                         <i class="fa-solid fa-network-wired"></i>
                                     </span>
                                     <input type="number" @bind="_port" min="1" max="65535" disabled="@_isDeploying"
-                                        class="w-full bg-slate-950 border border-slate-850 rounded-lg pl-9 pr-3 py-2 text-xs text-emerald-400 font-bold focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50">
+                                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg pl-9 pr-3 py-2 text-xs text-[var(--moss)] font-bold focus:outline-none focus:border-[var(--azure)] transition-colors disabled:opacity-50 font-mono">
                                 </div>
-                                <p class="text-[9px] text-slate-500 mt-1 font-medium">Sunucuda disa acilacak calisma portu.</p>
+                                <p class="text-[10px] text-[var(--ink-soft)] mt-1 font-medium">Sunucuda dışa açılacak port.</p>
                             </div>
                             
                             @if (_deployMode == "docker")
                             {
                                 <div>
-                                    <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">Container Port (Ic)</label>
+                                    <label class="block text-[11px] text-[var(--ink-soft)] font-semibold mb-1 uppercase tracking-wider">Container Port (İç)</label>
                                     <div class="flex gap-1 relative">
                                         <div class="relative w-full">
-                                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--ink-soft)] text-xs">
                                                 <i class="fa-solid fa-box"></i>
                                             </span>
                                             <input type="number" @bind="_containerPort" placeholder="Otomatik" min="1" max="65535" disabled="@_isDeploying"
-                                                class="w-full bg-slate-950 border border-slate-850 rounded-lg pl-9 pr-3 py-2 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50">
+                                                class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg pl-9 pr-3 py-2 text-xs text-[var(--ink)] font-semibold focus:outline-none focus:border-[var(--azure)] transition-colors disabled:opacity-50 font-mono">
                                         </div>
                                         <button type="button" @onclick="DetectContainerPortAsync" disabled="@(string.IsNullOrWhiteSpace(_dockerImageName) || _isDetectingPort || _isDeploying)"
-                                            class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center disabled:opacity-50" style="min-width: 36px;">
+                                            class="btn-secondary px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center disabled:opacity-50" style="min-width: 36px;">
                                             @if (_isDetectingPort)
                                             {
-                                                <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                                <span class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                                             }
                                             else
                                             {
@@ -136,7 +136,7 @@
                                             }
                                         </button>
                                     </div>
-                                    <p class="text-[9px] text-slate-500 mt-1 font-medium">Girilmezse imajin EXPOSE portu taranir.</p>
+                                    <p class="text-[10px] text-[var(--ink-soft)] mt-1 font-medium">Girilmezse EXPOSE portu taranır.</p>
                                 </div>
                             }
                         </div>
@@ -144,32 +144,32 @@
                         <!-- CPU ve RAM Limitleri -->
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">RAM Limiti (MB)</label>
+                                <label class="block text-[11px] text-[var(--ink-soft)] font-semibold mb-1 uppercase tracking-wider">RAM Limiti (MB)</label>
                                 <input type="number" @bind="_memoryLimitMb" min="64" max="16384" disabled="@_isDeploying"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-semibold">
+                                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-semibold font-mono">
                             </div>
                             <div>
-                                <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">CPU Çekirdek</label>
+                                <label class="block text-[11px] text-[var(--ink-soft)] font-semibold mb-1 uppercase tracking-wider">CPU Çekirdek</label>
                                 <input type="number" @bind="_cpuCount" min="0.1" max="32" step="0.1" disabled="@_isDeploying"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-semibold">
+                                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-semibold font-mono">
                             </div>
                         </div>
                     }
 
                     <!-- Domain & Subdomain Bilgileri -->
-                    <div class="border-t border-slate-850 pt-3 mt-1 space-y-3">
-                        <label class="block text-[10px] text-indigo-400 font-bold uppercase tracking-wider">Nginx Subdomain Yönlendirmesi</label>
+                    <div class="border-t border-[var(--line)] pt-3 mt-1 space-y-3">
+                        <label class="block text-[11px] text-[var(--azure)] font-bold uppercase tracking-wider">Nginx Subdomain Yönlendirmesi</label>
 
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Subdomain</label>
+                                <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase">Subdomain</label>
                                 <input type="text" @bind="_subdomain" @bind:event="oninput" placeholder="api" disabled="@_isDeploying"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50">
+                                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-mono">
                             </div>
                             <div>
-                                <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Ana Alan Adı (Domain)</label>
+                                <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase">Ana Alan Adı (Domain)</label>
                                 <select @bind="_domain" @bind:after="ApplySelectedRootDomainDefaults" disabled="@_isDeploying"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50">
+                                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2.5 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50">
                                     <option value="">Seçiniz...</option>
                                     @foreach (var rd in _rootDomains)
                                     {
@@ -180,105 +180,105 @@
                         </div>
 
                         <!-- Let's Encrypt SSL Seçici -->
-                        <div class="flex items-center justify-between bg-slate-950/40 p-2.5 rounded-lg border border-slate-850">
+                        <div class="flex items-center justify-between bg-[var(--cream)] p-2.5 rounded-lg border border-[var(--line)]">
                             <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-shield-halved text-indigo-400 text-xs"></i>
+                                <i class="fa-solid fa-shield-halved text-[var(--azure)] text-xs"></i>
                                 <div>
-                                    <div class="text-[10px] text-slate-200 font-bold leading-none">Let's Encrypt SSL Aktif Edilsin</div>
-                                    <span class="text-[8px] text-slate-500">Alan adı için güvenli HTTPS bağlantısı kurar</span>
+                                    <div class="text-[11px] text-[var(--navy)] font-bold leading-none">Let's Encrypt SSL Aktif Edilsin</div>
+                                    <span class="text-[9px] text-[var(--ink-soft)]">Alan adı için güvenli HTTPS bağlantısı kurar</span>
                                 </div>
                             </div>
                             <div class="flex items-center">
                                 <input type="checkbox" @bind="_sslEnabled" id="sslCheckbox" disabled="@_isDeploying"
-                                    class="w-4 h-4 bg-slate-950 border-slate-800 rounded focus:ring-indigo-500 text-indigo-600 disabled:opacity-50">
+                                    class="w-4 h-4 rounded text-[var(--azure)] focus:ring-[var(--azure)] disabled:opacity-50">
                             </div>
                         </div>
                     </div>
 
                     <!-- Cloudflare DNS A Kaydı Seçici -->
-                    <div class="border-t border-slate-850 pt-3 mt-1 space-y-3">
-                        <div class="flex items-center justify-between bg-slate-950/40 p-2.5 rounded-lg border border-slate-850">
+                    <div class="border-t border-[var(--line)] pt-3 mt-1 space-y-3">
+                        <div class="flex items-center justify-between bg-[var(--cream)] p-2.5 rounded-lg border border-[var(--line)]">
                             <div class="flex items-center gap-2">
-                                <i class="fa-brands fa-cloudflare text-orange-400 text-xs"></i>
+                                <i class="fa-brands fa-cloudflare text-[var(--amber)] text-xs"></i>
                                 <div>
-                                    <div class="text-[10px] text-slate-200 font-bold leading-none">Cloudflare DNS A Kaydı Oluşturulsun</div>
-                                    <span class="text-[8px] text-slate-500">Subdomain'i otomatik olarak sunucu IP'sine yönlendirir</span>
+                                    <div class="text-[11px] text-[var(--navy)] font-bold leading-none">Cloudflare DNS A Kaydı Oluşturulsun</div>
+                                    <span class="text-[9px] text-[var(--ink-soft)]">Subdomain'i otomatik olarak sunucu IP'sine yönlendirir</span>
                                 </div>
                             </div>
                             <div class="flex items-center">
                                 <input type="checkbox" @bind="_createDnsRecord" @bind:after="ApplySelectedRootDomainDefaults" id="cfDnsCheckbox" disabled="@_isDeploying"
-                                    class="w-4 h-4 bg-slate-950 border-slate-800 rounded focus:ring-indigo-500 text-indigo-600 disabled:opacity-50">
+                                    class="w-4 h-4 rounded text-[var(--azure)] focus:ring-[var(--azure)] disabled:opacity-50">
                             </div>
                         </div>
 
                         @if (_createDnsRecord)
                         {
-                            <div class="p-3 bg-slate-950/60 border border-slate-850/80 rounded-xl space-y-2 animate-fade-in">
+                            <div class="p-3 bg-[var(--cream)] border border-[var(--line)] rounded-xl space-y-2 animate-fade-in">
                                 <div>
-                                    <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Sunucu IP Adresi</label>
+                                    <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase">Sunucu IP Adresi</label>
                                     <input type="text" @bind="_serverIp" placeholder="örn: 85.95.23.10" disabled="@_isDeploying"
-                                        class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-mono">
                                 </div>
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Cloudflare API Token</label>
+                                        <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase">Cloudflare API Token</label>
                                         <input type="password" @bind="_cfToken" placeholder="Token girin" disabled="@_isDeploying"
-                                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-mono">
                                     </div>
                                     <div>
-                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Cloudflare Zone ID</label>
+                                        <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase">Cloudflare Zone ID</label>
                                         <input type="text" @bind="_cfZoneId" placeholder="Zone ID girin" disabled="@_isDeploying"
-                                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-mono">
                                     </div>
                                 </div>
-                                <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded border border-slate-800">
-                                    <span class="text-[9px] text-slate-400 font-bold uppercase">Cloudflare CDN Proxy (Proxied)</span>
+                                <div class="flex items-center justify-between bg-[var(--paper)] p-2 rounded border border-[var(--line)]">
+                                    <span class="text-[10px] text-[var(--ink-soft)] font-bold uppercase">Cloudflare CDN Proxy (Proxied)</span>
                                     <input type="checkbox" @bind="_cfProxied" disabled="@_isDeploying"
-                                        class="w-3.5 h-3.5 bg-slate-950 border-slate-800 rounded text-indigo-600 focus:ring-indigo-500">
+                                        class="w-3.5 h-3.5 rounded text-[var(--azure)] focus:ring-[var(--azure)]">
                                 </div>
                             </div>
                         }
                     </div>
 
                     <!-- PostgreSQL Veritabanı Seçici -->
-                    <div class="border-t border-slate-850 pt-3 mt-1 space-y-3">
-                        <div class="flex items-center justify-between bg-slate-950/40 p-2.5 rounded-lg border border-slate-850">
+                    <div class="border-t border-[var(--line)] pt-3 mt-1 space-y-3">
+                        <div class="flex items-center justify-between bg-[var(--cream)] p-2.5 rounded-lg border border-[var(--line)]">
                             <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-database text-indigo-400 text-xs"></i>
+                                <i class="fa-solid fa-database text-[var(--azure)] text-xs"></i>
                                 <div>
-                                    <div class="text-[10px] text-slate-200 font-bold leading-none">PostgreSQL Veritabanı Oluşturulsun</div>
-                                    <span class="text-[8px] text-slate-500">Projeye özel veritabanı şeması ve kullanıcısı oluşturur</span>
+                                    <div class="text-[11px] text-[var(--navy)] font-bold leading-none">PostgreSQL Veritabanı Oluşturulsun</div>
+                                    <span class="text-[9px] text-[var(--ink-soft)]">Projeye özel veritabanı şeması ve kullanıcısı oluşturur</span>
                                 </div>
                             </div>
                             <div class="flex items-center">
                                 <input type="checkbox" @bind="_createDatabase" @bind:after="UpdateDbDefaults" id="dbCheckbox" disabled="@_isDeploying"
-                                    class="w-4 h-4 bg-slate-950 border-slate-800 rounded focus:ring-indigo-500 text-indigo-600 disabled:opacity-50">
+                                    class="w-4 h-4 rounded text-[var(--azure)] focus:ring-[var(--azure)] disabled:opacity-50">
                             </div>
                         </div>
 
                         @if (_createDatabase)
                         {
-                            <div class="p-3 bg-slate-950/60 border border-slate-850/80 rounded-xl space-y-2 animate-fade-in">
+                            <div class="p-3 bg-[var(--cream)] border border-[var(--line)] rounded-xl space-y-2 animate-fade-in">
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Veritabanı İsmi</label>
+                                        <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase font-bold">Veritabanı İsmi</label>
                                         <input type="text" @bind="_dbName" placeholder="örn: bprojem_db" disabled="@_isDeploying"
-                                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-mono">
                                     </div>
                                     <div>
-                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Kullanıcı İsmi</label>
+                                        <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase font-bold">Kullanıcı İsmi</label>
                                         <input type="text" @bind="_dbUser" placeholder="örn: bprojem_user" disabled="@_isDeploying"
-                                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-mono">
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Kullanıcı Åifresi</label>
+                                    <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase font-bold">Kullanıcı Şifresi</label>
                                     <div class="flex gap-1.5">
                                         <input type="text" @bind="_dbPassword" placeholder="Güçlü şifre girin veya üretin" disabled="@_isDeploying"
-                                            class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-emerald-400 focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono font-bold">
+                                            class="flex-1 bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--moss)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-mono font-bold">
                                         <button type="button" @onclick="GenerateDbPassword" disabled="@_isDeploying"
-                                            class="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 px-3 rounded-lg text-[10px] font-bold transition-colors">
-                                            <i class="fa-solid fa-key"></i> Åifre Üret
+                                            class="btn-secondary px-3 rounded-lg text-[10px] font-bold">
+                                            <i class="fa-solid fa-key"></i> Şifre Üret
                                         </button>
                                     </div>
                                 </div>
@@ -289,35 +289,35 @@
                     @if (_deployMode == "docker")
                     {
                         <!-- Docker İmaj Adı -->
-                        <div class="border-t border-slate-850 pt-3 mt-1">
-                            <label class="block text-[10px] text-slate-400 font-semibold mb-1.5 uppercase tracking-wider">Docker İmaj Adı</label>
+                        <div class="border-t border-[var(--line)] pt-3 mt-1">
+                            <label class="block text-[11px] text-[var(--ink-soft)] font-semibold mb-1.5 uppercase tracking-wider">Docker İmaj Adı</label>
                             <div class="relative">
-                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--ink-soft)] text-xs">
                                     <i class="fa-brands fa-docker"></i>
                                 </span>
                                 <input type="text" @bind="_dockerImageName" @bind:event="oninput" placeholder="örn: nginx:alpine, node:20-alpine" disabled="@_isDeploying"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-lg pl-9 pr-3 py-2 text-xs text-indigo-300 font-mono font-bold focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50">
+                                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg pl-9 pr-3 py-2 text-xs text-[var(--navy)] font-mono font-bold focus:outline-none focus:border-[var(--azure)] transition-colors disabled:opacity-50">
                             </div>
-                            <p class="text-[9px] text-slate-500 mt-1">Docker Hub imajı ve etiket — örn: <span class="font-mono text-indigo-400">node:20-alpine</span>, <span class="font-mono text-indigo-400">nginx:alpine</span></p>
+                            <p class="text-[10px] text-[var(--ink-soft)] mt-1">Docker Hub imajı ve etiket — örn: <span class="font-mono text-[var(--navy)]">node:20-alpine</span>, <span class="font-mono text-[var(--navy)]">nginx:alpine</span></p>
                         </div>
                     }
 
                     @if (_deployMode == "compose")
                     {
                         <!-- Docker Compose YAML Düzenleyici & Yükleyici -->
-                        <div class="border-t border-slate-850 pt-3 mt-1 space-y-3">
+                        <div class="border-t border-[var(--line)] pt-3 mt-1 space-y-3">
                             <div class="flex items-center justify-between">
-                                <label class="block text-[10px] text-indigo-400 font-bold uppercase tracking-wider">docker-compose.yml İçeriği</label>
+                                <label class="block text-[11px] text-[var(--azure)] font-bold uppercase tracking-wider">docker-compose.yml İçeriği</label>
                                 <button type="button" @onclick="AnalyzeComposeAsync" disabled="@(string.IsNullOrWhiteSpace(_composeContent) || _isAnalyzingCompose || _isDeploying)"
-                                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 disabled:opacity-50">
+                                    class="btn-secondary py-1 px-2.5 text-[10px]">
                                     @if (_isAnalyzingCompose)
                                     {
-                                        <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                        <span class="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                                         <span>Ayrıştırılıyor...</span>
                                     }
                                     else
                                     {
-                                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                        <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
                                         <span>Ayrıştır & İncele</span>
                                     }
                                 </button>
@@ -325,33 +325,33 @@
 
                             <div class="relative">
                                 <textarea @bind="_composeContent" @bind:event="oninput" rows="7" placeholder="version: '3.8'&#10;services:&#10;  web:&#10;    image: nginx:alpine..." disabled="@_isDeploying"
-                                    class="w-full bg-slate-950 border border-slate-850 rounded-xl p-3 text-[11px] text-indigo-300 font-mono focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50 resize-y"></textarea>
+                                    class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-xl p-3 text-xs text-[var(--navy)] font-mono focus:outline-none focus:border-[var(--azure)] transition-colors disabled:opacity-50 resize-y"></textarea>
                             </div>
 
                             <!-- Dosyadan Yükleme Seçeneği -->
-                            <div class="relative border border-dashed border-slate-800 rounded-xl p-2.5 bg-slate-950/40 flex items-center justify-between">
-                                <div class="flex items-center gap-2 text-[10px] text-slate-400">
-                                    <i class="fa-solid fa-file-code text-indigo-400"></i>
+                            <div class="relative border border-dashed border-[var(--line)] rounded-xl p-2.5 bg-[var(--cream)] flex items-center justify-between">
+                                <div class="flex items-center gap-2 text-[10px] text-[var(--ink-soft)]">
+                                    <i class="fa-solid fa-file-code text-[var(--azure)]"></i>
                                     <span>Veya <b>docker-compose.yml</b> dosyası yükleyin</span>
                                 </div>
-                                <InputFile OnChange="OnComposeFileSelected" accept=".yml,.yaml" class="text-xs text-slate-400 file:bg-slate-800 file:text-white file:border-0 file:rounded-lg file:px-2 file:py-1 file:text-[10px] cursor-pointer" />
+                                <InputFile OnChange="OnComposeFileSelected" accept=".yml,.yaml" class="text-xs text-[var(--ink-soft)] file:bg-[var(--paper)] file:text-[var(--navy)] file:border file:border-[var(--line)] file:rounded-lg file:px-2 file:py-1 file:text-[10px] cursor-pointer" />
                             </div>
 
                             @if (_composeAnalysis != null)
                             {
-                                <div class="p-3 bg-slate-950/80 border border-indigo-500/20 rounded-xl space-y-3 animate-fade-in">
-                                    <div class="flex items-center justify-between text-[10px] font-bold text-emerald-400">
+                                <div class="p-3 bg-[var(--cream)] border border-[var(--line)] rounded-xl space-y-3 animate-fade-in">
+                                    <div class="flex items-center justify-between text-[10px] font-bold text-[var(--moss)]">
                                         <span><i class="fa-solid fa-check-circle"></i> Ayrıştırma Başarılı</span>
-                                        <span class="text-slate-400 font-normal">@_composeAnalysis.Services.Count servis, @_composeAnalysis.Variables.Count değişken</span>
+                                        <span class="text-[var(--ink-soft)] font-normal">@_composeAnalysis.Services.Count servis, @_composeAnalysis.Variables.Count değişken</span>
                                     </div>
 
                                     <!-- Nginx Yönlendirilecek Servis -->
                                     @if (_composeAnalysis.Services.Any())
                                     {
                                         <div>
-                                            <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase">Nginx Yönlendirilecek Hedef Servis</label>
+                                            <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase">Nginx Yönlendirilecek Hedef Servis</label>
                                             <select @bind="_selectedProxyService" @bind:after="OnProxyServiceChanged" disabled="@_isDeploying"
-                                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono">
+                                                class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] font-mono">
                                                 <option value="">Servis Seçin...</option>
                                                 @foreach (var s in _composeAnalysis.Services)
                                                 {
@@ -364,19 +364,19 @@
                                     <!-- Tespit Edilen Ortam Değişkenleri (.env) -->
                                     @if (_composeAnalysis.Variables.Any())
                                     {
-                                        <div class="space-y-2 border-t border-slate-850 pt-2">
-                                            <label class="block text-[9px] text-indigo-300 font-bold uppercase">Tespit Edilen Ortam Değişkenleri (.env)</label>
+                                        <div class="space-y-2 border-t border-[var(--line)] pt-2">
+                                            <label class="block text-[10px] text-[var(--navy)] font-bold uppercase">Tespit Edilen Ortam Değişkenleri (.env)</label>
                                             <div class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
                                                 @foreach (var envVar in _composeAnalysis.Variables)
                                                 {
                                                     <div class="flex items-center gap-2">
-                                                        <span class="text-[10px] text-slate-400 font-mono w-1/3 truncate" title="@envVar.Name">@envVar.Name:</span>
+                                                        <span class="text-[10px] text-[var(--ink-soft)] font-mono w-1/3 truncate" title="@envVar.Name">@envVar.Name:</span>
                                                         <input type="@(envVar.IsSecret ? "password" : "text")"
                                                             value="@(_composeEnvValues.TryGetValue(envVar.Name, out var val) ? val : envVar.DefaultValue)"
                                                             @onchange="@(e => _composeEnvValues[envVar.Name] = e.Value?.ToString() ?? "")"
                                                             placeholder="@(envVar.DefaultValue ?? (envVar.IsRequired ? "Zorunlu Değer" : "İsteğe Bağlı"))"
                                                             disabled="@_isDeploying"
-                                                            class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500">
+                                                            class="flex-1 bg-[var(--paper)] border border-[var(--line)] rounded-lg p-1.5 text-xs text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--azure)]">
                                                     </div>
                                                 }
                                             </div>
@@ -390,12 +390,12 @@
                     @if (_deployMode == "native")
                     {
                         <!-- Çalışma Zamanı (Runtime) ve Başlangıç Ayarları -->
-                        <div class="border-t border-slate-850 pt-3 mt-1 space-y-3">
+                        <div class="border-t border-[var(--line)] pt-3 mt-1 space-y-3">
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Çalışma Zamanı (Runtime)</label>
+                                    <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase font-bold">Çalışma Zamanı (Runtime)</label>
                                     <select @bind="_runtimeType" disabled="@_isDeploying"
-                                        class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50">
+                                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50">
                                         <option value="dotnet">.NET / C#</option>
                                         <option value="node">Node.js</option>
                                         <option value="python">Python</option>
@@ -406,17 +406,17 @@
                                 @if (_runtimeType == "custom")
                                 {
                                     <div>
-                                        <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Özel Çalıştırma Komutu</label>
+                                        <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase font-bold">Özel Çalıştırma Komutu</label>
                                         <input type="text" @bind="_customCommand" placeholder="örn: node index.js" disabled="@_isDeploying"
-                                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                            class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-mono">
                                     </div>
                                 }
                                 else
                                 {
                                     <div>
-                                         <label class="block text-[9px] text-slate-400 font-semibold mb-1 uppercase font-bold">Giriş Dosyası (Entry File)</label>
-                                         <input type="text" @bind="_entryFile" placeholder="@(_runtimeType == "dotnet" ? "örn: KütüphaneTakipWeb.dll (Uzantısız yazılırsa .dll otomatik eklenir)" : "örn: server.js veya app.py")" disabled="@_isDeploying"
-                                             class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 font-mono">
+                                         <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase font-bold">Giriş Dosyası (Entry File)</label>
+                                         <input type="text" @bind="_entryFile" placeholder="@(_runtimeType == "dotnet" ? "örn: KütüphaneTakipWeb.dll" : "örn: server.js")" disabled="@_isDeploying"
+                                             class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--azure)] disabled:opacity-50 font-mono">
                                      </div>
                                 }
                             </div>
@@ -425,23 +425,22 @@
 
                     @if (_deployMode == "native" || _deployMode == "static")
                     {
-
                         <!-- ZIP Dosya Yükleyici -->
-                        <div class="border-t border-slate-850 pt-3">
-                            <label class="block text-[10px] text-slate-400 font-semibold mb-2 uppercase tracking-wider">Proje ZIP Arşivi</label>
+                        <div class="border-t border-[var(--line)] pt-3">
+                            <label class="block text-[11px] text-[var(--ink-soft)] font-semibold mb-2 uppercase tracking-wider">Proje ZIP Arşivi</label>
 
-                            <div class="relative border-2 border-dashed rounded-xl transition-all flex flex-col items-center justify-center p-4 min-h-[90px] @(_isDeploying ? "pointer-events-none opacity-50" : "") @(_selectedFile != null ? "border-emerald-500/40 bg-emerald-950/5" : "border-slate-800 hover:border-indigo-500/40 bg-slate-950/50")">
+                            <div class="relative border-2 border-dashed rounded-xl transition-all flex flex-col items-center justify-center p-4 min-h-[90px] @(_isDeploying ? "pointer-events-none opacity-50" : "") @(_selectedFile != null ? "border-[var(--moss)] bg-[var(--moss-bg)]" : "border-[var(--line)] hover:border-[var(--azure)] bg-[var(--cream)]")">
                                 @if (_selectedFile == null)
                                 {
-                                    <i class="fa-regular fa-file-zip text-2xl text-slate-500 animate-bounce mb-1"></i>
-                                    <span class="text-[10px] text-slate-400 font-bold">Projeyi ZIP olarak buraya sürükleyin veya tıklayın</span>
-                                    <span class="text-[8px] text-slate-600 font-semibold mt-0.5">Sadece .zip uzantılı (Max 200MB)</span>
+                                    <i class="fa-regular fa-file-zip text-2xl text-[var(--slate)] mb-1"></i>
+                                    <span class="text-xs text-[var(--navy)] font-bold">Projeyi ZIP olarak buraya sürükleyin veya tıklayın</span>
+                                    <span class="text-[10px] text-[var(--ink-soft)] font-medium mt-0.5">Sadece .zip uzantılı (Max 200MB)</span>
                                 }
                                 else
                                 {
-                                    <i class="fa-solid fa-file-circle-check text-2xl text-emerald-400 mb-1"></i>
-                                    <span class="text-[10px] text-slate-200 font-bold">@_selectedFile.Name</span>
-                                    <span class="text-[8px] text-emerald-400 font-semibold mt-0.5">@((_selectedFile.Size / 1024.0 / 1024.0).ToString("F2")) MB - Dosya Hazır</span>
+                                    <i class="fa-solid fa-file-circle-check text-2xl text-[var(--moss)] mb-1"></i>
+                                    <span class="text-xs text-[var(--navy)] font-bold">@_selectedFile.Name</span>
+                                    <span class="text-[10px] text-[var(--moss)] font-semibold mt-0.5">@((_selectedFile.Size / 1024.0 / 1024.0).ToString("F2")) MB - Dosya Hazır</span>
                                 }
                                 <InputFile id="wizard-zip-input" OnChange="OnZipFileSelected" accept=".zip"
                                     style="position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" />
@@ -449,18 +448,18 @@
 
                             @if (_isUploadingFile)
                             {
-                                <div class="mt-2 bg-slate-950/60 border border-slate-850 p-2.5 rounded-xl space-y-1.5 animate-pulse">
-                                    <div class="flex justify-between items-center text-[9px] font-bold uppercase tracking-wider">
-                                        <span class="flex items-center gap-1.5 text-indigo-400">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping"></span>
+                                <div class="mt-2 bg-[var(--cream)] border border-[var(--line)] p-2.5 rounded-xl space-y-1.5">
+                                    <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                                        <span class="flex items-center gap-1.5 text-[var(--azure)]">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-[var(--azure)] animate-ping"></span>
                                             Sunucuya Yükleniyor...
                                         </span>
-                                        <span class="text-white font-mono font-bold">%@_uploadPercentage</span>
+                                        <span class="text-[var(--navy)] font-mono font-bold">%@_uploadPercentage</span>
                                     </div>
-                                    <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800">
-                                        <div class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full transition-all duration-300" style="width: @_uploadPercentage%"></div>
+                                    <div class="bar-track">
+                                        <div class="bar-fill" style="width: @_uploadPercentage%"></div>
                                     </div>
-                                    <div class="text-[8px] text-slate-500 font-semibold flex justify-between">
+                                    <div class="text-[9px] text-[var(--ink-soft)] font-semibold flex justify-between font-mono">
                                         <span>Sıkıştırılmış Paket</span>
                                         <span>@GetReadableUploadedSize() / @GetReadableFileSize()</span>
                                     </div>
@@ -470,18 +469,18 @@
 
                         @if (_deployMode == "static")
                         {
-                            <!-- PHP Desteği Switch Butonu (DeployWizard Uyumlu) -->
-                            <div class="flex items-center justify-between bg-emerald-950/10 p-2.5 rounded-lg border border-emerald-500/10 mt-2">
+                            <!-- PHP Desteği Switch Butonu -->
+                            <div class="flex items-center justify-between bg-[var(--cream)] p-2.5 rounded-lg border border-[var(--line)] mt-2">
                                 <div class="flex items-center gap-2">
-                                    <i class="fa-solid fa-code text-emerald-400 text-xs"></i>
+                                    <i class="fa-solid fa-code text-[var(--azure)] text-xs"></i>
                                     <div>
-                                        <div class="text-[10px] text-emerald-200 font-bold leading-none">PHP Desteği Aktif Edilsin</div>
-                                        <span class="text-[8px] text-slate-500">Statik sitede upload.php gibi dinamik kodların çalışmasını sağlar</span>
+                                        <div class="text-[11px] text-[var(--navy)] font-bold leading-none">PHP Desteği Aktif Edilsin</div>
+                                        <span class="text-[9px] text-[var(--ink-soft)]">Statik sitede dinamik kodların çalışmasını sağlar</span>
                                     </div>
                                 </div>
                                 <div class="flex items-center">
                                     <input type="checkbox" @bind="_enablePhp" id="phpSupportCheckbox" disabled="@_isDeploying"
-                                        class="w-4 h-4 bg-slate-950 border-slate-800 rounded focus:ring-emerald-500 text-emerald-600 disabled:opacity-50">
+                                        class="w-4 h-4 rounded text-[var(--azure)] focus:ring-[var(--azure)] disabled:opacity-50">
                                 </div>
                             </div>
                         }
@@ -489,7 +488,7 @@
 
                     <!-- Çalıştırma Butonu -->
                     <button @onclick="StartAutomatedDeployment" disabled="@IsDeployDisabled"
-                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:hover:bg-indigo-600 shadow-indigo-600/10">
+                        class="btn-primary w-full py-3 text-xs justify-center">
                         @if (_isDeploying)
                         {
                             <span class="w-4 h-4 rounded-full border-2 border-t-transparent border-white animate-spin"></span>
@@ -505,128 +504,128 @@
             </div>
 
             <!-- Sağ Sütun: Canlı Boru Hattı & Siber Terminal Konsolu -->
-            <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden flex flex-col min-h-[500px]">
-                <div class="flex items-center justify-between border-b border-slate-850 pb-3 mb-4">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-network-wired text-indigo-400"></i>
-                        <h3 class="font-bold text-white text-sm">2. Canlı Dağıtım Boru Hattı</h3>
-                    </div>
-                    @if (_isDeploying)
-                    {
-                        <span class="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 px-2 py-0.5 rounded font-extrabold animate-pulse">AKTİF İÅLEM</span>
-                    }
-                    else if (_executionSuccess == true)
-                    {
-                        <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded font-extrabold">BAÅARILI</span>
-                    }
-                    else if (_executionSuccess == false)
-                    {
-                        <span class="text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/25 px-2 py-0.5 rounded font-extrabold">HATA OLUÅTU</span>
-                    }
-                    else
-                    {
-                        <span class="text-[10px] text-slate-500 font-extrabold uppercase">Beklemede</span>
-                    }
-                </div>
-
-                <!-- 6 Aşamalı Pipeline Görsel Aşamaları -->
-                <div class="grid grid-cols-6 gap-1.5 mb-5">
-                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(1))">
-                        <i class="fa-solid fa-database text-xs mb-0.5"></i>
-                        <span class="text-[8px] font-bold leading-tight">1. DB Yarat</span>
-                        <span class="text-[6px] opacity-70 mt-0.5">PostgreSQL</span>
-                    </div>
-
-                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(2))">
-                        <i class="fa-brands fa-cloudflare text-xs mb-0.5"></i>
-                        <span class="text-[8px] font-bold leading-tight">2. DNS Ekle</span>
-                        <span class="text-[6px] opacity-70 mt-0.5">Cloudflare</span>
-                    </div>
-
-                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(3))">
-                        <i class="@Step3Icon text-xs mb-0.5"></i>
-                        <span class="text-[8px] font-bold leading-tight">@Step3Label</span>
-                        <span class="text-[6px] opacity-70 mt-0.5">@Step3Sub</span>
-                    </div>
-
-                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(4))">
-                        <i class="@Step4Icon text-xs mb-0.5"></i>
-                        <span class="text-[8px] font-bold leading-tight">@Step4Label</span>
-                        <span class="text-[6px] opacity-70 mt-0.5">@Step4Sub</span>
-                    </div>
-
-                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(5))">
-                        <i class="fa-solid fa-server text-xs mb-0.5"></i>
-                        <span class="text-[8px] font-bold leading-tight">5. Nginx vHost</span>
-                        <span class="text-[6px] opacity-70 mt-0.5">Proxy</span>
-                    </div>
-
-                    <div class="p-1.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(6))">
-                        <i class="fa-solid fa-shield-halved text-xs mb-0.5"></i>
-                        <span class="text-[8px] font-bold leading-tight">6. SSL Kur</span>
-                        <span class="text-[6px] opacity-70 mt-0.5">Let's Encrypt</span>
-                    </div>
-                </div>
-
-                <!-- Canlı Siber-Terminal Log Kutusu -->
-                <div class="flex-1 flex flex-col min-h-[220px]">
-                    <div class="flex justify-between items-center text-[10px] text-slate-500 font-extrabold uppercase mb-1">
-                        <span>Sunucu Dağıtım Konsolu (Stdout Log Akışı)</span>
-                        <button @onclick="ClearConsole" disabled="@_isDeploying" class="hover:text-indigo-400 font-bold">Konsolu Temizle</button>
-                    </div>
-
-                    <div class="flex-1 bg-slate-950 border border-slate-850 p-4 rounded-xl shadow-inner font-mono text-[11px] leading-relaxed overflow-y-auto max-h-[300px] flex flex-col gap-1 text-emerald-400 cyber-terminal shadow-black/40">
-                        @if (_terminalLogs.Count == 0)
+            <div class="lg:col-span-7 card flex flex-col min-h-[500px] justify-between">
+                <div>
+                    <div class="flex items-center justify-between border-b border-[var(--line)] pb-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-network-wired text-[var(--azure)]"></i>
+                            <h3 class="font-serif font-semibold text-[var(--navy)] text-base">2. Canlı Dağıtım Boru Hattı</h3>
+                        </div>
+                        @if (_isDeploying)
                         {
-                            <span class="text-slate-500 italic text-[10px]">// Otomatik dağıtımı başlattığınızda canlı işlem logları burada akacaktır.</span>
+                            <span class="pill pill-azure text-[10.5px]"><span class="dot"></span>AKTİF İŞLEM</span>
+                        }
+                        else if (_executionSuccess == true)
+                        {
+                            <span class="pill pill-moss text-[10.5px]"><span class="dot"></span>BAŞARILI</span>
+                        }
+                        else if (_executionSuccess == false)
+                        {
+                            <span class="pill pill-rose text-[10.5px]"><span class="dot"></span>HATA OLUŞTU</span>
                         }
                         else
                         {
-                            @foreach (var log in _terminalLogs)
+                            <span class="pill text-[10.5px] bg-[var(--cream)] text-[var(--ink-soft)]">Beklemede</span>
+                        }
+                    </div>
+
+                    <!-- 6 Aşamalı Pipeline Görsel Aşamaları -->
+                    <div class="grid grid-cols-6 gap-1.5 mb-4">
+                        <div class="p-2 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(1))">
+                            <i class="fa-solid fa-database text-xs mb-0.5"></i>
+                            <span class="text-[9px] font-bold leading-tight">1. DB Yarat</span>
+                            <span class="text-[7px] opacity-70 mt-0.5">PostgreSQL</span>
+                        </div>
+
+                        <div class="p-2 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(2))">
+                            <i class="fa-brands fa-cloudflare text-xs mb-0.5"></i>
+                            <span class="text-[9px] font-bold leading-tight">2. DNS Ekle</span>
+                            <span class="text-[7px] opacity-70 mt-0.5">Cloudflare</span>
+                        </div>
+
+                        <div class="p-2 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(3))">
+                            <i class="@Step3Icon text-xs mb-0.5"></i>
+                            <span class="text-[9px] font-bold leading-tight">@Step3Label</span>
+                            <span class="text-[7px] opacity-70 mt-0.5">@Step3Sub</span>
+                        </div>
+
+                        <div class="p-2 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(4))">
+                            <i class="@Step4Icon text-xs mb-0.5"></i>
+                            <span class="text-[9px] font-bold leading-tight">@Step4Label</span>
+                            <span class="text-[7px] opacity-70 mt-0.5">@Step4Sub</span>
+                        </div>
+
+                        <div class="p-2 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(5))">
+                            <i class="fa-solid fa-server text-xs mb-0.5"></i>
+                            <span class="text-[9px] font-bold leading-tight">5. Nginx vHost</span>
+                            <span class="text-[7px] opacity-70 mt-0.5">Proxy</span>
+                        </div>
+
+                        <div class="p-2 rounded-xl border flex flex-col items-center justify-center text-center transition-all @(GetStepClass(6))">
+                            <i class="fa-solid fa-shield-halved text-xs mb-0.5"></i>
+                            <span class="text-[9px] font-bold leading-tight">6. SSL Kur</span>
+                            <span class="text-[7px] opacity-70 mt-0.5">Let's Encrypt</span>
+                        </div>
+                    </div>
+
+                    <!-- Canlı Konsol Log Kutusu -->
+                    <div class="terminal-card flex-1 flex flex-col min-h-[220px]">
+                        <div class="term-top justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="term-dot" style="background:#E0685A;"></div>
+                                <div class="term-dot" style="background:#E0B15A;"></div>
+                                <div class="term-dot" style="background:#6FAE72;"></div>
+                                <span class="ml-2">Sunucu Dağıtım Konsolu</span>
+                            </div>
+                            <button @onclick="ClearConsole" disabled="@_isDeploying" class="text-[11px] text-[#8FA6BB] hover:text-[#F4F8FD] font-mono">Konsolu Temizle</button>
+                        </div>
+
+                        <div class="flex-1 p-4 font-mono text-xs leading-relaxed overflow-y-auto max-h-[300px] flex flex-col gap-1 text-[#F4F8FD]">
+                            @if (_terminalLogs.Count == 0)
                             {
-                                @if (log.Contains("SUCCESS"))
+                                <span class="text-[#8FA6BB] italic text-xs">// Otomatik dağıtımı başlattığınızda canlı işlem logları burada akacaktır.</span>
+                            }
+                            else
+                            {
+                                @foreach (var log in _terminalLogs)
                                 {
-                                    <span class="text-emerald-400 font-semibold">@log</span>
-                                }
-                                else if (log.Contains("ERROR") || log.Contains("HATA") || log.Contains("FAILD"))
-                                {
-                                    <span class="text-rose-400 font-semibold">@log</span>
-                                }
-                                else if (log.StartsWith("["))
-                                {
-                                    <span class="text-slate-400 font-bold">@log</span>
-                                }
-                                else
-                                {
-                                    <span class="text-indigo-300 font-medium">@log</span>
+                                    @if (log.Contains("SUCCESS"))
+                                    {
+                                        <span class="text-[#8FD6B4] font-semibold">@log</span>
+                                    }
+                                    else if (log.Contains("ERROR") || log.Contains("HATA") || log.Contains("FAILED"))
+                                    {
+                                        <span class="text-[var(--rose)] font-semibold">@log</span>
+                                    }
+                                    else if (log.StartsWith("["))
+                                    {
+                                        <span class="text-[#8FA6BB] font-bold">@log</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-[#F4F8FD]">@log</span>
+                                    }
                                 }
                             }
-                        }
+                        </div>
                     </div>
                 </div>
 
-                <!-- PostgreSQL Bağlantı Detayları (Konsolun Hemen Altında) -->
-                @if (_executionSuccess == true && _createDatabase)
+                @if (_createDatabase && !string.IsNullOrEmpty(_dbName))
                 {
-                    <div class="mt-4 p-3 bg-slate-950/80 rounded-xl space-y-2" style="background-color: #040815 !important; border: 1.5px solid rgba(99, 102, 241, 0.2) !important;">
-                        <div class="flex justify-between items-center text-[9px] text-indigo-400 font-bold uppercase tracking-wider">
-                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-database animate-pulse"></i> PostgreSQL Bağlantı Detayları</span>
-                            <button @onclick='() => CopyText($"Host=127.0.0.1;Port=5432;Database={_dbName};Username={_dbUser};Password={_dbPassword};")'
-                                class="hover:text-white transition-colors text-[8px] bg-indigo-600/25 px-2 py-0.5 rounded border border-indigo-500/25 font-bold">
-                                <i class="fa-regular fa-copy"></i> Bağlantı Metnini Kopyala
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-[10px] leading-relaxed">
-                            <div class="p-1.5 rounded border" style="background-color: #0c1225 !important; color: #e2e8f0 !important; border: 1px solid #1e293b !important;">
-                                <span class="text-slate-400 font-semibold">DB Adı:</span> <span class="text-emerald-400 font-mono font-bold ml-1">@_dbName</span>
+                    <div class="mt-3 p-3 bg-[var(--cream)] border border-[var(--line)] rounded-xl space-y-1 text-xs">
+                        <div class="text-[10px] text-[var(--ink-soft)] font-bold uppercase tracking-wider mb-1">Oluşturulan PostgreSQL Parametreleri:</div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="p-1.5 rounded bg-[var(--paper)] border border-[var(--line)]">
+                                <span class="text-[var(--ink-soft)] font-semibold">DB Adı:</span> <span class="text-[var(--navy)] font-mono font-bold ml-1">@_dbName</span>
                             </div>
-                            <div class="p-1.5 rounded border" style="background-color: #0c1225 !important; color: #e2e8f0 !important; border: 1px solid #1e293b !important;">
-                                <span class="text-slate-400 font-semibold">Kullanıcı:</span> <span class="text-emerald-400 font-mono font-bold ml-1">@_dbUser</span>
+                            <div class="p-1.5 rounded bg-[var(--paper)] border border-[var(--line)]">
+                                <span class="text-[var(--ink-soft)] font-semibold">Kullanıcı:</span> <span class="text-[var(--navy)] font-mono font-bold ml-1">@_dbUser</span>
                             </div>
                         </div>
-                        <div class="p-1.5 rounded border text-[10px] flex justify-between items-center" style="background-color: #0c1225 !important; color: #e2e8f0 !important; border: 1px solid #1e293b !important;">
+                        <div class="p-1.5 rounded bg-[var(--paper)] border border-[var(--line)] text-xs flex justify-between items-center">
                             <div>
-                                <span class="text-slate-400 font-semibold">Åifre:</span> <span class="text-emerald-400 font-mono font-bold ml-1">@_dbPassword</span>
+                                <span class="text-[var(--ink-soft)] font-semibold">Şifre:</span> <span class="text-[var(--navy)] font-mono font-bold ml-1">@_dbPassword</span>
                             </div>
                         </div>
                     </div>
@@ -635,21 +634,21 @@
                 <!-- Sonuç & Canlı Link Kartı -->
                 @if (_executionSuccess == true)
                 {
-                    <div class="mt-4 p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl flex flex-col gap-3 animate-fade-in text-left">
+                    <div class="mt-3 p-4 bg-[var(--moss-bg)] border border-[var(--moss)] rounded-xl flex flex-col gap-2 animate-fade-in text-left">
                         <div class="flex items-center justify-between gap-4">
                             <div class="flex items-center gap-3">
-                                <span class="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-                                    <i class="fa-solid fa-circle-check animate-bounce"></i>
+                                <span class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[var(--moss)] shrink-0 shadow-sm">
+                                    <i class="fa-solid fa-circle-check"></i>
                                 </span>
                                 <div>
-                                    <h4 class="text-xs font-extrabold text-white uppercase tracking-wider">Tebrikler! Dağıtım Tamamlandı</h4>
-                                    <p class="text-[10px] text-slate-400 mt-0.5">Uygulama başarıyla sunucuya kuruldu ve internete açıldı.</p>
-                                    <a href="https://@(string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}")" target="_blank" class="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline inline-flex items-center gap-1 mt-1">
-                                        https://@(string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}") <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                                    <h4 class="text-xs font-bold text-[var(--moss)] uppercase tracking-wider">Tebrikler! Dağıtım Tamamlandı</h4>
+                                    <p class="text-xs text-[var(--ink-soft)] mt-0.5">Uygulama başarıyla sunucuya kuruldu ve internete açıldı.</p>
+                                    <a href="https://@(string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}")" target="_blank" class="text-xs text-[var(--navy)] hover:text-[var(--azure)] font-bold underline inline-flex items-center gap-1 mt-1 font-mono">
+                                        https://@(string.IsNullOrWhiteSpace(_subdomain) ? _domain : $"{_subdomain}.{_domain}") <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                                     </a>
                                 </div>
                             </div>
-                            <button @onclick='() => SetTab("manual")' class="bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 text-[10px] border border-indigo-500/20 px-3 py-1.5 rounded-lg font-bold shrink-0">
+                            <button @onclick='() => SetTab("manual")' class="btn-secondary py-1.5 px-3 text-xs shrink-0">
                                 Manuel Kılavuza Git
                             </button>
                         </div>
@@ -657,14 +656,14 @@
                 }
                 else if (_executionSuccess == false)
                 {
-                    <div class="mt-4 p-4 bg-rose-950/20 border border-rose-500/20 rounded-xl flex items-center gap-3 animate-fade-in">
-                        <span class="w-8 h-8 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                    <div class="mt-3 p-4 bg-[var(--rose-bg)] border border-[var(--rose)] rounded-xl flex items-center gap-3 animate-fade-in">
+                        <span class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[var(--rose)] shrink-0 shadow-sm">
                             <i class="fa-solid fa-triangle-exclamation"></i>
                         </span>
                         <div>
-                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wider">Dağıtım Başarısız Oldu</h4>
-                            <p class="text-[10px] text-rose-300 font-medium mt-0.5">@_errorMessage</p>
-                            <span class="text-[9px] text-slate-500">Lütfen yukarıdaki hata loglarını ve port doluluk durumunu kontrol ederek tekrar deneyin.</span>
+                            <h4 class="text-xs font-bold text-[var(--rose)] uppercase tracking-wider">Dağıtım Başarısız Oldu</h4>
+                            <p class="text-xs text-[var(--ink)] font-medium mt-0.5">@_errorMessage</p>
+                            <span class="text-[10px] text-[var(--ink-soft)]">Lütfen yukarıdaki hata loglarını ve port doluluk durumunu kontrol ederek tekrar deneyin.</span>
                         </div>
                     </div>
                 }
@@ -673,35 +672,35 @@
     }
     else
     {
-        <!-- MANUEL DAÄITIM KILAVUZU -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-md mb-6">
-            <div class="flex justify-between items-center border-b border-slate-850 pb-3 mb-4">
+        <!-- MANUEL DAĞITIM KILAVUZU -->
+        <div class="card space-y-4 mb-6">
+            <div class="flex justify-between items-center border-b border-[var(--line)] pb-3">
                 <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-book text-indigo-400"></i>
-                    <h3 class="font-bold text-white text-sm">3. Manuel Dağıtım Kılavuz Modu</h3>
+                    <i class="fa-solid fa-book text-[var(--azure)]"></i>
+                    <h3 class="font-serif font-semibold text-[var(--navy)] text-base">Manuel Dağıtım Kılavuz Modu</h3>
                 </div>
-                <button @onclick='() => SetTab("auto")' class="text-indigo-400 hover:text-indigo-300 font-bold text-xs">
+                <button @onclick='() => SetTab("auto")' class="btn-ghost text-xs text-[var(--azure)] font-bold">
                     <i class="fa-solid fa-arrow-left"></i> Otomatik Moda Dön
                 </button>
             </div>
 
             <!-- İnteraktif Parametre Formu -->
-            <div class="bg-slate-950 p-4 rounded-xl border border-slate-850/80 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-[var(--cream)] p-4 rounded-xl border border-[var(--line)] grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase">Proje / Uygulama Adı</label>
+                    <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase">Proje / Uygulama Adı</label>
                     <input type="text" @bind="_projectName" @bind:event="oninput" placeholder="bTest"
-                        class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500">
+                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--navy)] font-semibold focus:outline-none focus:border-[var(--azure)]">
                 </div>
                 <div>
-                    <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase">Çalışma Portu</label>
+                    <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase">Çalışma Portu</label>
                     <input type="number" @bind="_port" @bind:event="oninput"
-                        class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-emerald-400 font-bold focus:outline-none focus:border-indigo-500">
+                        class="w-full bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--moss)] font-bold focus:outline-none focus:border-[var(--azure)] font-mono">
                 </div>
                 <div>
-                    <label class="block text-[10px] text-slate-400 font-semibold mb-1 uppercase">Subdomain / Domain</label>
+                    <label class="block text-[10px] text-[var(--ink-soft)] font-semibold mb-1 uppercase">Subdomain / Domain</label>
                     <div class="flex gap-1">
-                        <input type="text" @bind="_subdomain" @bind:event="oninput" placeholder="api" class="w-1/3 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white">
-                        <select @bind="_domain" @bind:after="ApplySelectedRootDomainDefaults" class="w-2/3 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white">
+                        <input type="text" @bind="_subdomain" @bind:event="oninput" placeholder="api" class="w-1/3 bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)] font-mono">
+                        <select @bind="_domain" @bind:after="ApplySelectedRootDomainDefaults" class="w-2/3 bg-[var(--paper)] border border-[var(--line)] rounded-lg p-2 text-xs text-[var(--ink)]">
                             <option value="">Seçiniz...</option>
                             @foreach (var rd in _rootDomains)
                             {
@@ -719,60 +718,60 @@
                     @for (int i = 1; i <= 5; i++)
                     {
                         var stepIndex = i;
-                        <button @onclick="() => SetStep(stepIndex)" class="w-full text-left p-3 rounded-xl border transition-all duration-200 flex items-center gap-3 @( _currentStep == stepIndex ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" : "bg-slate-950 border-slate-850 text-slate-400 hover:text-slate-200" )">
-                            <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold @( _currentStep == stepIndex ? "bg-white text-indigo-600" : "bg-slate-800 text-slate-400" )">@stepIndex</span>
+                        <button @onclick="() => SetStep(stepIndex)" class="w-full text-left p-3 rounded-xl border transition-all duration-200 flex items-center gap-3 @( _currentStep == stepIndex ? "bg-[var(--accent-bg)] border-[var(--azure)] text-[var(--navy)] font-bold" : "bg-[var(--paper)] border-[var(--line)] text-[var(--ink-soft)] hover:text-[var(--navy)]" )">
+                            <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold @( _currentStep == stepIndex ? "bg-[var(--azure)] text-[var(--navy)]" : "bg-[var(--cream)] text-[var(--ink-soft)]" )">@stepIndex</span>
                             <div>
-                                <div class="text-[11px] font-bold leading-none">Adım @stepIndex: @GetStepTitle(stepIndex)</div>
+                                <div class="text-xs font-semibold leading-none">Adım @stepIndex: @GetStepTitle(stepIndex)</div>
                             </div>
                         </button>
                     }
                 </div>
 
                 <!-- Sağ Detay -->
-                <div class="lg:col-span-3 bg-slate-950 border border-slate-850 rounded-xl p-5 shadow-2xl min-h-[360px] flex flex-col justify-between">
+                <div class="lg:col-span-3 bg-[var(--paper)] border border-[var(--line)] rounded-xl p-5 shadow-sm min-h-[360px] flex flex-col justify-between">
                     <div>
                         @if (_currentStep == 1)
                         {
                             <div class="space-y-3">
-                                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-file-arrow-up text-indigo-400"></i> Dizin Hazırlığı</h4>
-                                <pre class="bg-slate-900 border border-slate-800 p-3 rounded-lg text-[10px] text-slate-300 font-mono overflow-x-auto">cd /var/www/apps && mkdir -p @GetSafeProjectName()</pre>
+                                <h4 class="text-xs font-bold text-[var(--navy)] uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-file-arrow-up text-[var(--azure)]"></i> Dizin Hazırlığı</h4>
+                                <pre class="bg-[var(--cream)] border border-[var(--line)] p-3 rounded-lg text-xs text-[var(--navy)] font-mono overflow-x-auto">cd /var/www/apps && mkdir -p @GetSafeProjectName()</pre>
                             </div>
                         }
                         else if (_currentStep == 2)
                         {
                             <div class="space-y-3">
-                                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-vial text-emerald-400"></i> Port Atama</h4>
-                                <p class="text-xs text-slate-400">Port hedefi: @_port</p>
+                                <h4 class="text-xs font-bold text-[var(--navy)] uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-vial text-[var(--moss)]"></i> Port Atama</h4>
+                                <p class="text-xs text-[var(--ink-soft)]">Port hedefi: @_port</p>
                             </div>
                         }
                         else if (_currentStep == 3)
                         {
                             <div class="space-y-3">
-                                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-brands fa-docker text-indigo-400"></i> Entegrasyon</h4>
-                                <p class="text-xs text-slate-400">Docker imajı arka planda çekilecek: @_dockerImageName</p>
+                                <h4 class="text-xs font-bold text-[var(--navy)] uppercase tracking-wider flex items-center gap-1.5"><i class="fa-brands fa-docker text-[var(--azure)]"></i> Entegrasyon</h4>
+                                <p class="text-xs text-[var(--ink-soft)]">Docker imajı arka planda çekilecek: @_dockerImageName</p>
                             </div>
                         }
                         else if (_currentStep == 4)
                         {
                             <div class="space-y-3">
-                                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-arrows-spin text-indigo-400"></i> Servis Yönetimi</h4>
-                                <pre class="bg-slate-900 border border-slate-800 p-3 rounded-lg text-[10px] text-slate-300 font-mono">docker ps -a</pre>
+                                <h4 class="text-xs font-bold text-[var(--navy)] uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-arrows-spin text-[var(--azure)]"></i> Servis Yönetimi</h4>
+                                <pre class="bg-[var(--cream)] border border-[var(--line)] p-3 rounded-lg text-xs text-[var(--navy)] font-mono">docker ps -a</pre>
                             </div>
                         }
                         else if (_currentStep == 5)
                         {
                             <div class="space-y-3">
-                                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-share-nodes text-indigo-400"></i> Nginx Yapılandırması</h4>
-                                <pre class="bg-slate-900 border border-slate-800 p-2.5 rounded-lg text-[9px] text-slate-400 font-mono leading-tight h-32 overflow-y-auto">@GetNginxConfig()</pre>
+                                <h4 class="text-xs font-bold text-[var(--navy)] uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-share-nodes text-[var(--azure)]"></i> Nginx Yapılandırması</h4>
+                                <pre class="bg-[var(--cream)] border border-[var(--line)] p-2.5 rounded-lg text-xs text-[var(--navy)] font-mono leading-tight h-32 overflow-y-auto">@GetNginxConfig()</pre>
                             </div>
                         }
                     </div>
 
                     <!-- Kılavuz Alt Butonlar -->
-                    <div class="flex justify-between items-center border-t border-slate-800 pt-3 mt-4">
-                        <button @onclick="PrevStep" disabled="@(_currentStep == 1)" class="bg-slate-850 hover:bg-slate-800 text-slate-300 disabled:opacity-40 text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all">Önceki</button>
-                        <span class="text-[10px] text-slate-500 font-extrabold">@_currentStep / 5</span>
-                        <button @onclick="NextStep" disabled="@(_currentStep == 5)" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all">Sonraki</button>
+                    <div class="flex justify-between items-center border-t border-[var(--line)] pt-3 mt-4">
+                        <button @onclick="PrevStep" disabled="@(_currentStep == 1)" class="btn-secondary text-xs py-1.5 px-3">Önceki</button>
+                        <span class="text-xs text-[var(--ink-soft)] font-bold">@_currentStep / 5</span>
+                        <button @onclick="NextStep" disabled="@(_currentStep == 5)" class="btn-primary text-xs py-1.5 px-3">Sonraki</button>
                     </div>
                 </div>
             </div>
@@ -920,8 +919,8 @@ services:
 
     private string ModeButtonClass(string mode)
     {
-        const string active   = "p-2.5 rounded-xl border flex items-center gap-2 text-xs font-bold transition-all bg-indigo-600/15 border-indigo-500/40 text-indigo-300";
-        const string inactive = "p-2.5 rounded-xl border flex items-center gap-2 text-xs font-bold transition-all bg-slate-950/60 border-slate-800 text-slate-500 hover:text-slate-300";
+        const string active   = "p-2.5 rounded-xl border flex items-center gap-2 text-xs font-semibold transition-all bg-[var(--accent-bg)] border-[var(--azure)] text-[var(--navy)] shadow-sm";
+        const string inactive = "p-2.5 rounded-xl border flex items-center gap-2 text-xs font-medium transition-all bg-[var(--paper)] border-[var(--line)] text-[var(--ink-soft)] hover:text-[var(--ink)]";
         return _deployMode == mode ? active : inactive;
     }
 
@@ -1066,15 +1065,15 @@ services:
 
     private string GetStepClass(int step)
     {
-        if (_activePipelineStep == 0) return "bg-slate-950/40 border-slate-850 text-slate-500";
-        if (_activePipelineStep > step) return "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-bold";
+        if (_activePipelineStep == 0) return "bg-[var(--cream)] border-[var(--line)] text-[var(--ink-soft)]";
+        if (_activePipelineStep > step) return "bg-[var(--moss-bg)] border-[var(--moss)] text-[var(--moss)] font-bold";
         if (_activePipelineStep == step)
         {
             return _executionSuccess == false
-                ? "bg-rose-500/10 border-rose-500/30 text-rose-400 font-bold animate-pulse"
-                : "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 font-bold animate-pulse";
+                ? "bg-[var(--rose-bg)] border-[var(--rose)] text-[var(--rose)] font-bold animate-pulse"
+                : "bg-[var(--accent-bg)] border-[var(--azure)] text-[var(--navy)] font-bold animate-pulse";
         }
-        return "bg-slate-950/40 border-slate-850 text-slate-500";
+        return "bg-[var(--cream)] border-[var(--line)] text-[var(--ink-soft)]";
     }
 
     private void LogConsole(string message)
