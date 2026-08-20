@@ -10,16 +10,23 @@ using Docker.DotNet.Models;
 using DockerPanel.Domain.Interfaces;
 using DockerPanel.Domain.Entities;
 using DockerPanel.Domain.Security;
+using Microsoft.Extensions.Logging;
 
 namespace DockerPanel.Infrastructure.Services;
 
 public class ProjectContainerService : IProjectContainerService
 {
     private readonly DockerClient _dockerClient;
+    private readonly ILogger<ProjectContainerService>? _logger;
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (ulong CpuTotal, ulong SystemTotal, DateTime Timestamp)> _prevCpuStats = new();
 
-    public ProjectContainerService()
+    public ProjectContainerService() : this(null)
     {
+    }
+
+    public ProjectContainerService(ILogger<ProjectContainerService>? logger = null)
+    {
+        _logger = logger;
         Uri dockerUri;
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -253,13 +260,13 @@ public class ProjectContainerService : IProjectContainerService
         var statsDto = new ContainerStatsDto();
 
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(3000);
+        cts.CancelAfter(4000);
 
         try
         {
             await _dockerClient.Containers.GetContainerStatsAsync(dockerContainerId,
                 new ContainerStatsParameters { Stream = false },
-                new Progress<ContainerStatsResponse>(stats =>
+                new SynchronousProgress<ContainerStatsResponse>(stats =>
                 {
                     if (stats?.CPUStats == null) return;
 
@@ -269,19 +276,34 @@ public class ProjectContainerService : IProjectContainerService
                     double cpuDelta = 0;
                     double systemDelta = 0;
 
-                    // 1. Docker PreCPUStats
+                    // 1. Docker PreCPUStats kontrolü
                     if (stats.PreCPUStats?.CPUUsage != null && stats.PreCPUStats.CPUUsage.TotalUsage > 0 && stats.PreCPUStats.SystemUsage > 0)
                     {
-                        cpuDelta = currentCpu > stats.PreCPUStats.CPUUsage.TotalUsage ? (currentCpu - stats.PreCPUStats.CPUUsage.TotalUsage) : 0;
-                        systemDelta = currentSystem > stats.PreCPUStats.SystemUsage ? (currentSystem - stats.PreCPUStats.SystemUsage) : 0;
+                        if (currentCpu > stats.PreCPUStats.CPUUsage.TotalUsage)
+                            cpuDelta = currentCpu - stats.PreCPUStats.CPUUsage.TotalUsage;
+                        if (currentSystem > stats.PreCPUStats.SystemUsage)
+                            systemDelta = currentSystem - stats.PreCPUStats.SystemUsage;
                     }
-                    // 2. Önceki örnek önbelleği
-                    else if (_prevCpuStats.TryGetValue(dockerContainerId, out var prev))
+
+                    // 2. PreCPUStats tek seferlik stream=false çağrısında boşsa önceki örnek önbelleğini kullan
+                    if (cpuDelta == 0 && _prevCpuStats.TryGetValue(dockerContainerId, out var prev))
                     {
-                        if (currentCpu >= prev.CpuTotal && currentSystem > prev.SystemTotal)
+                        if (currentCpu >= prev.CpuTotal)
                         {
                             cpuDelta = currentCpu - prev.CpuTotal;
-                            systemDelta = currentSystem - prev.SystemTotal;
+                            if (currentSystem > prev.SystemTotal)
+                            {
+                                systemDelta = currentSystem - prev.SystemTotal;
+                            }
+                            else
+                            {
+                                // SystemUsage 0 ise veya cgroup v2'de güncellenmiyorsa wall-clock süre farkından hesapla
+                                double elapsedNanos = (DateTime.UtcNow - prev.Timestamp).TotalMilliseconds * 1_000_000.0;
+                                if (elapsedNanos > 0)
+                                {
+                                    systemDelta = elapsedNanos;
+                                }
+                            }
                         }
                     }
 
@@ -291,7 +313,9 @@ public class ProjectContainerService : IProjectContainerService
                         ? (long)stats.CPUStats.OnlineCPUs 
                         : (stats.CPUStats.CPUUsage?.PercpuUsage != null && stats.CPUStats.CPUUsage.PercpuUsage.Count > 0 
                             ? stats.CPUStats.CPUUsage.PercpuUsage.Count 
-                            : Environment.ProcessorCount);
+                            : (stats.PreCPUStats?.OnlineCPUs > 0 
+                                ? (long)stats.PreCPUStats.OnlineCPUs 
+                                : Environment.ProcessorCount));
                     if (onlineCpus <= 0) onlineCpus = 1;
 
                     double cpuPercent = 0.0;
@@ -304,15 +328,34 @@ public class ProjectContainerService : IProjectContainerService
                     ulong cache = 0;
                     if (stats.MemoryStats?.Stats != null)
                     {
-                        if (stats.MemoryStats.Stats.TryGetValue("cache", out var c)) cache = c;
-                        else if (stats.MemoryStats.Stats.TryGetValue("inactive_file", out var inf)) cache = inf;
-                        else if (stats.MemoryStats.Stats.TryGetValue("total_inactive_file", out var tinf)) cache = tinf;
+                        // Cgroup v2 (Ubuntu 24.04): inactive_file
+                        // Cgroup v1: cache, total_inactive_file, total_cache
+                        foreach (var kv in stats.MemoryStats.Stats)
+                        {
+                            var key = kv.Key.ToLowerInvariant();
+                            if (key == "inactive_file" || key == "total_inactive_file" || key == "cache" || key == "total_cache")
+                            {
+                                if (kv.Value > cache)
+                                {
+                                    cache = kv.Value;
+                                }
+                            }
+                        }
                     }
+
                     ulong usedMemory = rawUsage > cache ? rawUsage - cache : rawUsage;
                     ulong memLimit = stats.MemoryStats?.Limit ?? 0;
                     if (memLimit == 0 || memLimit > (1UL << 50)) 
                     {
-                        memLimit = 1024UL * 1024UL * 1024UL * 8UL;
+                        try
+                        {
+                            var gcInfo = GC.GetGCMemoryInfo();
+                            memLimit = (ulong)Math.Max(536870912L, gcInfo.TotalAvailableMemoryBytes);
+                        }
+                        catch
+                        {
+                            memLimit = 1024UL * 1024UL * 1024UL * 8UL;
+                        }
                     }
 
                     statsDto.CpuPercentage = Math.Round(Math.Clamp(cpuPercent, 0, 100.0 * onlineCpus), 2);
@@ -321,8 +364,9 @@ public class ProjectContainerService : IProjectContainerService
                     statsDto.MemoryPercentage = memLimit > 0 ? Math.Round((usedMemory / (double)memLimit) * 100.0, 2) : 0;
                 }), cts.Token);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger?.LogDebug(ex, "Docker konteyner {ContainerId} istatistikleri alınırken hata oluştu.", dockerContainerId);
         }
 
         return statsDto;
@@ -388,3 +432,15 @@ public class ProjectContainerService : IProjectContainerService
         await _dockerClient.Images.DeleteImageAsync(imageName, new ImageDeleteParameters { Force = false, NoPrune = true });
     }
 }
+
+internal sealed class SynchronousProgress<T> : IProgress<T>
+{
+    private readonly Action<T> _handler;
+    public SynchronousProgress(Action<T> handler)
+    {
+        _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+    }
+
+    public void Report(T value) => _handler(value);
+}
+

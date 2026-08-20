@@ -25,6 +25,7 @@ namespace DockerPanel.Tests.E2E;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor.
 
+[Collection("Sequential")]
 public class E2ETests : IDisposable
 {
     private readonly string _baseDir;
@@ -90,6 +91,7 @@ public class E2ETests : IDisposable
         services.AddSingleton<IPushNotificationService>(sp => sp.GetRequiredService<FakePushNotificationService>());
         services.AddSingleton<IHubContext<MetricLogHub>, FakeHubContext>();
         services.AddSingleton<ILogger<MetricBackgroundWorker>, FakeLogger<MetricBackgroundWorker>>();
+        services.AddSingleton<ISystemMetricsService, FakeSystemMetricsService>();
 
         _serviceProvider = services.BuildServiceProvider();
         _dbContext = _serviceProvider.GetRequiredService<DockerPanelDbContext>();
@@ -136,7 +138,8 @@ public class E2ETests : IDisposable
         return new MetricBackgroundWorker(
             _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
             _serviceProvider.GetRequiredService<IHubContext<MetricLogHub>>(),
-            _serviceProvider.GetRequiredService<ILogger<MetricBackgroundWorker>>()
+            _serviceProvider.GetRequiredService<ILogger<MetricBackgroundWorker>>(),
+            _serviceProvider.GetRequiredService<ISystemMetricsService>()
         );
     }
 
@@ -1643,3 +1646,21 @@ public class FakeLogger<T> : ILogger<T>
     {
     }
 }
+
+public class FakeSystemMetricsService : ISystemMetricsService
+{
+    public Task<double> GetSystemCpuUsageAsync() => Task.FromResult(5.0);
+    public (double UsedPercentage, double UsedGb, double TotalGb) GetSystemRamUsage() => (25.0, 4.0, 16.0);
+    public (double UsedPercentage, double UsedGb, double TotalGb) GetSystemDiskUsage() => (40.0, 40.0, 100.0);
+    public Task<SystemMetricsResult> GetCurrentMetricsAsync() => Task.FromResult(new SystemMetricsResult
+    {
+        Cpu = 5.0,
+        RamPercentage = 25.0,
+        RamUsedGb = 4.0,
+        RamTotalGb = 16.0,
+        DiskUsedPercentage = 40.0,
+        DiskUsedGb = 40.0,
+        DiskTotalGb = 100.0
+    });
+}
+

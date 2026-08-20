@@ -22,7 +22,7 @@ public class BackupWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("BackupWorker otomatik yedekleme servisi başlatıldı (Her gece 03:00 kontrolü).");
+        _logger.LogInformation("BackupWorker otomatik haftalık yedekleme servisi başlatıldı (Her Pazar 03:00 kontrolü).");
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -30,10 +30,10 @@ public class BackupWorker : BackgroundService
             {
                 var now = DateTime.Now;
 
-                // Her gece saat 03:00'te ve o gün henüz yedek alınmadıysa çalıştır
-                if (now.Hour == 3 && (_lastBackupDate == null || _lastBackupDate.Value.Date != now.Date))
+                // Her Pazar günü saat 03:00'te ve o gün henüz yedek alınmadıysa çalıştır (Haftada 1 kez)
+                if (now.DayOfWeek == DayOfWeek.Sunday && now.Hour == 3 && (_lastBackupDate == null || _lastBackupDate.Value.Date != now.Date))
                 {
-                    _logger.LogInformation("Saat 03:00. Otomatik gece yedeklemesi tetikleniyor...");
+                    _logger.LogInformation("Pazar saat 03:00. Otomatik haftalık yedekleme tetikleniyor...");
                     
                     using (var scope = _scopeFactory.CreateScope())
                     {
@@ -43,12 +43,12 @@ public class BackupWorker : BackgroundService
                     }
 
                     _lastBackupDate = now;
-                    _logger.LogInformation("Otomatik gece yedeklemesi tamamlandı.");
+                    _logger.LogInformation("Otomatik haftalık yedekleme tamamlandı.");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Otomatik yedekleme işlemi sırasında bir hata oluştu.");
+                _logger.LogError(ex, "Otomatik haftalık yedekleme işlemi sırasında bir hata oluştu.");
             }
 
             // Her 1 saatte bir kontrol et

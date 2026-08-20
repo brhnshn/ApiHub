@@ -504,14 +504,17 @@ public class BackupService : IBackupService
                 }
             }
 
-            // Clean older backups (Keep last 7 days)
-            try
+            // Clean older backups (Keep only the latest 1 backup)
+            if (status == "success")
             {
-                await CleanOldBackupsAsync();
-            }
-            catch (Exception cleanEx)
-            {
-                SystemLogQueue.Log("warning", $"Eski yedekler temizlenirken hata oluştu: {cleanEx.Message}");
+                try
+                {
+                    await CleanOldBackupsAsync(folderName);
+                }
+                catch (Exception cleanEx)
+                {
+                    SystemLogQueue.Log("warning", $"Eski yedekler temizlenirken hata oluştu: {cleanEx.Message}");
+                }
             }
         }
         finally
@@ -862,27 +865,77 @@ public class BackupService : IBackupService
         }
     }
 
-    private async Task CleanOldBackupsAsync()
+    private static readonly System.Text.RegularExpressions.Regex BackupFolderRegex = 
+        new(@"^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private async Task CleanOldBackupsAsync(string? currentBackupFolderName = null)
     {
         var backupsDir = GetBackupsPath();
         if (!Directory.Exists(backupsDir)) return;
 
         var directories = Directory.GetDirectories(backupsDir, "backup_*");
-        var thresholdDate = DateTimeOffset.UtcNow.AddDays(-7);
+        var validBackups = new List<(string Path, string FolderName, DateTimeOffset Timestamp)>();
 
         foreach (var dir in directories)
         {
             var folderName = Path.GetFileName(dir);
+            // Güvenlik kontrolü 1: Sadece backup_YYYY-MM-DD_HH-mm-ss formatındaki klasörleri değerlendir
+            if (!BackupFolderRegex.IsMatch(folderName))
+            {
+                continue;
+            }
+
             var parts = folderName.Split('_');
             if (parts.Length >= 3 && DateTimeOffset.TryParse($"{parts[1]} {parts[2].Replace('-', ':')}", out var parsedDate))
             {
-                if (parsedDate < thresholdDate)
-                {
-                    Directory.Delete(dir, true);
-                    SystemLogQueue.Log("info", $"[Temizlik] 7 günden eski yedek otomatik temizlendi: {folderName}");
-                }
+                validBackups.Add((dir, folderName, parsedDate));
+            }
+            else
+            {
+                validBackups.Add((dir, folderName, Directory.GetCreationTimeUtc(dir)));
             }
         }
+
+        if (validBackups.Count <= 1)
+        {
+            await Task.CompletedTask;
+            return;
+        }
+
+        // En yeniden en eskiye sırala
+        var sortedBackups = validBackups.OrderByDescending(b => b.Timestamp).ToList();
+
+        // En güncel 1 yedeği koru (currentBackupFolderName belirtilmişse onu, yoksa en yeni olanı)
+        var toKeep = !string.IsNullOrEmpty(currentBackupFolderName)
+            ? sortedBackups.FirstOrDefault(b => b.FolderName == currentBackupFolderName)
+            : sortedBackups.FirstOrDefault();
+
+        if (toKeep == default)
+        {
+            toKeep = sortedBackups.First();
+        }
+
+        foreach (var backup in sortedBackups)
+        {
+            if (backup.FolderName == toKeep.FolderName)
+            {
+                continue; // En güncel yedeği koru
+            }
+
+            try
+            {
+                if (Directory.Exists(backup.Path))
+                {
+                    Directory.Delete(backup.Path, true);
+                    SystemLogQueue.Log("info", $"[Temizlik] Eski yedek temizlendi (Sadece en güncel 1 yedek saklanır): {backup.FolderName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                SystemLogQueue.Log("warning", $"[Temizlik] Eski yedek silinirken hata oluştu ({backup.FolderName}): {ex.Message}");
+            }
+        }
+
         await Task.CompletedTask;
     }
 

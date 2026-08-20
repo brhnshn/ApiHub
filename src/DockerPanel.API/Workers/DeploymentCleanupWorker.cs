@@ -30,7 +30,8 @@ public sealed class DeploymentCleanupWorker : BackgroundService
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
             catch (Exception ex) { _logger.LogError(ex, "Deployment cleanup worker failed"); }
-            await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+            // Rollback adaylarını kontrol et (her 30 saniyede bir periyodik kontrol)
+            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
         }
     }
 }
